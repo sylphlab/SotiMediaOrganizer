@@ -1,4 +1,5 @@
-import { FileInfo, FrameInfo, MediaInfo, SimilarityConfig, WasmExports } from "./types"; // Added FileInfo
+import { FileInfo, FrameInfo, MediaInfo, SimilarityConfig, WasmExports } from "./types";
+import { AppResult, ok, err, AppError } from "./errors"; // Added AppResult imports
 
 // Popcount for 8-bit numbers
 export function popcount8(n: number): number {
@@ -405,3 +406,117 @@ export function selectRepresentativesFromScored(
 
 // Removed extra closing brace
 
+
+/**
+ * Merges overlapping clusters from potentially parallel DBSCAN results.
+ * @param clusters An array of cluster sets (Set<string>).
+ * @returns An array of merged, unique cluster sets.
+ */
+export function mergeAndDeduplicateClusters(clusters: Set<string>[]): Set<string>[] {
+    const merged: Set<string>[] = [];
+    const elementToClusterMap = new Map<string, Set<string>>();
+
+    for (const cluster of clusters) {
+      const relatedClusters = new Set<Set<string>>();
+      for (const element of cluster) {
+        const existingCluster = elementToClusterMap.get(element);
+        if (existingCluster) {
+          relatedClusters.add(existingCluster);
+        }
+      }
+
+      if (relatedClusters.size === 0) {
+        // New cluster, no overlap found yet
+        merged.push(cluster);
+        for (const element of cluster) {
+          elementToClusterMap.set(element, cluster);
+        }
+      } else {
+        // Merge this cluster with all related existing clusters
+        const mergedCluster = new Set<string>(cluster);
+        for (const relatedCluster of relatedClusters) {
+          for (const element of relatedCluster) {
+            mergedCluster.add(element);
+          }
+          // Remove the old cluster from merged list
+          const indexToRemove = merged.indexOf(relatedCluster);
+          if (indexToRemove > -1) {
+            merged.splice(indexToRemove, 1);
+          }
+        }
+        merged.push(mergedCluster);
+        // Update map for all elements in the newly merged cluster
+        for (const element of mergedCluster) {
+          elementToClusterMap.set(element, mergedCluster);
+        }
+      }
+    }
+
+    return merged;
+}
+
+
+/**
+ * Expands a cluster in DBSCAN starting from a core point.
+ * Modifies the passed 'visited' set directly.
+ * @param point The starting core point.
+ * @param neighbors Initial neighbors of the starting point (must include the point itself if relevant).
+ * @param visited A Set containing all points visited so far across the entire dataset.
+ * @param minPts Minimum number of points required to form a core point.
+ * @param getNeighborsFn An async function that fetches neighbors for a given point: (p: string) => Promise<AppResult<string[]>>.
+ * @returns A Promise resolving to an AppResult containing the Set<string> of points in the expanded cluster or an error.
+ */
+export async function expandCluster( // Add export back
+  point: string,
+  neighbors: string[],
+  visited: Set<string>,
+  minPts: number,
+  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>
+): Promise<AppResult<Set<string>>> {
+  const cluster = new Set<string>([point]);
+  const queue = [...neighbors]; // Initialize queue with initial neighbors
+
+  let queueIndex = 0;
+  while (queueIndex < queue.length) {
+    const currentPoint = queue[queueIndex++]; // Process queue iteratively
+
+    if (!visited.has(currentPoint)) {
+      visited.add(currentPoint);
+      cluster.add(currentPoint);
+
+      // Find neighbors of the current point
+      const currentNeighborsResult = await getNeighborsFn(currentPoint);
+
+      if (currentNeighborsResult.isErr()) {
+        // Propagate error if neighbor fetching fails
+        return err(new AppError(`Failed to get neighbors for ${currentPoint} during cluster expansion`, { originalError: currentNeighborsResult.error }));
+      }
+
+      const currentNeighbors = currentNeighborsResult.value;
+
+      // If it's a core point, add its *unvisited* neighbors to the queue
+      if (currentNeighbors.length >= minPts) {
+        for (const neighbor of currentNeighbors) {
+          if (!visited.has(neighbor)) {
+            // Check if already in queue to avoid duplicates (though Set handles final cluster)
+            if (!queue.slice(queueIndex).includes(neighbor)) {
+                 queue.push(neighbor);
+            }
+          }
+          // Add to cluster even if visited but not yet clustered (handles border points)
+          // Note: This logic might need refinement depending on exact DBSCAN variant
+          // For now, we primarily rely on adding unvisited points to the queue.
+          // If a point was visited but determined to be noise initially, it might be added here.
+          cluster.add(neighbor); // Ensure border points are included
+        }
+      }
+    }
+    // If visited but not part of *this* cluster yet (e.g., border point found via another core point)
+    // Add it to ensure completeness. DBSCAN variants handle this differently.
+    // A simple approach is to just add it if it's a neighbor.
+    // cluster.add(currentPoint); // Re-adding might be redundant if handled above
+
+  }
+
+  return ok(cluster);
+}

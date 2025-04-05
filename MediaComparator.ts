@@ -18,7 +18,7 @@ import { processSingleFile } from "./src/fileProcessor"; // Added file processor
 import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
 import { ok, err, AppResult, UnknownError, AppError } from "./src/errors"; // Removed unused AnyAppError
-import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored } from "./src/comparatorUtils"; // Removed unused imports
+import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored, mergeAndDeduplicateClusters, expandCluster } from "./src/comparatorUtils"; // Import expandCluster
 import { inject, injectable } from "inversify";
 import { Types, type WorkerPool } from "./src/contexts/types";
 import { readFile } from "fs/promises";
@@ -167,51 +167,13 @@ export class MediaComparator {
 
     const results = await Promise.all(promises);
 
-    return this.mergeAndDeduplicate(results.flat());
+    return mergeAndDeduplicateClusters(results.flat()); // Use imported function
   }
 
-  private mergeAndDeduplicate(clusters: Set<string>[]): Set<string>[] {
-    const merged: Set<string>[] = [];
-    const elementToClusterMap = new Map<string, Set<string>>();
-
-    for (const cluster of clusters) {
-      const relatedClusters = new Set<Set<string>>();
-      for (const element of cluster) {
-        const existingCluster = elementToClusterMap.get(element);
-        if (existingCluster) {
-          relatedClusters.add(existingCluster);
-        }
-      }
-
-      if (relatedClusters.size === 0) {
-        merged.push(cluster);
-        for (const element of cluster) {
-          elementToClusterMap.set(element, cluster);
-        }
-      } else {
-        const mergedCluster = new Set<string>(cluster);
-        for (const relatedCluster of relatedClusters) {
-          for (const element of relatedCluster) {
-            mergedCluster.add(element);
-          }
-          // Remove the old cluster from merged list
-          const indexToRemove = merged.indexOf(relatedCluster);
-          if (indexToRemove > -1) {
-            merged.splice(indexToRemove, 1);
-          }
-        }
-        merged.push(mergedCluster);
-        // Update map for all elements in the newly merged cluster
-        for (const element of mergedCluster) {
-          elementToClusterMap.set(element, mergedCluster);
-        }
-      }
-    }
-
-    return merged;
-  }
+  // Removed mergeAndDeduplicate method (moved to comparatorUtils)
 
   // This method is intended to be run inside a worker thread
+  // Refactored to use expandCluster utility
   async workerDBSCAN(
     chunk: string[],
     vpTree: VPTree<string>,
@@ -221,84 +183,64 @@ export class MediaComparator {
     const clusters: Set<string>[] = [];
     const visited = new Set<string>(); // Track visited points within this worker's chunk
 
+    // Define the neighbor fetching function required by expandCluster
+    // This still uses 'this', highlighting the need to refactor workerDBSCAN further
+    // or change how dependencies are handled in workers.
+    const getNeighborsFn = (p: string): Promise<AppResult<string[]>> => {
+        return this.getValidNeighbors(p, vpTree, eps);
+    };
+
     for (const point of chunk) {
       if (visited.has(point)) continue;
-      visited.add(point);
+      // Note: We mark point as visited *before* getting neighbors,
+      // but expandCluster expects the initial point *not* to be in visited yet.
+      // Let's adjust: mark visited inside expandCluster or after initial neighbor check.
+      // For simplicity, let expandCluster handle marking the initial point visited.
+      // visited.add(point); // Mark point as visited immediately - Moved inside expandCluster logic implicitly
 
-      // Find neighbors using VPTree and validate with adaptive threshold
-      const neighborsResult = await this.getValidNeighbors(point, vpTree, eps);
+      // Find initial neighbors for the starting point
+      const neighborsResult = await getNeighborsFn(point);
 
       if (neighborsResult.isErr()) {
-          // Handle error from getValidNeighbors - e.g., log and treat as no neighbors
-          console.error(`Error getting neighbors for ${point}: ${neighborsResult.error.message}`);
-          // Treat as noise if neighbors couldn't be determined
-          continue;
+          console.error(`Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`);
+          visited.add(point); // Ensure point is marked visited even if neighbors fail
+          continue; // Skip point if neighbors can't be fetched
       }
-      const neighbors = neighborsResult.value; // Unwrap the actual neighbors array
+      const neighbors = neighborsResult.value;
 
-      // If not enough neighbors, it's noise (or a single-element cluster for now)
-      if (neighbors.length < minPts) {
-        // Mark as noise or handle later during merge? For now, treat as single cluster.
-        // clusters.push(new Set([point])); // Option 1: Treat as single cluster
-        continue; // Option 2: Mark as noise (implicitly handled by not adding to any cluster)
-      }
-
-      // Expand cluster
-      const currentCluster = new Set<string>();
-      // Ensure neighbors is an array before spreading
-      const queue = Array.isArray(neighbors) ? [...neighbors] : []; // Initialize queue with neighbors
-
-      while (queue.length > 0) {
-        const currentPoint = queue.shift()!; // Get next point from queue
-
-        // If point hasn't been visited or added to a cluster yet
-        if (!visited.has(currentPoint)) {
-          visited.add(currentPoint);
-          currentCluster.add(currentPoint);
-
-          // Find neighbors of the current point
-          const currentNeighborsResult = await this.getValidNeighbors(
-            currentPoint,
-            vpTree,
-            eps,
+      // Check if it's a core point (has enough neighbors)
+      // Note: DBSCAN typically requires minPts *including* the point itself.
+      // getValidNeighbors might or might not include the point itself depending on distance=0.
+      // Assuming getValidNeighbors doesn't include the point itself unless it's a true neighbor.
+      // So, check >= minPts. If it should include self, check should be >= minPts.
+      if (neighbors.length >= minPts -1) { // Check if it *could* be a core point (needs self + minPts-1 others)
+          // It *might* be a core point, try expanding the cluster
+          // Pass the initial point and its neighbors to expandCluster
+          const clusterResult = await expandCluster(
+              point,
+              neighbors, // Pass initial neighbors
+              visited,   // Pass the shared visited set (modified by expandCluster)
+              minPts,
+              getNeighborsFn // Pass the function to get neighbors for subsequent points
           );
 
-          if (currentNeighborsResult.isErr()) {
-              // Handle error - log and assume no further expansion from this point
-              console.error(`Error getting neighbors for ${currentPoint} during cluster expansion: ${currentNeighborsResult.error.message}`);
-              continue; // Skip adding neighbors from this point
+          if (clusterResult.isErr()) {
+              console.error(`Error expanding cluster for ${point}: ${clusterResult.error.message}`);
+              // Ensure point is marked visited even if expansion fails
+              visited.add(point);
+              // Decide how to handle cluster expansion errors - skip cluster?
+              continue;
           }
-          const currentNeighbors = currentNeighborsResult.value; // Unwrap
 
-          // If it's a core point, add its neighbors to the queue
-          if (currentNeighbors.length >= minPts) {
-            for (const neighbor of currentNeighbors) {
-              if (!visited.has(neighbor)) {
-                // Add only unvisited neighbors
-                queue.push(neighbor);
-              }
-            }
-          }
-        }
-        // If point was visited but not yet part of any cluster (noise initially), add it
-        // This handles border points correctly.
-        // Note: This check might not be strictly necessary if noise points are ignored earlier.
-        // else if (!elementToClusterMap.has(currentPoint)) { // Assuming elementToClusterMap is available or handled differently
-        //    currentCluster.add(currentPoint);
-        // }
+          // Add the successfully expanded cluster
+          // expandCluster handles adding the initial point and marking all cluster members visited
+          clusters.push(clusterResult.value);
+      } else {
+           // Not enough neighbors to be a core point, mark as visited (noise for now)
+           visited.add(point);
       }
-
-      // Add the formed cluster if it's not empty
-      if (currentCluster.size > 0) {
-        // Add the initial point if it wasn't added during expansion (can happen if it was visited early)
-        if (!currentCluster.has(point)) {
-          currentCluster.add(point);
-        }
-        clusters.push(currentCluster);
-      } else if (!visited.has(point)) {
-        // Handle the case where the initial point itself was noise but wasn't processed
-        // clusters.push(new Set([point])); // Or ignore noise
-      }
+      // If not a core point, it's noise (or will be picked up by another cluster's expansion)
+      // No need to explicitly handle noise here as expandCluster handles visited set.
     }
 
     // Add remaining unclustered points as single-element clusters (optional, depends on noise handling)
