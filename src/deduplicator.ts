@@ -3,11 +3,12 @@ import { MediaComparator } from "../MediaComparator";
 import { Spinner } from "@topcli/spinner";
 import { MetadataDBService } from "./services/MetadataDBService"; // Import DB Service
 import { AppResult, err, ok, DatabaseError } from "./errors"; // Import error types
-import { mergeAndDeduplicateClusters } from "./comparatorUtils"; // Import merge function
+import { mergeAndDeduplicateClusters } from "./comparatorUtils"; // Removed unused runDbscanCore import
 // import { bufferToSharedArrayBuffer } from "./utils"; // Removed unused import
 // import { FileInfoRow } from "./services/MetadataDBService"; // Removed unused import
 import { VPTree } from "../VPTree"; // Import VPTree
 import { MediaInfo } from "./types"; // Import MediaInfo
+// Removed unused imports for getValidNeighbors dependencies
 
 /**
  * Performs deduplication on a list of valid files.
@@ -19,7 +20,7 @@ import { MediaInfo } from "./types"; // Import MediaInfo
 export async function deduplicateFilesFn(
   validFiles: string[],
   comparator: MediaComparator,
-  dbService: MetadataDBService, // Add dbService, remove others
+  dbService: MetadataDBService,
 ): Promise<AppResult<DeduplicationResult>> {
   // Update return type
   // TODO: Abstract spinner logic later
@@ -129,22 +130,27 @@ export async function deduplicateFilesFn(
   // --- Step 4: Process Final Clusters ---
   spinner.text = "Processing final clusters...";
   // Create selector using DB for processResults (needed for scoring/representative selection)
+  // Create selector using DB for processResults (needed for scoring/representative selection)
+  // This selector now primarily uses the pre-fetched map.
   const dbSelector = async (file: string): Promise<AppResult<FileInfo>> => {
-    // Use the already fetched map first for efficiency
     const cachedInfo = allFileInfoMap.get(file);
     if (cachedInfo) {
       // TODO: Ensure rowToFileInfo reconstructs full FileInfo if needed, or adjust types
-      return ok(cachedInfo as FileInfo);
+      // Assuming Partial<FileInfo> is sufficient for scoring/selection for now.
+      return ok(cachedInfo as FileInfo); // Cast needed as map stores Partial<FileInfo>
+    } else {
+      console.warn(
+        `File ${file} not found in pre-fetched map during selector call.`,
+      );
+      // Fallback to DB query if absolutely necessary (should be rare)
+      const result = await dbService.getFileInfo(file);
+      if (result.isErr()) return err(result.error);
+      if (!result.value)
+        return err(new DatabaseError(`FileInfo not found in DB for ${file}`));
+      // Update map? Might not be thread-safe if used concurrently later.
+      // allFileInfoMap.set(file, result.value);
+      return ok(result.value as FileInfo); // Cast needed
     }
-    // Fallback to DB query if somehow missed (shouldn't happen ideally)
-    console.warn(
-      `File ${file} not found in pre-fetched map, querying DB again.`,
-    );
-    const result = await dbService.getFileInfo(file);
-    if (result.isErr()) return err(result.error);
-    if (!result.value)
-      return err(new DatabaseError(`FileInfo not found in DB for ${file}`));
-    return ok(result.value as FileInfo);
   };
 
   const finalResult = await comparator.processResults(allClusters, dbSelector);

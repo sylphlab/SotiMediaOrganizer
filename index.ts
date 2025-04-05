@@ -288,6 +288,7 @@ async function main() {
       gatherFileInfoResult.validFiles,
       comparator, // Pass comparator instance
       dbService, // Pass dbService
+      // Removed extra arguments (cache, exifTool, workerPool, fileProcessorConfig)
     );
 
     // Handle potential error from deduplication
