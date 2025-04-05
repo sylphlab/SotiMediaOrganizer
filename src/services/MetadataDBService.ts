@@ -308,6 +308,51 @@ export class MetadataDBService {
     );
   }
 
+  /**
+   * Retrieves only pHash and mediaDuration for multiple files, optimized for similarity checks.
+   */
+  public getMediaInfoForFiles(
+    filePaths: string[],
+  ): AppResult<Map<string, Pick<FileInfoRow, "pHash" | "mediaDuration">>> {
+    if (filePaths.length === 0) {
+      return ok(new Map());
+    }
+    const placeholders = filePaths.map(() => "?").join(",");
+    // Select only necessary columns
+    const stmt = this.db.prepare(
+      `SELECT filePath, pHash, mediaDuration FROM files WHERE filePath IN (${placeholders})`,
+    );
+
+    return safeTry(
+      () => {
+        const rows = stmt.all(...filePaths) as {
+          filePath: string;
+          pHash: string | null;
+          mediaDuration: number | null;
+        }[];
+        const resultMap = new Map<
+          string,
+          Pick<FileInfoRow, "pHash" | "mediaDuration">
+        >();
+        for (const row of rows) {
+          resultMap.set(row.filePath, {
+            pHash: row.pHash,
+            mediaDuration: row.mediaDuration,
+          });
+        }
+        return resultMap;
+      },
+      (e) =>
+        new DatabaseError(
+          `Failed to get MediaInfo for files: ${e instanceof Error ? e.message : String(e)}`,
+          {
+            originalError: e instanceof Error ? e : undefined,
+            operation: "getMediaInfo",
+          },
+        ),
+    );
+  }
+
   // TODO: Add methods for querying based on hashes (contentHash, pHash) for deduplication
   // Example:
   // public findByPHash(pHash: string): AppResult<FileInfoRow[]> { ... }

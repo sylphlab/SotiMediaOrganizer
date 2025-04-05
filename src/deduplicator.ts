@@ -1,15 +1,13 @@
-import { DeduplicationResult, FileInfo } from "./types"; // Removed FileProcessorConfig
+import { DeduplicationResult, FileInfo } from "./types";
 import { MediaComparator } from "../MediaComparator";
 import { Spinner } from "@topcli/spinner";
-import { MetadataDBService } from "./services/MetadataDBService"; // Import DB Service
+import { MetadataDBService } from "./services/MetadataDBService"; // Removed unused FileInfoRow import
 import { AppResult, err, ok, DatabaseError } from "./errors"; // Import error types
 import {
   mergeAndDeduplicateClusters,
   getAdaptiveThreshold,
 } from "./comparatorUtils"; // Import merge function and threshold helper
-// import { bufferToSharedArrayBuffer } from "./utils"; // Removed unused import
-// import { FileInfoRow } from "./services/MetadataDBService"; // Removed unused import
-// import { VPTree } from "../VPTree"; // Removed VPTree import
+import { bufferToSharedArrayBuffer } from "./utils"; // Need this for reconstructing MediaInfo
 import { MediaInfo, SimilarityConfig } from "./types"; // Import MediaInfo and SimilarityConfig
 
 /**
@@ -33,24 +31,24 @@ export async function deduplicateFilesFn(
   // --- Step 1: Find Exact Duplicates using DB ---
   spinner.text = "Finding exact duplicates (DB query)...";
   const pHashMap = new Map<string, string[]>(); // pHash -> [filePath1, filePath2, ...]
-  const filesWithPHash: string[] = [];
-  const filesWithoutPHash: string[] = []; // Files missing pHash in DB (shouldn't happen ideally)
+  const filesWithoutPHash: string[] = []; // Files missing pHash in DB
+  const potentiallySimilarFiles = new Set<string>(); // Files to check for similarity
 
-  // Fetch pHashes for all valid files (consider batching for millions of files)
-  const allFileInfoResult = await dbService.getMultipleFileInfo(validFiles);
-  if (allFileInfoResult.isErr()) {
+  // Fetch only pHash and filePath needed for exact matching
+  // TODO: Optimize - create a dedicated DB method getPHashesForFiles?
+  const initialInfoResult = await dbService.getMultipleFileInfo(validFiles);
+  if (initialInfoResult.isErr()) {
     // @ts-expect-error - Suppress potential type error for spinner.stop()
     spinner.stop();
     console.error(
-      `DB Error fetching file info for deduplication: ${allFileInfoResult.error.message}`,
+      `DB Error fetching initial file info for deduplication: ${initialInfoResult.error.message}`,
     );
-    return err(allFileInfoResult.error);
+    return err(initialInfoResult.error);
   }
-  const allFileInfoMap = allFileInfoResult.value;
+  const initialInfoMap = initialInfoResult.value; // Map<string, Partial<FileInfo>>
 
   for (const filePath of validFiles) {
-    const fileInfo = allFileInfoMap.get(filePath);
-    // Extract pHash (first frame hash) and convert to hex for map key
+    const fileInfo = initialInfoMap.get(filePath);
     const pHashBuffer = fileInfo?.media?.frames?.[0]?.hash;
     const pHashHex = pHashBuffer
       ? Buffer.from(pHashBuffer).toString("hex")
@@ -61,17 +59,15 @@ export async function deduplicateFilesFn(
         pHashMap.set(pHashHex, []);
       }
       pHashMap.get(pHashHex)!.push(filePath);
-      filesWithPHash.push(filePath); // Keep track of files with pHash
     } else {
       console.warn(
         `File ${filePath} missing pHash in DB, excluding from exact match check.`,
       );
-      filesWithoutPHash.push(filePath); // Treat as unique for now, or handle differently
+      filesWithoutPHash.push(filePath); // Treat as unique for now
     }
   }
 
   const exactDuplicateClusters: Set<string>[] = [];
-  const potentiallySimilarFiles = new Set<string>();
 
   pHashMap.forEach((fileList) => {
     if (fileList.length > 1) {
@@ -89,7 +85,7 @@ export async function deduplicateFilesFn(
   const similarityClusters: Set<string>[] = [];
   const processedForSimilarity = new Set<string>(); // Track files already added to a similarity cluster
 
-  // Helper to generate LSH keys (copied from MetadataDBService for local use)
+  // Helper to generate LSH keys
   const generateLshKeys = (pHashHex: string | null): (string | null)[] => {
     const keys: (string | null)[] = [null, null, null, null];
     if (pHashHex && pHashHex.length === 16) {
@@ -113,15 +109,26 @@ export async function deduplicateFilesFn(
       continue; // Skip if already part of a similarity cluster
     }
 
-    const targetFileInfo = allFileInfoMap.get(targetFile);
-    const targetPHashBuffer = targetFileInfo?.media?.frames?.[0]?.hash;
-    const targetPHashHex = targetPHashBuffer
-      ? Buffer.from(targetPHashBuffer).toString("hex")
-      : null;
+    // Fetch required MediaInfo for the target file
+    const targetMediaInfoResult = await dbService.getMediaInfoForFiles([
+      targetFile,
+    ]);
+    if (
+      targetMediaInfoResult.isErr() ||
+      !targetMediaInfoResult.value.has(targetFile)
+    ) {
+      console.error(
+        `Failed to fetch MediaInfo for target ${targetFile}, skipping similarity check.`,
+      );
+      processedForSimilarity.add(targetFile);
+      continue;
+    }
+    const targetMediaData = targetMediaInfoResult.value.get(targetFile)!;
+    const targetPHashHex = targetMediaData.pHash;
 
     if (!targetPHashHex) {
       console.warn(
-        `Skipping similarity check for ${targetFile} due to missing pHash.`,
+        `Skipping similarity check for ${targetFile} due to missing pHash in DB.`,
       );
       processedForSimilarity.add(targetFile); // Mark as processed (treated as unique in similarity phase)
       continue;
@@ -146,19 +153,42 @@ export async function deduplicateFilesFn(
     const similarNeighbors = new Set<string>([targetFile]); // Start cluster with the target file
 
     if (candidatePaths.length > 0) {
-      // Fetch info for candidates (can optimize by fetching only needed fields)
-      // For now, use the existing map, assuming candidates were in the initial fetch
-      // TODO: Optimization - Fetch only required MediaInfo for candidates from DB instead of relying on allFileInfoMap
-      const candidateInfoMap = new Map<string, Partial<FileInfo>>();
-      candidatePaths.forEach((p) => {
-        if (allFileInfoMap.has(p)) {
-          candidateInfoMap.set(p, allFileInfoMap.get(p)!);
-        } else {
-          console.warn(
-            `Candidate ${p} for ${targetFile} not found in pre-fetched map.`,
-          );
-        }
-      });
+      // Fetch required MediaInfo for candidates from DB
+      const candidateMediaInfoResult =
+        await dbService.getMediaInfoForFiles(candidatePaths);
+      if (candidateMediaInfoResult.isErr()) {
+        console.error(
+          `Failed to fetch MediaInfo for candidates of ${targetFile}, skipping comparisons.`,
+        );
+        // Mark target as processed, but don't mark candidates as they might be compared later
+        processedForSimilarity.add(targetFile);
+        continue;
+      }
+      const candidateMediaInfoMap = candidateMediaInfoResult.value;
+
+      // Reconstruct minimal MediaInfo for the target file
+      const targetMediaInfo: MediaInfo | null = targetPHashHex
+        ? {
+            duration: targetMediaData.mediaDuration ?? 0,
+            frames: [
+              {
+                hash: bufferToSharedArrayBuffer(
+                  Buffer.from(targetPHashHex, "hex"),
+                ),
+                timestamp: 0,
+              },
+            ],
+          }
+        : null;
+
+      if (!targetMediaInfo) {
+        // Should not happen due to earlier check, but safety first
+        console.error(
+          `Failed to reconstruct target MediaInfo for ${targetFile}.`,
+        );
+        processedForSimilarity.add(targetFile);
+        continue;
+      }
 
       for (const candidateFile of candidatePaths) {
         // Avoid comparing already clustered files within this loop iteration
@@ -166,19 +196,39 @@ export async function deduplicateFilesFn(
           continue;
         }
 
-        const candidateFileInfo = candidateInfoMap.get(candidateFile);
-        // Ensure targetFileInfo and candidateFileInfo are valid before comparison
-        if (!targetFileInfo?.media || !candidateFileInfo?.media) {
-          continue; // Skip if media info is missing for comparison
+        const candidateMediaData = candidateMediaInfoMap.get(candidateFile);
+        const candidatePHashHex = candidateMediaData?.pHash;
+
+        // Reconstruct minimal MediaInfo for the candidate file
+        const candidateMediaInfo: MediaInfo | null = candidatePHashHex
+          ? {
+              duration: candidateMediaData?.mediaDuration ?? 0,
+              frames: [
+                {
+                  hash: bufferToSharedArrayBuffer(
+                    Buffer.from(candidatePHashHex, "hex"),
+                  ),
+                  timestamp: 0,
+                },
+              ],
+            }
+          : null;
+
+        // Ensure MediaInfo could be reconstructed for candidate before comparison
+        if (!candidateMediaInfo) {
+          console.warn(
+            `Skipping comparison between ${targetFile} and ${candidateFile} due to missing candidate MediaInfo.`,
+          );
+          continue;
         }
 
         const similarity = comparator.calculateSimilarity(
-          targetFileInfo.media as MediaInfo,
-          candidateFileInfo.media as MediaInfo,
+          targetMediaInfo,
+          candidateMediaInfo,
         );
         const threshold = getAdaptiveThreshold(
-          targetFileInfo.media as MediaInfo,
-          candidateFileInfo.media as MediaInfo,
+          targetMediaInfo,
+          candidateMediaInfo,
           similarityConfig,
         ); // Use passed config
 
@@ -210,27 +260,20 @@ export async function deduplicateFilesFn(
 
   // --- Step 4: Process Final Clusters ---
   spinner.text = "Processing final clusters...";
-  // Create selector using DB for processResults (needed for scoring/representative selection)
-  // This selector now primarily uses the pre-fetched map.
+  // Updated dbSelector to always fetch from DB, as allFileInfoMap is removed
   const dbSelector = async (file: string): Promise<AppResult<FileInfo>> => {
-    const cachedInfo = allFileInfoMap.get(file);
-    if (cachedInfo) {
-      // TODO: Ensure rowToFileInfo reconstructs full FileInfo if needed, or adjust types
-      // Assuming Partial<FileInfo> is sufficient for scoring/selection for now.
-      return ok(cachedInfo as FileInfo); // Cast needed as map stores Partial<FileInfo>
-    } else {
-      console.warn(
-        `File ${file} not found in pre-fetched map during selector call.`,
+    const result = await dbService.getFileInfo(file);
+    if (result.isErr()) return err(result.error);
+    if (!result.value) {
+      return err(
+        new DatabaseError(
+          `FileInfo not found in DB for ${file} during final processing`,
+        ),
       );
-      // Fallback to DB query if absolutely necessary (should be rare)
-      const result = await dbService.getFileInfo(file);
-      if (result.isErr()) return err(result.error);
-      if (!result.value)
-        return err(new DatabaseError(`FileInfo not found in DB for ${file}`));
-      // Update map? Might not be thread-safe if used concurrently later.
-      // allFileInfoMap.set(file, result.value);
-      return ok(result.value as FileInfo); // Cast needed
     }
+    // TODO: Ensure rowToFileInfo reconstructs full FileInfo if needed by processResults/scoring
+    // Assuming Partial<FileInfo> is sufficient for now.
+    return ok(result.value as FileInfo); // Cast needed
   };
 
   const finalResult = await comparator.processResults(allClusters, dbSelector);

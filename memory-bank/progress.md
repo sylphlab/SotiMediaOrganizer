@@ -1,8 +1,8 @@
-<!-- Version: 1.1 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 1.2 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Project Progress
 
-- **Current Status:** Completed Phase 1 refactoring and committed changes. Started Phase 2 (Scalability) by integrating `MetadataDBService` for exact pHash matching in `deduplicator.ts` and committing changes. Approved DB-centric LSH strategy for similarity search.
+- **Current Status:** Implemented core DB-centric LSH similarity search in `deduplicator.ts` (Phase 2) and committed changes.
 - **What Works:**
   - Memory Bank structure initialized.
   - Project renamed to MediaCurator.
@@ -16,14 +16,14 @@
   - ESLint parsing error in `src/jobs/adaptiveExtraction.ts` fixed.
   - Added `better-sqlite3` dependency.
   - Integrated `MetadataDBService` into `deduplicator.ts` for exact pHash matching.
+  - Updated `MetadataDBService` schema and methods for LSH keys.
+  - Replaced VPTree/DBSCAN logic in `deduplicator.ts` with LSH-based similarity clustering.
 - **What's Next / To Be Built:**
   - **Major Refactoring (Phase 2 - Scalability):**
-    - Implement DB-centric LSH strategy:
-      - Modify DB schema/service for LSH keys.
-      - Refactor `deduplicator.ts` to use LSH queries instead of VPTree/DBSCAN.
+    - **Optimization:** Refactor LSH similarity check loop in `deduplicator.ts` to fetch only necessary `MediaInfo` from DB for candidates.
+    - **Workers:** Re-evaluate worker usage for pHash generation.
+    - **Benchmarking:** Introduce benchmarking.
     - Refactor pipeline stages (`Gathering`, `Deduplication`) for efficient SQLite usage (streaming/batching).
-    - Refine worker implementation (if needed).
-    - Introduce benchmarking.
   - **Major Refactoring (Phase 3 - UI):**
     - Refine CLI output/progress/errors.
     - (Deferred) Web UI foundation.
@@ -32,4 +32,4 @@
 - **Known Issues/Blockers:**
   - Persistent issues mocking `fs.existsSync` and/or `crypto.randomBytes` within `bun test` environment (relevant for future testing).
   - Test coverage is low pending completion of major refactoring (Phase 4).
-  - Current VPTree/DBSCAN implementation in `MediaComparator` relies on in-memory data and is not scalable (being replaced in Phase 2).
+  - Deduplication logic in `deduplicator.ts` still relies on pre-fetched `allFileInfoMap` for candidate info (needs optimization).
