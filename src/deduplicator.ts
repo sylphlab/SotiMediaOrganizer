@@ -17,6 +17,7 @@ import { MediaInfo, SimilarityConfig } from "./types"; // Import MediaInfo and S
  * @param validFiles Array of file paths that were successfully processed.
  * @param comparator Instance of MediaComparator (used for similarity calculation and result processing).
  * @param dbService MetadataDBService instance.
+ * @param similarityConfig Configuration for similarity thresholds.
  * @returns A Promise resolving to an AppResult containing the DeduplicationResult or an error.
  */
 export async function deduplicateFilesFn(
@@ -105,7 +106,9 @@ export async function deduplicateFilesFn(
     return keys;
   };
 
+  let checkedCount = 0; // Counter for progress update
   for (const targetFile of potentiallySimilarFiles) {
+    checkedCount++;
     if (processedForSimilarity.has(targetFile)) {
       continue; // Skip if already part of a similarity cluster
     }
@@ -125,6 +128,7 @@ export async function deduplicateFilesFn(
     }
 
     const targetLshKeys = generateLshKeys(targetPHashHex);
+    // Find candidates using the DB service
     const candidateResult = await dbService.findSimilarCandidates(
       targetFile,
       targetLshKeys,
@@ -144,6 +148,7 @@ export async function deduplicateFilesFn(
     if (candidatePaths.length > 0) {
       // Fetch info for candidates (can optimize by fetching only needed fields)
       // For now, use the existing map, assuming candidates were in the initial fetch
+      // TODO: Optimization - Fetch only required MediaInfo for candidates from DB instead of relying on allFileInfoMap
       const candidateInfoMap = new Map<string, Partial<FileInfo>>();
       candidatePaths.forEach((p) => {
         if (allFileInfoMap.has(p)) {
@@ -156,12 +161,13 @@ export async function deduplicateFilesFn(
       });
 
       for (const candidateFile of candidatePaths) {
+        // Avoid comparing already clustered files within this loop iteration
         if (processedForSimilarity.has(candidateFile)) {
-          continue; // Skip if candidate already belongs to another cluster
+          continue;
         }
 
         const candidateFileInfo = candidateInfoMap.get(candidateFile);
-        // Ensure targetFileInfo is also valid here before comparison
+        // Ensure targetFileInfo and candidateFileInfo are valid before comparison
         if (!targetFileInfo?.media || !candidateFileInfo?.media) {
           continue; // Skip if media info is missing for comparison
         }
@@ -170,7 +176,6 @@ export async function deduplicateFilesFn(
           targetFileInfo.media as MediaInfo,
           candidateFileInfo.media as MediaInfo,
         );
-        // Ensure comparator.similarityConfig is accessible or passed correctly
         const threshold = getAdaptiveThreshold(
           targetFileInfo.media as MediaInfo,
           candidateFileInfo.media as MediaInfo,
@@ -191,14 +196,13 @@ export async function deduplicateFilesFn(
       // If no similar neighbors found, mark only the target file as processed (unique in similarity phase)
       processedForSimilarity.add(targetFile);
     }
-    spinner.text = `Finding similar files... (${processedForSimilarity.size}/${potentiallySimilarFiles.size} checked)`;
+    spinner.text = `Finding similar files... (${checkedCount}/${potentiallySimilarFiles.size} checked)`;
   }
   spinner.text = `Found ${similarityClusters.length} similarity clusters via LSH.`;
 
   // --- Step 3: Merge Exact and Similarity Clusters ---
   spinner.text = "Merging cluster results...";
-  // Combine exact matches and results from DBSCAN on potentially similar files
-  // Ensure mergeAndDeduplicateClusters is imported
+  // Combine exact matches and results from LSH similarity check
   const allClusters = mergeAndDeduplicateClusters([
     ...exactDuplicateClusters,
     ...similarityClusters,
@@ -206,7 +210,6 @@ export async function deduplicateFilesFn(
 
   // --- Step 4: Process Final Clusters ---
   spinner.text = "Processing final clusters...";
-  // Create selector using DB for processResults (needed for scoring/representative selection)
   // Create selector using DB for processResults (needed for scoring/representative selection)
   // This selector now primarily uses the pre-fetched map.
   const dbSelector = async (file: string): Promise<AppResult<FileInfo>> => {
