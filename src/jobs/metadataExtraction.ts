@@ -1,10 +1,10 @@
 import { Metadata, FileStatsConfig } from "../types"; // Combined imports
 import { LmdbCache } from "../caching/LmdbCache";
-import { ExifTool, Tags } from "exiftool-vendored"; // Added Tags import
+import { ExifTool } from "exiftool-vendored"; // Removed unused Tags
 import { readExifTags } from "../external/ExifToolService"; // TODO: Refactor this to return AppResult
 import { parseExifTagsToMetadata } from "../utils"; // TODO: Refactor this to return AppResult
 import { getFileStatsHashKey } from "./fileStats";
-import { AppResult, ok, err, DatabaseError, ExternalToolError, AnyAppError } from "../errors"; // Added AppResult imports
+import { AppResult, ok, err, DatabaseError } from "../errors"; // Removed unused ExternalToolError, AnyAppError
 
 const JOB_NAME = "metadataExtraction"; // Define job name constant
 

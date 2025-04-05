@@ -6,7 +6,7 @@ import {
   SimilarityConfig,
   ProgramOptions,
   FileProcessor,
-  WorkerData,
+  // WorkerData, // Removed unused import
   // MaybePromise, // Removed unused import
   WasmExports,
   FileProcessorConfig, // Added config type
@@ -17,8 +17,8 @@ import { ExifTool } from "exiftool-vendored"; // Added exiftool import
 import { processSingleFile } from "./src/fileProcessor"; // Added file processor function import
 import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
-import { ok, err, AppResult, AnyAppError, UnknownError, AppError } from "./src/errors"; // Added AppError
-import { hammingDistance, calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, calculateEntryScore, getAdaptiveThreshold, getQuality, sortEntriesByScore, selectRepresentativeCaptures, selectRepresentativesFromScored } from "./src/comparatorUtils"; // Import the new functions
+import { ok, err, AppResult, UnknownError, AppError } from "./src/errors"; // Removed unused AnyAppError
+import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored } from "./src/comparatorUtils"; // Removed unused imports
 import { inject, injectable } from "inversify";
 import { Types, type WorkerPool } from "./src/contexts/types";
 import { readFile } from "fs/promises";
@@ -154,17 +154,7 @@ export class MediaComparator {
       const batch = files.slice(i, i + batchSize);
       promises.push(
         this.workerPool
-          .performDBSCAN(
-            // Construct the new DBSCANWorkerData
-            <any>{ // Use 'any' temporarily as DBSCANWorkerData is defined in worker.ts
-              root: vpTree.getRoot(),
-              options: this.options, // Pass necessary options
-              config: this.fileProcessorConfig, // Pass combined config
-              similarityConfig: this.similarityConfig, // Pass similarity config
-              wasmExports: this.wasmExports, // Pass WASM exports
-            },
-            batch,
-          )
+          .performDBSCAN( /* Removed argument as worker function no longer accepts it */ )
           .then((result) => {
             processedItems += batch.length;
             progressCallback?.(

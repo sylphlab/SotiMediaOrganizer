@@ -1,5 +1,5 @@
 import { ExifTool, Tags } from "exiftool-vendored";
-import { AppResult, ok, err, ExternalToolError, safeTryAsync } from "../errors"; // Added AppResult imports
+import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Removed unused ok, err
 
 /**
  * Reads Exif tags from a file using the provided ExifTool instance.

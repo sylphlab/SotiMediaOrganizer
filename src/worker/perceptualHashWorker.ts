@@ -1,4 +1,5 @@
-import { quickSelect, createDCTConstants, computeFastDCT, computeHashFromDCT } from "../utils"; // Import utility functions
+import { createDCTConstants, computeFastDCT, computeHashFromDCT } from "../utils"; // Removed unused quickSelect
+import { AppResult, ok, err } from "../errors"; // Import AppResult types
 
 // Removed duplicate import
 export class PerceptualHashWorker {
@@ -15,17 +16,26 @@ export class PerceptualHashWorker {
   }
 
   // Removed initializeConstants method
-  computePerceptualHash(imageBuffer: Uint8Array): Uint8Array {
+  computePerceptualHash(imageBuffer: Uint8Array): AppResult<Uint8Array> { // Update return type
     const size = this.resolution;
     const hashSize = this.HASH_SIZE;
 
     // Compute DCT using the utility function
-    const dct = computeFastDCT(imageBuffer, size, hashSize, { dctCoefficients: this.dctCoefficients, normFactors: this.normFactors });
+    // Compute DCT using the utility function, handle AppResult
+    const dctResult = computeFastDCT(imageBuffer, size, hashSize, { dctCoefficients: this.dctCoefficients, normFactors: this.normFactors });
+    if (dctResult.isErr()) {
+        return err(dctResult.error); // Propagate error
+    }
+    const dct = dctResult.value; // Unwrap
 
-    // Compute hash from DCT using the utility function
-    const hash = computeHashFromDCT(dct, hashSize);
+    // Compute hash from DCT using the utility function, handle AppResult
+    const hashResult = computeHashFromDCT(dct, hashSize);
+    if (hashResult.isErr()) {
+        return err(hashResult.error); // Propagate error
+    }
+    const hash = hashResult.value; // Unwrap
 
-    return hash;
+    return ok(hash); // Return Ok result
   }
 
 } // Removed fastDCT and computeMedianAC methods

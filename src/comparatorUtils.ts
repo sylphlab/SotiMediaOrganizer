@@ -51,7 +51,7 @@ export function hammingDistance(
   const len1 = hash1.byteLength;
   const len2 = hash2.byteLength;
   const minLen = Math.min(len1, len2);
-  const maxLen = Math.max(len1, len2);
+  // const maxLen = Math.max(len1, len2); // Removed unused variable
   let distance_ts = 0n;
 
   // Process full 64-bit chunks common to both arrays

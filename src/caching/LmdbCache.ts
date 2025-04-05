@@ -13,13 +13,14 @@ export interface CacheResult<T> {
 
 export interface ConfigCheckResult {
     isValid: boolean;
-    cachedConfig?: any; // Consider a more specific type if possible
+    cachedConfig?: unknown; // Use unknown instead of any
 }
 
 // TODO: Make injectable or provide singleton instance via Context
 export class LmdbCache {
     private rootDb: RootDatabase;
-    private jobDbs: Map<string, { resultsDb: Database<any, string>, configDb: Database<any, string> }> = new Map();
+    // Store databases with specific types using generics later in getJobDbs
+    private jobDbs: Map<string, { resultsDb: Database<Buffer, string>, configDb: Database<Buffer, string> }> = new Map(); // Store raw Buffers
     private mutexes: Map<string, Mutex> = new Map(); // Mutex per cache key (jobName + hashKey)
 
     constructor(dbPath: string = '.mediadb') {
@@ -33,15 +34,17 @@ export class LmdbCache {
         }
     }
 
-    private getJobDbs(jobName: string): { resultsDb: Database<any, string>, configDb: Database<any, string> } {
+    // Make generic to handle specific value types, though DBs store Buffers
+    private getJobDbs(jobName: string): { resultsDb: Database<Buffer, string>, configDb: Database<Buffer, string> } {
         if (!this.rootDb) { // Removed status check
             throw new Error("LMDB root database is not open or has been closed.");
         }
         if (!this.jobDbs.has(jobName)) {
             try {
                 // Ensure keys are strings for LMDB
-                const resultsDb = this.rootDb.openDB<any, string>(`${jobName}_results`, { keyEncoding: 'binary' }); // Changed encoding
-                const configDb = this.rootDb.openDB<any, string>(`${jobName}_config`, { keyEncoding: 'binary' }); // Changed encoding
+                // Open DBs to store Buffers, keyEncoding 'binary' is often used for Buffers/strings
+                const resultsDb = this.rootDb.openDB<Buffer, string>(`${jobName}_results`, { keyEncoding: 'binary' });
+                const configDb = this.rootDb.openDB<Buffer, string>(`${jobName}_config`, { keyEncoding: 'binary' });
                 this.jobDbs.set(jobName, { resultsDb, configDb });
             } catch (error) {
                 console.error(`Failed to open sub-databases for job ${jobName}:`, error);
@@ -61,7 +64,7 @@ export class LmdbCache {
 
     // --- Serialization Helpers (Adapted from BaseFileInfoJob) ---
     // Using Buffer directly as LMDB Node supports it well.
-    private serialize(data: any): Buffer {
+    private serialize(data: unknown): Buffer { // Use unknown instead of any
         // Handle SharedArrayBuffer specifically
         if (data instanceof SharedArrayBuffer) {
             // Marker: 1 for SharedArrayBuffer
@@ -83,7 +86,7 @@ export class LmdbCache {
         }
     }
 
-    private deserialize(buffer: Buffer): any {
+    private deserialize(buffer: Buffer): unknown { // Use unknown instead of any
         if (!buffer || buffer.length === 0) return undefined;
 
         try {

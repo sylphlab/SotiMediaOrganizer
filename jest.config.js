@@ -1,3 +1,4 @@
+// eslint-env node
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   preset: 'ts-jest',
@@ -13,8 +14,7 @@ module.exports = {
     "<rootDir>/src",
     "<rootDir>/tests"
   ],
-  // The test environment that will be used for testing
-  testEnvironment: "node",
+  // The test environment that will be used for testing (duplicate removed)
   // The glob patterns Jest uses to detect test files
   testMatch: [
     "**/tests/**/*.test.ts",

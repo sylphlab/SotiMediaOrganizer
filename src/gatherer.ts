@@ -1,4 +1,4 @@
-import { GatherFileInfoResult, FileProcessorConfig, FileInfo, Stats } from "./types"; // Added FileInfo, Stats
+import { GatherFileInfoResult, FileProcessorConfig } from "./types"; // Removed unused FileInfo, Stats
 import { LmdbCache } from "./caching/LmdbCache";
 import { ExifTool } from "exiftool-vendored";
 import { WorkerPool } from "./contexts/types";
@@ -6,7 +6,8 @@ import { processSingleFile } from "./fileProcessor";
 import { Semaphore } from "async-mutex";
 import cliProgress from "cli-progress"; // Keep for now, or abstract later
 import chalk from "chalk";
-import { getFileTypeByExt } from "./utils"; // Assuming utils is in parent dir
+import { getFileTypeByExt } from "./utils";
+import { FileType } from "./types"; // Import FileType enum
 
 // TODO: Abstract progress bar logic later
 function formatTime(seconds: number): string {
@@ -93,7 +94,8 @@ export async function gatherFileInfoFn(
      const bars = new Map<string, cliProgress.Bar>();
      const sortedFormats = Array.from(files.keys()).sort(
        (a, b) =>
-         getFileTypeByExt(a) - getFileTypeByExt(b) ||
+         // Unwrap results, defaulting to Image on error for sorting
+         getFileTypeByExt(a).unwrapOr(FileType.Image) - getFileTypeByExt(b).unwrapOr(FileType.Image) ||
          files.get(b)!.length - files.get(a)!.length,
      );
 
@@ -122,7 +124,7 @@ export async function gatherFileInfoFn(
                         // Call the core processing function
                         await processSingleFile(file, config, cache, exifTool, workerPool);
                         validFiles.push(file);
-                    } catch (error) {
+                    } catch { // Remove unused 'error' variable
                         // Log error minimally here, detailed logging within processSingleFile
                         // console.error(`Error processing ${file}: ${error.message}`);
                         stats.errorCount++;

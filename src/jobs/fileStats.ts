@@ -1,7 +1,7 @@
 import { FileStats, FileStatsConfig } from "../types";
 import { LmdbCache } from "../caching/LmdbCache";
 import { getFileStats, calculateFileHash, sharedArrayBufferToHex } from "../utils";
-import { AppResult, ok, err, DatabaseError, AnyAppError } from "../errors"; // Added AppResult imports
+import { AppResult, ok, err, DatabaseError } from "../errors"; // Removed unused AnyAppError
 
 const JOB_NAME = "fileStats"; // Define job name constant
 

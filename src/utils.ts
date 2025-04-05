@@ -4,7 +4,7 @@ import { ExifDate, ExifDateTime, Tags } from "exiftool-vendored";
 import { createHash } from "crypto";
 import { createReadStream, Stats } from "fs";
 import { stat } from "fs/promises";
-import { AppResult, ok, err, FileSystemError, ValidationError, UnknownError, HashingError, safeTryAsync, safeTry, AnyAppError, AppError } from "./errors"; // Added safeTry, AppError
+import { AppResult, ok, err, FileSystemError, ValidationError, UnknownError, HashingError, safeTryAsync, safeTry, AppError } from "./errors"; // Removed unused AnyAppError
 
 export function getFileType(filePath: string): AppResult<FileType> {
   const ext = extname(filePath).slice(1).toLowerCase();

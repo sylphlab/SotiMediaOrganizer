@@ -1,11 +1,11 @@
-import { FileInfo, FileStatsConfig, AdaptiveExtractionConfig, FileProcessorConfig, FileStats, Metadata, MediaInfo } from "./types"; // Added specific result types
+import { FileInfo, FileProcessorConfig, FileStats, Metadata, MediaInfo } from "./types"; // Removed unused FileStatsConfig, AdaptiveExtractionConfig
 import { LmdbCache } from "./caching/LmdbCache";
 import { ExifTool } from "exiftool-vendored";
 import { WorkerPool } from "./contexts/types";
 import { processFileStats } from "./jobs/fileStats"; // Returns AppResult<FileStats>
 import { processMetadata } from "./jobs/metadataExtraction"; // Returns AppResult<Metadata>
 import { processAdaptiveExtraction } from "./jobs/adaptiveExtraction"; // Returns AppResult<MediaInfo>
-import { AppResult, ok, err, AnyAppError } from "./errors"; // Added AppResult imports
+import { AppResult, ok, err } from "./errors"; // Removed unused AnyAppError
 
 // FileProcessorConfig interface moved to src/types.ts
 

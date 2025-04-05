@@ -90,7 +90,7 @@ export async function transferFilesFn(
          spinner.succeed(`File transfer completed in ${(spinner.elapsedTime / 1000).toFixed(2)} seconds.`);
     } catch (transferError) {
          // Workaround for spinner type issue: stop and log error manually
-         // @ts-ignore - Suppress incorrect type error for spinner.stop()
+         // @ts-expect-error - Suppress incorrect type error for spinner.stop() (Corrected directive)
          spinner.stop(); // Stop the spinner animation (Method likely exists despite type error)
          console.error(chalk.red(`✖ File transfer failed: ${transferError.message}`)); // Log error manually
          throw transferError; // Rethrow after stopping spinner and logging

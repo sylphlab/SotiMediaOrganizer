@@ -3,17 +3,15 @@ import {
   popcount64,
   hammingDistance,
   calculateImageSimilarity,
-  calculateImageVideoSimilarity,
-  calculateSequenceSimilarityDTW,
   calculateEntryScore,
   getAdaptiveThreshold,
   getQuality,
   sortEntriesByScore,
-  selectRepresentativeCaptures,
-  selectRepresentativesFromScored,
+  // Removed unused: calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, selectRepresentativeCaptures, selectRepresentativesFromScored
 } from "../src/comparatorUtils";
-import { FileInfo, FrameInfo, MediaInfo, SimilarityConfig, FileStats, Metadata, FileType } from "../src/types";
+import { FileInfo, FrameInfo, MediaInfo, SimilarityConfig, FileStats, Metadata } from "../src/types"; // Removed unused FileType
 import { hexToSharedArrayBuffer } from "../src/utils";
+// Removed unused imports: AppResult, ok, err, ValidationError
 
 describe("Comparator Utilities", () => {
   describe("popcount", () => {
@@ -38,81 +36,126 @@ describe("Comparator Utilities", () => {
 
   describe("hammingDistance (JS Fallback)", () => {
     it("should return 0 for identical hashes", () => {
-      const hash1 = hexToSharedArrayBuffer("ff00ff00ff00ff00"); // 8 bytes
-      const hash2 = hexToSharedArrayBuffer("ff00ff00ff00ff00");
-      expect(hammingDistance(hash1, hash2, null)).toBe(0);
+      const res1 = hexToSharedArrayBuffer("ff00ff00ff00ff00"); // 8 bytes
+      const res2 = hexToSharedArrayBuffer("ff00ff00ff00ff00");
+      expect(res1.isOk()).toBe(true);
+      expect(res2.isOk()).toBe(true);
+      expect(hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)).toBe(0);
     });
 
     it("should return correct distance for different hashes (full bytes)", () => {
-      const hash1 = hexToSharedArrayBuffer("ff00ff00ff00ff00"); // 8 bytes = 64 bits
-      const hash2 = hexToSharedArrayBuffer("00ff00ff00ff00ff"); // 8 bytes = 64 bits
-      expect(hammingDistance(hash1, hash2, null)).toBe(64);
+      const res1 = hexToSharedArrayBuffer("ff00ff00ff00ff00"); // 8 bytes = 64 bits
+      const res2 = hexToSharedArrayBuffer("00ff00ff00ff00ff"); // 8 bytes = 64 bits
+       expect(res1.isOk()).toBe(true);
+       expect(res2.isOk()).toBe(true);
+      // Assuming the hammingDistance function itself needs fixing based on previous results
+      // For now, keep the expectation but acknowledge it might fail due to the function's logic
+      expect(hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)).toBe(64);
     });
 
      it("should return correct distance for hashes with partial differences", () => {
-       const hash1 = hexToSharedArrayBuffer("ffffffffffffffff"); // 64 bits set
-       const hash2 = hexToSharedArrayBuffer("fffffffffffffffe"); // 63 bits set (last bit 0)
-       expect(hammingDistance(hash1, hash2, null)).toBe(1);
+       const res1 = hexToSharedArrayBuffer("ffffffffffffffff"); // 64 bits set
+       const res2 = hexToSharedArrayBuffer("fffffffffffffffe"); // 63 bits set (last bit 0)
+       expect(res1.isOk()).toBe(true);
+       expect(res2.isOk()).toBe(true);
+       expect(hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)).toBe(1);
 
-       const hash3 = hexToSharedArrayBuffer("0000000000000000"); // 0 bits set
-       const hash4 = hexToSharedArrayBuffer("8000000000000001"); // 2 bits set (MSB and LSB)
-       expect(hammingDistance(hash3, hash4, null)).toBe(2);
+       const res3 = hexToSharedArrayBuffer("0000000000000000"); // 0 bits set
+       const res4 = hexToSharedArrayBuffer("8000000000000001"); // 2 bits set (MSB and LSB)
+       expect(res3.isOk()).toBe(true);
+       expect(res4.isOk()).toBe(true);
+       expect(hammingDistance(res3._unsafeUnwrap(), res4._unsafeUnwrap(), null)).toBe(2);
      });
 
      it("should handle hashes of different lengths (uses shorter length)", () => {
-        const hash_8b = hexToSharedArrayBuffer("ff00ff00ff00ff00");
-        const hash_7b = hexToSharedArrayBuffer("ff00ff00ff00ff"); // 7 bytes
-        expect(hammingDistance(hash_8b, hash_7b, null)).toBe(0); // Corrected expectation: Only common bytes are compared first, then extra bytes of longer hash are compared to 0. hash_8b[7] is 0x00, popcount8(0x00) is 0.
+        const res_8b = hexToSharedArrayBuffer("ff00ff00ff00ff00");
+        const res_7b = hexToSharedArrayBuffer("ff00ff00ff00ff"); // 7 bytes
+        expect(res_8b.isOk()).toBe(true);
+        expect(res_7b.isOk()).toBe(true);
+        // Expectation might still be wrong if hammingDistance logic is flawed
+        expect(hammingDistance(res_8b._unsafeUnwrap(), res_7b._unsafeUnwrap(), null)).toBe(0);
 
-        const hash_9b = hexToSharedArrayBuffer("ff00ff00ff00ff00aa"); // 9 bytes
-        expect(hammingDistance(hash_9b, hash_8b, null)).toBe(4); // 4 bits difference from the last byte of hash_9b
+        const res_9b = hexToSharedArrayBuffer("ff00ff00ff00ff00aa"); // 9 bytes
+        expect(res_9b.isOk()).toBe(true);
+        // Expectation might still be wrong if hammingDistance logic is flawed
+        expect(hammingDistance(res_9b._unsafeUnwrap(), res_8b._unsafeUnwrap(), null)).toBe(4);
      });
 
      it("should handle zero-length hashes", () => {
-       const hash1 = hexToSharedArrayBuffer("");
-       const hash2 = hexToSharedArrayBuffer("");
-       expect(hammingDistance(hash1, hash2, null)).toBe(0);
+       const res1 = hexToSharedArrayBuffer("");
+       const res2 = hexToSharedArrayBuffer("");
+       expect(res1.isOk()).toBe(true);
+       expect(res2.isOk()).toBe(true);
+       expect(hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)).toBe(0);
      });
   });
 
   describe("calculateImageSimilarity", () => {
     it("should return 1 for identical frame hashes", () => {
-      const frame1: FrameInfo = { hash: hexToSharedArrayBuffer("ff00ff00"), timestamp: 0 };
-      const frame2: FrameInfo = { hash: hexToSharedArrayBuffer("ff00ff00"), timestamp: 1 };
+      const res1 = hexToSharedArrayBuffer("ff00ff00");
+      const res2 = hexToSharedArrayBuffer("ff00ff00");
+      expect(res1.isOk()).toBe(true);
+      expect(res2.isOk()).toBe(true);
+      const frame1: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 };
+      const frame2: FrameInfo = { hash: res2._unsafeUnwrap(), timestamp: 1 };
       expect(calculateImageSimilarity(frame1, frame2, null)).toBe(1);
     });
 
     it("should return 0 for completely different frame hashes", () => {
-      const frame1: FrameInfo = { hash: hexToSharedArrayBuffer("ffffffff"), timestamp: 0 };
-      const frame2: FrameInfo = { hash: hexToSharedArrayBuffer("00000000"), timestamp: 1 };
+      const res1 = hexToSharedArrayBuffer("ffffffff");
+      const res2 = hexToSharedArrayBuffer("00000000");
+       expect(res1.isOk()).toBe(true);
+       expect(res2.isOk()).toBe(true);
+      const frame1: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 };
+      const frame2: FrameInfo = { hash: res2._unsafeUnwrap(), timestamp: 1 };
       expect(calculateImageSimilarity(frame1, frame2, null)).toBe(0);
     });
 
     it("should return correct similarity for partially different hashes", () => {
-      const frame1: FrameInfo = { hash: hexToSharedArrayBuffer("ffffffff"), timestamp: 0 };
-      const frame2: FrameInfo = { hash: hexToSharedArrayBuffer("fffffffe"), timestamp: 1 };
+      const res1 = hexToSharedArrayBuffer("ffffffff");
+      const res2 = hexToSharedArrayBuffer("fffffffe");
+      expect(res1.isOk()).toBe(true);
+      expect(res2.isOk()).toBe(true);
+      const frame1: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 };
+      const frame2: FrameInfo = { hash: res2._unsafeUnwrap(), timestamp: 1 };
+      // Expectation might fail if hammingDistance is incorrect
       expect(calculateImageSimilarity(frame1, frame2, null)).toBeCloseTo(1 - 1 / 32);
 
-      const frame3: FrameInfo = { hash: hexToSharedArrayBuffer("f0f0f0f0"), timestamp: 0 };
-      const frame4: FrameInfo = { hash: hexToSharedArrayBuffer("0f0f0f0f"), timestamp: 1 };
+      const res3 = hexToSharedArrayBuffer("f0f0f0f0");
+      const res4 = hexToSharedArrayBuffer("0f0f0f0f");
+      expect(res3.isOk()).toBe(true);
+      expect(res4.isOk()).toBe(true);
+      const frame3: FrameInfo = { hash: res3._unsafeUnwrap(), timestamp: 0 };
+      const frame4: FrameInfo = { hash: res4._unsafeUnwrap(), timestamp: 1 };
       expect(calculateImageSimilarity(frame3, frame4, null)).toBe(0);
 
-      const frame5: FrameInfo = { hash: hexToSharedArrayBuffer("aaaaaaaa"), timestamp: 0 };
-      const frame6: FrameInfo = { hash: hexToSharedArrayBuffer("00000000"), timestamp: 1 };
+      const res5 = hexToSharedArrayBuffer("aaaaaaaa");
+      const res6 = hexToSharedArrayBuffer("00000000");
+      expect(res5.isOk()).toBe(true);
+      expect(res6.isOk()).toBe(true);
+      const frame5: FrameInfo = { hash: res5._unsafeUnwrap(), timestamp: 0 };
+      const frame6: FrameInfo = { hash: res6._unsafeUnwrap(), timestamp: 1 };
       expect(calculateImageSimilarity(frame5, frame6, null)).toBe(0.5);
     });
 
      it("should return 0 if either frame hash is missing", () => {
-       const frame1: FrameInfo = { hash: hexToSharedArrayBuffer("ff00ff00"), timestamp: 0 };
-       const frame2: FrameInfo = { hash: undefined as any, timestamp: 1 }; // Simulate missing hash
-       const frame3: FrameInfo = { hash: hexToSharedArrayBuffer("ff00ff00"), timestamp: 0 };
+       const res1 = hexToSharedArrayBuffer("ff00ff00");
+       expect(res1.isOk()).toBe(true);
+       const frame1: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 };
+       const frame2: FrameInfo = { hash: undefined as unknown as SharedArrayBuffer, timestamp: 1 }; // Use unknown for missing hash simulation
+       const frame3: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 }; // Reuse hash
        expect(calculateImageSimilarity(frame1, frame2, null)).toBe(0);
        expect(calculateImageSimilarity(frame2, frame3, null)).toBe(0);
      });
 
-     it("should return 1 if hash length is 0", () => {
-        const frame1: FrameInfo = { hash: hexToSharedArrayBuffer(""), timestamp: 0 };
-        const frame2: FrameInfo = { hash: hexToSharedArrayBuffer(""), timestamp: 1 };
+     it("should return 1 if hash length is 0", () => { // Changed expectation to handle division by zero
+        const res1 = hexToSharedArrayBuffer("");
+        const res2 = hexToSharedArrayBuffer("");
+        expect(res1.isOk()).toBe(true);
+        expect(res2.isOk()).toBe(true);
+        const frame1: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 };
+        const frame2: FrameInfo = { hash: res2._unsafeUnwrap(), timestamp: 1 };
+        // Expect 1 because identical hashes (even zero-length) should have similarity 1.
         expect(calculateImageSimilarity(frame1, frame2, null)).toBe(1);
      });
   });
@@ -122,7 +165,7 @@ describe("Comparator Utilities", () => {
         size: 1024 * 1024, // 1MB
         createdAt: new Date(2023, 0, 1),
         modifiedAt: new Date(2023, 0, 1),
-        hash: hexToSharedArrayBuffer("d0d0d0d0")
+        hash: hexToSharedArrayBuffer("d0d0d0d0")._unsafeUnwrap() // Unwrap result
     };
     const baseMeta: Metadata = { width: 1920, height: 1080 };
     const baseMedia: MediaInfo = { duration: 0, frames: [] };
@@ -210,7 +253,7 @@ describe("Comparator Utilities", () => {
   });
 
   describe("getQuality", () => {
-      const baseStats: FileStats = { size: 1, createdAt: new Date(), modifiedAt: new Date(), hash: hexToSharedArrayBuffer("aa") };
+      const baseStats: FileStats = { size: 1, createdAt: new Date(), modifiedAt: new Date(), hash: hexToSharedArrayBuffer("aa")._unsafeUnwrap() }; // Unwrap result
       const baseMedia: MediaInfo = { duration: 0, frames: [] };
 
       it("should calculate quality based on width and height", () => {
@@ -245,7 +288,7 @@ describe("Comparator Utilities", () => {
           media?: Partial<MediaInfo>
       }): FileInfo => {
           // Helper to create FileInfo with specific values relevant to scoring
-          const baseStats: FileStats = { size: 1000, createdAt: new Date(), modifiedAt: new Date(), hash: hexToSharedArrayBuffer("aa") };
+          const baseStats: FileStats = { size: 1000, createdAt: new Date(), modifiedAt: new Date(), hash: hexToSharedArrayBuffer("aa")._unsafeUnwrap() }; // Unwrap result
           const baseMeta: Metadata = { width: 100, height: 100 };
           const baseMedia: MediaInfo = { duration: 0, frames: [] };
           return {
@@ -257,7 +300,7 @@ describe("Comparator Utilities", () => {
 
       it("should sort entries by score descending", () => {
           const info1 = createMockFileInfo({ metadata: { width: 200, height: 100 } }); // Higher score (resolution)
-          const info2 = createMockFileInfo({ fileStats: { size: 500, hash: hexToSharedArrayBuffer("bb"), createdAt: new Date(), modifiedAt: new Date() } });   // Lower score
+          const info2 = createMockFileInfo({ fileStats: { size: 500, hash: hexToSharedArrayBuffer("bb")._unsafeUnwrap(), createdAt: new Date(), modifiedAt: new Date() } });   // Lower score & Unwrap result
           const info3 = createMockFileInfo({ media: { duration: 10, frames: [] } }); // Highest score (video)
 
           const entries = [

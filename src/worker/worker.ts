@@ -1,49 +1,29 @@
 import "reflect-metadata";
 
-import { MediaComparator } from "../../MediaComparator"; // Keep for now
-import { WorkerData, FileProcessorConfig, FileInfo } from "../types"; // Add FileProcessorConfig, FileInfo
-// import { Context } from "../contexts/Context"; // Remove DI context
-// import { MediaProcessor } from "../MediaProcessor"; // Remove processor
-import { LmdbCache } from "../caching/LmdbCache"; // Add dependencies
-import { ExifTool } from "exiftool-vendored";
-import { processSingleFile } from "../fileProcessor"; // Add processor function
-import { VPTree, VPNode } from "../../VPTree"; // Add VPTree types
+// Removed unused imports: MediaComparator, WorkerData, FileInfo, LmdbCache, ExifTool, processSingleFile
+// Removed unused import: FileProcessorConfig
+// Removed unused import: VPNode
 import workerpool from "workerpool";
 import { PerceptualHashWorker } from "./perceptualHashWorker";
 
 // Define a new WorkerData type specific to DBSCAN, including necessary dependencies
-interface DBSCANWorkerData {
-    root: VPNode<string>;
-    options: any; // Keep options for now, refine later if specific parts needed
-    config: FileProcessorConfig;
-    // Note: Cannot pass LmdbCache or ExifTool instances directly to workers easily.
-    // Need to rethink how FileInfo is accessed during distance calculation in worker.
-    // Option A: Pre-fetch all needed FileInfo on main thread (potentially memory intensive).
-    // Option B: Pass DB path/config and recreate Cache/ExifTool in worker (adds overhead).
-    // Option C: Refactor distance calculation/VPTree search to not need full FileInfo in worker.
-
-    // For now, let's assume Option C is the target, or that necessary info is embedded in VPTree/passed differently.
-    // We will remove the direct dependencies for now and adjust MediaComparator.workerDBSCAN later.
-    similarityConfig: any; // Pass necessary parts of SimilarityConfig
-    wasmExports: any; // Pass WASM exports if needed by distance func in worker
-}
+// Removed unused interface DBSCANWorkerData
 
 
 async function performDBSCAN(
-  workerData: DBSCANWorkerData, // Use new type
-  chunk: string[],
+  // Removed unused parameter placeholder
+  // chunk: string[], // Removed unused variable
 ): Promise<Set<string>[]> {
-  const { root, options, config, similarityConfig, wasmExports } = workerData;
-
+  // const { root } = workerData; // Removed unused variable
   // TODO: Recreate distance function without relying on MediaProcessor/processSingleFile directly here.
   // This likely requires refactoring how VPTree search and distance are handled in the worker context.
   // For now, placeholder distance function.
-   const distanceFn = async (a: string, b: string): Promise<number> => {
-       console.warn("Worker distance function needs proper implementation!");
-       // Placeholder: return a constant or simple calculation not needing FileInfo
-       return Math.abs(a.length - b.length) / Math.max(a.length, b.length); // Example placeholder
-   };
-   const vpTree = new VPTree<string>(root, distanceFn);
+   // Removed unused variable: distanceFn
+   // const distanceFn = async (a: string, b: string): Promise<number> => {
+   //     console.warn("Worker distance function needs proper implementation!");
+   //     // Placeholder: return a constant or simple calculation not needing FileInfo
+   //     return Math.abs(a.length - b.length) / Math.max(a.length, b.length); // Example placeholder
+   // };
 
 
   // TODO: Refactor MediaComparator.workerDBSCAN to accept dependencies instead of using 'this'.
@@ -66,7 +46,15 @@ function computePerceptualHash(
     worker = new PerceptualHashWorker(resolution);
     perceptualHashWorkerMapper.set(resolution, worker);
   }
-  return worker.computePerceptualHash(imageBuffer);
+  // Handle AppResult from computePerceptualHash
+  const result = worker.computePerceptualHash(imageBuffer);
+  if (result.isErr()) {
+      // Decide how to handle worker errors - throw? log? return specific value?
+      // Throwing for now, as this indicates a failure within the worker itself.
+      console.error("Error computing perceptual hash in worker:", result.error);
+      throw result.error; // Or convert to a standard Error
+  }
+  return result.value; // Return unwrapped value
 }
 
 // Define the worker object with all functions
