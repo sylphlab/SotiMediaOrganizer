@@ -1,9 +1,11 @@
 import { readdir } from "fs/promises";
 import path from "path";
 import { Semaphore } from "async-mutex";
-import { Spinner } from "@topcli/spinner"; // Keep spinner for now, or abstract later
-import chalk from "chalk";
+import chalk from "chalk"; // Re-add chalk for specific formatting
+// Removed Spinner import
+// Removed chalk import
 import { ALL_SUPPORTED_EXTENSIONS, getFileTypeByExt } from "./utils"; // Assuming utils is in parent dir
+import { CliReporter } from "./reporting/CliReporter"; // Import reporter
 import { FileSystemError, safeTryAsync } from "./errors"; // Removed unused AppResult, ok, err
 
 /**
@@ -15,13 +17,14 @@ import { FileSystemError, safeTryAsync } from "./errors"; // Removed unused AppR
 export async function discoverFilesFn(
   sourceDirs: string[],
   concurrency: number = 10,
+  reporter: CliReporter, // Add reporter parameter
 ): Promise<Map<string, string[]>> {
   const allFiles: string[] = [];
   let dirCount = 0;
   let fileCount = 0;
   const semaphore = new Semaphore(concurrency);
   // TODO: Abstract spinner logic later if needed
-  const spinner = new Spinner().start("Discovering files...");
+  reporter.startSpinner("Discovering files..."); // Use reporter
 
   async function scanDirectory(dirPath: string): Promise<void> {
     dirCount++;
@@ -39,10 +42,12 @@ export async function discoverFilesFn(
     );
 
     if (readDirResult.isErr()) {
-      // Log error but continue scanning other directories
-      console.error(chalk.red(readDirResult.error.message));
+      // Log error using reporter
+      reporter.logError(readDirResult.error.message);
       // Update spinner text even on error to show progress
-      spinner.text = `Processed ${dirCount} directories, found ${fileCount} files... (Error in ${dirPath})`;
+      reporter.updateSpinnerText(
+        `Processed ${dirCount} directories, found ${fileCount} files... (Error in ${dirPath})`,
+      );
       return; // Stop processing this directory
     }
 
@@ -66,12 +71,14 @@ export async function discoverFilesFn(
     try {
       await Promise.all(promises); // Wait for recursive calls initiated in this directory
     } catch (promiseAllError) {
-      console.error(
-        chalk.red(`Error during concurrent directory scan under ${dirPath}:`),
-        promiseAllError,
+      reporter.logError(
+        `Error during concurrent directory scan under ${dirPath}:`,
+        promiseAllError instanceof Error ? promiseAllError : undefined,
       );
     }
-    spinner.text = `Processed ${dirCount} directories, found ${fileCount} files...`;
+    reporter.updateSpinnerText(
+      `Processed ${dirCount} directories, found ${fileCount} files...`,
+    );
   }
 
   // Start scanning all source directories concurrently
@@ -89,8 +96,9 @@ export async function discoverFilesFn(
     await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay to prevent busy-waiting
   }
 
-  spinner.succeed(
-    `Discovery completed in ${(spinner.elapsedTime / 1000).toFixed(2)} seconds: Found ${fileCount} files in ${dirCount} directories`,
+  // spinner.succeed is called within stopSpinnerSuccess
+  reporter.stopSpinnerSuccess(
+    `Discovery completed: Found ${fileCount} files in ${dirCount} directories`, // Simplified message, reporter might add timing
   );
 
   // Group files by extension
@@ -104,7 +112,7 @@ export async function discoverFilesFn(
   }
 
   // Log statistics (Keep logging here for now, or abstract later)
-  console.log(chalk.blue("\nFile Format Statistics:"));
+  reporter.logInfo("\nFile Format Statistics:"); // Use reporter
   // Sort formats for consistent logging
   const sortedFormats = Array.from(result.keys()).sort(
     (a, b) =>
@@ -113,12 +121,13 @@ export async function discoverFilesFn(
   );
   for (const format of sortedFormats) {
     const count = result.get(format)!.length;
-    console.log(
-      chalk.white(`${format.padEnd(6)}: ${count.toString().padStart(8)}`),
+    // Use reporter.logInfo, but keep chalk for specific color if desired
+    reporter.logInfo(
+      `${chalk.white(format.padEnd(6))}: ${count.toString().padStart(8)}`,
     );
   }
-  console.log(
-    chalk.green(`${"Total".padEnd(6)}: ${fileCount.toString().padStart(8)}`),
+  reporter.logSuccess(
+    `${chalk.green("Total".padEnd(6))}: ${fileCount.toString().padStart(8)}`,
   );
 
   return result;

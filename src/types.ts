@@ -75,6 +75,7 @@ export class ProgramOptions {
   imageSimilarityThreshold: number;
   imageVideoSimilarityThreshold: number;
   videoSimilarityThreshold: number;
+  verbose?: boolean;
 }
 
 export class AdaptiveExtractionConfig {

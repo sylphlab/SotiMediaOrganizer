@@ -28,6 +28,7 @@ import { DebugReporter } from "./src/reporting/DebugReporter"; // Import depende
 import { FileTransferService } from "./src/services/FileTransferService";
 import { discoverFilesFn } from "./src/discovery";
 import { MetadataDBService } from "./src/services/MetadataDBService"; // Import DB service
+import { CliReporter } from "./src/reporting/CliReporter"; // Import the new reporter
 
 function exitHandler() {
   console.log(chalk.red("\nMediaCurator was interrupted"));
@@ -138,6 +139,7 @@ async function main() {
       parseInt,
       2 * 1024 * 1024,
     )
+    .option("--verbose", "Enable verbose logging", false) // Add verbose option
     .addHelpText(
       "after",
       `
@@ -188,12 +190,14 @@ async function main() {
   let exifTool: ExifTool | null = null; // Declare outside try
   let pool: Pool | null = null; // Use the imported Pool type
   let cache: LmdbCache | null = null; // Declare cache outside try
+  let reporter: CliReporter | null = null; // Declare reporter outside try
   // Removed duplicate cache declaration
   try {
     // Set sharp concurrency based on options
     sharp.concurrency(options.concurrency);
 
     // Manually instantiate dependencies
+    reporter = new CliReporter(options.verbose); // Instantiate reporter
     const cacheResult = await LmdbCache.create(); // Use async factory method
     if (cacheResult.isErr()) {
       // Handle error during cache creation (e.g., log and exit)
@@ -261,15 +265,16 @@ async function main() {
 
     // Removed Context.injector.get calls
     // Stage 1: File Discovery
-    console.log(chalk.blue("Stage 1: Discovering files..."));
+    reporter.logInfo("Stage 1: Discovering files..."); // Use reporter
     // Use the standalone discovery function
     const discoveredFiles = await discoverFilesFn(
       [source],
       options.concurrency,
+      reporter, // Pass reporter
     );
 
     // Stage 2: Gathering Information
-    console.log(chalk.blue("\nStage 2: Gathering file information..."));
+    reporter.logInfo("\nStage 2: Gathering file information..."); // Use reporter
     // Use the standalone gatherer function
     const gatherFileInfoResult = await gatherFileInfoFn(
       discoveredFiles,
@@ -279,32 +284,33 @@ async function main() {
       exifTool,
       workerPool,
       dbService, // Pass dbService
+      reporter, // Pass reporter
     );
 
     // Stage 3: Deduplication
-    console.log(chalk.blue("\nStage 3: Deduplicating files..."));
+    reporter.logInfo("\nStage 3: Deduplicating files..."); // Use reporter
     // Use the standalone deduplicator function
     const deduplicationResult = await deduplicateFilesFn(
       gatherFileInfoResult.validFiles,
       comparator, // Pass comparator instance
       dbService, // Pass dbService
       similarityConfig, // Pass similarityConfig
+      reporter, // Pass reporter
     );
 
     // Handle potential error from deduplication
     if (deduplicationResult.isErr()) {
-      console.error(
-        chalk.red(
-          `\nDeduplication failed: ${deduplicationResult.error.message}`,
-        ),
-      );
+      reporter.logError(
+        `\nDeduplication failed: ${deduplicationResult.error.message}`,
+        deduplicationResult.error,
+      ); // Use reporter
       // Decide how to proceed - exit? continue without transfer?
       // For now, let's exit.
       throw deduplicationResult.error; // Rethrow to be caught by main try/catch
     }
     const deduplicationData = deduplicationResult.value; // Unwrap successful result
     // Stage 4: File Transfer
-    console.log(chalk.blue("\nStage 4: Transferring files..."));
+    reporter.logInfo("\nStage 4: Transferring files..."); // Use reporter
     // Use the standalone transfer function
     await transferFilesFn(
       gatherFileInfoResult,
@@ -318,9 +324,10 @@ async function main() {
       debugReporter, // Pass dependencies
       fileTransferService,
       // TODO: Pass dbService here? Transfer might need it if FileTransferService is refactored.
+      reporter, // Pass reporter
     );
 
-    console.log(chalk.green("\nMedia organization completed"));
+    reporter.logSuccess("\nMedia organization completed"); // Use reporter
     printResults(
       gatherFileInfoResult,
       deduplicationData, // Pass unwrapped data
@@ -328,9 +335,10 @@ async function main() {
         (sum, files) => sum + files.length,
         0,
       ),
+      reporter, // Pass reporter to printResults
     );
   } catch (error) {
-    console.error(chalk.red("An unexpected error occurred:"), error);
+    reporter?.logError("An unexpected error occurred:", error as Error); // Use reporter, ensure error is Error type
   } finally {
     // Ensure DB connection is closed
     // Need to access dbService instance created in try block
@@ -349,23 +357,20 @@ function printResults(
   gatherFileInfoResult: GatherFileInfoResult,
   deduplicationResult: DeduplicationResult,
   totalFiles: number,
+  reporter: CliReporter, // Add reporter parameter
 ) {
-  console.log(chalk.cyan(`Total files discovered: ${totalFiles}`));
-  console.log(
-    chalk.cyan(`Unique files: ${deduplicationResult.uniqueFiles.size}`),
+  reporter.logInfo(`Total files discovered: ${totalFiles}`);
+  reporter.logInfo(`Unique files: ${deduplicationResult.uniqueFiles.size}`);
+  reporter.logWarning(
+    `Duplicate sets: ${deduplicationResult.duplicateSets.length}`,
   );
-  console.log(
-    chalk.yellow(`Duplicate sets: ${deduplicationResult.duplicateSets.length}`),
+  reporter.logWarning(
+    `Total duplicates: ${Array.from(
+      deduplicationResult.duplicateSets.values(),
+    ).reduce((sum, set) => sum + set.duplicates.size, 0)}`,
   );
-  console.log(
-    chalk.yellow(
-      `Total duplicates: ${Array.from(
-        deduplicationResult.duplicateSets.values(),
-      ).reduce((sum, set) => sum + set.duplicates.size, 0)}`,
-    ),
-  );
-  console.log(
-    chalk.red(`Files with errors: ${gatherFileInfoResult.errorFiles.length}`),
+  reporter.logError(
+    `Files with errors: ${gatherFileInfoResult.errorFiles.length}`,
   );
 }
 
@@ -376,6 +381,7 @@ function printResults(
     // Explicitly exit after successful completion? Optional.
     // process.exit(0);
   } catch (error) {
+    // Use console.error directly here as reporter might not be initialized
     console.error(chalk.red("Critical error during execution:"), error);
     process.exit(1);
   }

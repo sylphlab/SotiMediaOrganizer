@@ -3,9 +3,10 @@ import { DebugReporter } from "./reporting/DebugReporter";
 import { FileTransferService } from "./services/FileTransferService";
 import { mkdir, readdir, unlink } from "fs/promises"; // Keep fs/promises for now
 import { join } from "path";
-import chalk from "chalk";
-import { Spinner } from "@topcli/spinner"; // Added for basic progress
+// Removed chalk import
+// Removed Spinner import
 import { FileSystemError, safeTryAsync } from "./errors"; // Removed unused AppResult, ok, err
+import { CliReporter } from "./reporting/CliReporter"; // Import reporter
 
 /**
  * Orchestrates the final file transfer stage, including debug report generation.
@@ -32,6 +33,7 @@ export async function transferFilesFn(
   shouldMove: boolean,
   debugReporter: DebugReporter, // Pass dependencies
   fileTransferService: FileTransferService,
+  reporter: CliReporter, // Add reporter parameter
 ): Promise<void> {
   // Handle debug report generation first
   if (debugDir) {
@@ -50,7 +52,7 @@ export async function transferFilesFn(
     );
 
     if (mkdirResult.isErr()) {
-      console.error(chalk.red(mkdirResult.error.message));
+      reporter.logError(mkdirResult.error.message, mkdirResult.error); // Use reporter
       debugDir = undefined; // Prevent further attempts
     } else {
       // Clear the debug directory (optional)
@@ -83,14 +85,13 @@ export async function transferFilesFn(
               ),
           );
           if (unlinkResult.isErr()) {
-            console.warn(chalk.yellow(unlinkResult.error.message));
+            reporter.logWarning(unlinkResult.error.message); // Use reporter
           }
         }
       } else {
-        console.warn(
-          chalk.yellow(
-            `Could not read debug directory ${debugDir} to clear files: ${readDirResult.error.message}`,
-          ),
+        reporter.logWarning(
+          // Use reporter
+          `Could not read debug directory ${debugDir} to clear files: ${readDirResult.error.message}`,
         );
       }
     }
@@ -103,26 +104,26 @@ export async function transferFilesFn(
           deduplicationResult.duplicateSets,
           debugDir,
         );
-        console.log(
-          chalk.yellow(
-            `\nDebug mode: Duplicate set reports have been saved to ${debugDir}`,
-          ),
+        reporter.logWarning(
+          // Use reporter (warning level seems appropriate)
+          `\nDebug mode: Duplicate set reports have been saved to ${debugDir}`,
         );
       } catch (reportError) {
-        console.error(
-          chalk.red(`Failed to generate debug reports in ${debugDir}:`),
-          reportError,
+        reporter.logError(
+          // Use reporter
+          `Failed to generate debug reports in ${debugDir}:`,
+          reportError instanceof Error ? reportError : undefined,
         );
         // Continue without reports
       }
     } else if (debugDir) {
-      console.log(chalk.yellow("\nDebug mode: No duplicate sets found"));
+      reporter.logWarning("\nDebug mode: No duplicate sets found"); // Use reporter
     }
   }
 
   // Delegate actual file transfers to the service
   // TODO: Abstract progress reporting later
-  const spinner = new Spinner().start("Transferring files..."); // Basic progress
+  reporter.startSpinner("Transferring files..."); // Use reporter
   // Assuming transferOrganizedFiles handles its own errors internally or returns AppResult
   // For now, keep try/catch for simplicity as it's not returning AppResult yet
   try {
@@ -135,16 +136,16 @@ export async function transferFilesFn(
       format,
       shouldMove,
     );
-    spinner.succeed(
-      `File transfer completed in ${(spinner.elapsedTime / 1000).toFixed(2)} seconds.`,
+    reporter.stopSpinnerSuccess(
+      // Use reporter
+      `File transfer completed.`, // Simplified message
     );
   } catch (transferError) {
     // Workaround for spinner type issue: stop and log error manually
-    // @ts-expect-error - Suppress incorrect type error for spinner.stop() (Corrected directive)
-    spinner.stop(); // Stop the spinner animation (Method likely exists despite type error)
-    console.error(
-      chalk.red(`✖ File transfer failed: ${transferError.message}`),
-    ); // Log error manually
+    reporter.stopSpinnerFailure(
+      // Use reporter
+      `File transfer failed: ${transferError.message}`,
+    );
     throw transferError; // Rethrow after stopping spinner and logging
   }
 }
