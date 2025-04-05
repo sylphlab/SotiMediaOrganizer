@@ -2,7 +2,8 @@ import { GatherFileInfoResult, FileProcessorConfig } from "./types"; // Removed 
 import { LmdbCache } from "./caching/LmdbCache";
 import { ExifTool } from "exiftool-vendored";
 import { WorkerPool } from "./contexts/types";
-import { processSingleFile } from "./fileProcessor";
+import { processSingleFile } from "./fileProcessor"; // Returns AppResult<FileInfo>
+import { MetadataDBService } from "./services/MetadataDBService"; // Import DB service
 import { Semaphore } from "async-mutex";
 import cliProgress from "cli-progress"; // Keep for now, or abstract later
 import chalk from "chalk";
@@ -34,6 +35,7 @@ function getBrailleProgressChar(progress: number): string {
  * @param cache LmdbCache instance.
  * @param exifTool ExifTool instance.
  * @param workerPool WorkerPool instance.
+ * @param dbService MetadataDBService instance.
  * @returns A Promise resolving to GatherFileInfoResult containing lists of valid and error file paths.
  */
 export async function gatherFileInfoFn(
@@ -42,7 +44,8 @@ export async function gatherFileInfoFn(
     config: FileProcessorConfig,
     cache: LmdbCache,
     exifTool: ExifTool,
-    workerPool: WorkerPool
+    workerPool: WorkerPool,
+    dbService: MetadataDBService // Add dbService parameter
 ): Promise<GatherFileInfoResult> {
     const errorFiles: string[] = [];
     const validFiles: string[] = [];
@@ -120,11 +123,27 @@ export async function gatherFileInfoFn(
         for (const file of formatFiles) {
             processingPromises.push(
                 semaphore.runExclusive(async () => {
-                    try {
-                        // Call the core processing function
-                        await processSingleFile(file, config, cache, exifTool, workerPool);
-                        validFiles.push(file);
-                    } catch { // Remove unused 'error' variable
+                    try { // Re-add try block
+                        // Call the core processing function, which now returns AppResult
+                        const fileInfoResult = await processSingleFile(file, config, cache, exifTool, workerPool);
+
+                        if (fileInfoResult.isOk()) {
+                            // Store successful result in DB
+                            const upsertResult = dbService.upsertFileInfo(file, fileInfoResult.value);
+                            if (upsertResult.isErr()) {
+                                // Log DB error but still count file as 'valid' for processing pipeline
+                                console.error(chalk.yellow(`\nDB upsert failed for ${file}: ${upsertResult.error.message}`));
+                                // Optionally add to a separate list of DB error files?
+                            }
+                            validFiles.push(file);
+                        } else {
+                            // Log processing error
+                            console.error(chalk.red(`\nError processing ${file}: ${fileInfoResult.error.message}`));
+                            stats.errorCount++;
+                            errorFiles.push(file);
+                        }
+                    } catch (unexpectedError) { // Catch any unexpected errors during the process
+                         console.error(chalk.red(`\nUnexpected error during processing for ${file}: ${unexpectedError instanceof Error ? unexpectedError.message : String(unexpectedError)}`));
                         // Log error minimally here, detailed logging within processSingleFile
                         // console.error(`Error processing ${file}: ${error.message}`);
                         stats.errorCount++;

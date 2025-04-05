@@ -26,8 +26,10 @@
   "license": "MIT",
   "dependencies": {
     "@msgpack/msgpack": "^3.0.0-beta2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/fluent-ffmpeg": "^2.1.25",
     "@types/node": "^22.14.0",
+    "better-sqlite3": "^11.9.1",
     "deep-eql": "^5.0.2",
     "exiftool-vendored": "^24.6.0",
     "fast-equals": "^5.2.2",

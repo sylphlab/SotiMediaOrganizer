@@ -520,3 +520,60 @@ export async function expandCluster( // Add export back
 
   return ok(cluster);
 }
+
+
+/**
+ * Core DBSCAN clustering logic.
+ * @param chunk The subset of file paths to process.
+ * @param eps The maximum distance (1 - minThreshold) for neighborhood search.
+ * @param minPts Minimum number of points to form a core point.
+ * @param getNeighborsFn Async function to retrieve neighbors for a point.
+ * @returns A Promise resolving to an array of clusters (Set<string>).
+ */
+export async function runDbscanCore(
+  chunk: string[],
+  eps: number,
+  minPts: number,
+  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>
+): Promise<Set<string>[]> { // Return raw clusters, error handling done within getNeighborsFn/expandCluster calls
+  const clusters: Set<string>[] = [];
+  const visited = new Set<string>(); // Track visited points for this chunk
+
+  for (const point of chunk) {
+    if (visited.has(point)) continue;
+    // Note: visited is marked within expandCluster or if neighbor fetch fails/not core point
+
+    // Find initial neighbors for the starting point
+    const neighborsResult = await getNeighborsFn(point);
+
+    if (neighborsResult.isErr()) {
+        console.error(`Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`);
+        visited.add(point); // Ensure point is marked visited even if neighbors fail
+        continue; // Skip point if neighbors can't be fetched
+    }
+    const neighbors = neighborsResult.value;
+
+    // Check if it's a core point (has enough neighbors)
+    if (neighbors.length >= minPts - 1) { // Check if it *could* be a core point
+        const clusterResult = await expandCluster(
+            point,
+            neighbors,
+            visited,
+            minPts,
+            getNeighborsFn
+        );
+
+        if (clusterResult.isErr()) {
+            console.error(`Error expanding cluster for ${point}: ${clusterResult.error.message}`);
+            visited.add(point); // Ensure point is marked visited even if expansion fails
+            continue;
+        }
+        clusters.push(clusterResult.value);
+    } else {
+         // Not enough neighbors to be a core point, mark as visited (noise for now)
+         visited.add(point);
+    }
+  }
+  return clusters;
+}
+

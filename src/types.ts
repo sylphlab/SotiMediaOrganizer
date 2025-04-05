@@ -155,3 +155,18 @@ export interface WasmExports {
   // Add other exports if needed, ensure memory is exported if using complex types
   memory: WebAssembly.Memory;
 }
+
+
+// Data passed to DBSCAN worker
+export interface DBSCANWorkerData {
+    chunk: string[];
+    eps: number;
+    minPts: number;
+    // Option: Pass VPTree root (if using reduced tree) - Requires VPTree reconstruction in worker
+    vpTreeRoot: VPNode<string> | null; // Root of the VPTree for this batch/subset
+    // Pass necessary configs for distance calculation
+    fileProcessorConfig: FileProcessorConfig; // Needed if processSingleFile is called indirectly
+    similarityConfig: SimilarityConfig; // Needed for calculateSimilarity
+    wasmExports: WasmExports | null; // Needed for hammingDistance
+    // TODO: Revisit how FileInfo/distance is handled in worker context
+}

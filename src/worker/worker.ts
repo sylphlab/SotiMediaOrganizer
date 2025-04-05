@@ -1,40 +1,19 @@
 // Removed import "reflect-metadata";
 
-// Removed unused imports: MediaComparator, WorkerData, FileInfo, LmdbCache, ExifTool, processSingleFile
-// Removed unused import: FileProcessorConfig
-// Removed unused import: VPNode
+import { FileProcessorConfig, SimilarityConfig, WasmExports, DBSCANWorkerData, MediaInfo } from "../types"; // Import necessary types
+import { VPNode, VPTree } from "../../VPTree"; // Import VPTree types
+import { runDbscanCore, calculateImageSimilarity } from "../comparatorUtils"; // Corrected import name & Import DBSCAN logic
+import { AppResult, ok, err, AppError } from "../errors"; // Import AppResult types
+// TODO: Need a way to get FileInfo for distance calculation in worker
+// Option A: Pass DBService instance/config (complex)
+// Option B: Pass relevant FileInfo subset via workerData (memory intensive?)
+// Option C: Refactor distance to not need full FileInfo (ideal?)
 import workerpool from "workerpool";
 import { PerceptualHashWorker } from "./perceptualHashWorker";
-
-// Define a new WorkerData type specific to DBSCAN, including necessary dependencies
-// Removed unused interface DBSCANWorkerData
+// DBSCANWorkerData interface is now imported from types.ts
 
 
-async function performDBSCAN(
-  // Removed unused parameter placeholder
-  // chunk: string[], // Removed unused variable
-): Promise<Set<string>[]> {
-  // const { root } = workerData; // Removed unused variable
-  // TODO: Recreate distance function without relying on MediaProcessor/processSingleFile directly here.
-  // This likely requires refactoring how VPTree search and distance are handled in the worker context.
-  // For now, placeholder distance function.
-   // Removed unused variable: distanceFn
-   // const distanceFn = async (a: string, b: string): Promise<number> => {
-   //     console.warn("Worker distance function needs proper implementation!");
-   //     // Placeholder: return a constant or simple calculation not needing FileInfo
-   //     return Math.abs(a.length - b.length) / Math.max(a.length, b.length); // Example placeholder
-   // };
-
-
-  // TODO: Refactor MediaComparator.workerDBSCAN to accept dependencies instead of using 'this'.
-  // We need to instantiate or call a functional equivalent here.
-  // Placeholder call - this will fail until MediaComparator is refactored.
-  console.warn("Calling placeholder for workerDBSCAN - MediaComparator needs refactoring.");
-  // Example placeholder structure:
-  // const comparatorLogic = new MediaComparatorWorkerLogic(similarityConfig, wasmExports); // Hypothetical refactored logic class/functions
-  // return await comparatorLogic.runDbscan(chunk, vpTree);
-  return []; // Return empty array as placeholder
-}
+// Removed performDBSCAN function as DBSCAN now runs on main thread
 
 const perceptualHashWorkerMapper: Map<number, PerceptualHashWorker> = new Map();
 function computePerceptualHash(
@@ -59,7 +38,7 @@ function computePerceptualHash(
 
 // Define the worker object with all functions
 const worker = {
-  performDBSCAN,
+  // performDBSCAN, // Removed from worker exports
   computePerceptualHash,
 };
 

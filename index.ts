@@ -7,6 +7,8 @@ import {
   type ProgramOptions,
   type DeduplicationResult,
   type GatherFileInfoResult,
+  FileProcessorConfig, // Added FileProcessorConfig
+  SimilarityConfig // Added SimilarityConfig
 } from "./src/types";
 // import { MediaOrganizer } from "./MediaOrganizer"; // Removed old class import
 import os from "os";
@@ -15,14 +17,15 @@ import os from "os";
 import { gatherFileInfoFn } from "./src/gatherer";
 import { deduplicateFilesFn } from "./src/deduplicator"; // Import the new function
 import { LmdbCache } from "./src/caching/LmdbCache"; // Import dependencies
-import { FileProcessorConfig } from "./src/types";
+// Removed FileProcessorConfig import (already imported above)
 import { ExifTool } from "exiftool-vendored";
-import { WorkerPool, Types } from "./src/contexts/types";
+import { WorkerPool, Types } from "./src/contexts/types"; // Keep Types for now if needed elsewhere
 import { MediaComparator } from "./MediaComparator";
 import { transferFilesFn } from "./src/transfer"; // Import the new function
 import { DebugReporter } from "./src/reporting/DebugReporter"; // Import dependencies
 import { FileTransferService } from "./src/services/FileTransferService";
-import { discoverFilesFn } from "./src/discovery"; // Import the new function
+import { discoverFilesFn } from "./src/discovery";
+import { MetadataDBService } from "./src/services/MetadataDBService"; // Import DB service
 
 function exitHandler() {
   console.log(chalk.red("\nMediaCurator was interrupted"));
@@ -149,21 +152,21 @@ async function main() {
       {*.ss} - Second (2 digits)       {*.s} - Second (1-2 digits)
       {*.a} - am/pm                    {*.A} - AM/PM
       {*.WW} - Week of year (2 digits)
-  
+
     Filename:
       {NAME} - Original filename (without extension)
       {NAME.L} - Lowercase filename
       {NAME.U} - Uppercase filename
       {EXT} - File extension (without dot)
       {RND} - Random 8-character hexadecimal string (for unique filenames)
-  
+
     Other:
       {GEO} - Geolocation              {CAM} - Camera model
       {TYPE} - 'Image' or 'Other'
       {HAS.GEO} - 'GeoTagged' or 'NoGeo'
       {HAS.CAM} - 'WithCamera' or 'NoCamera'
       {HAS.DATE} - 'Dated' or 'NoDate'
-  
+
   Example format strings:
     "{D.YYYY}/{D.MM}/{D.DD}/{NAME}.{EXT}"
     "{HAS.GEO}/{HAS.CAM}/{D.YYYY}/{D.MM}/{NAME}_{D.HH}{D.mm}.{EXT}"
@@ -181,12 +184,13 @@ async function main() {
 
   // const organizer = await Context.injector.getAsync(MediaOrganizer)!; // Removed instance retrieval
   try {
-    // TODO: Manually instantiate dependencies or use a simple factory
+    // Manually instantiate dependencies
     const cache = new LmdbCache(); // Example instantiation
     const exifTool = new ExifTool({ maxProcs: options.concurrency }); // Example instantiation
+    const dbService = new MetadataDBService(); // Instantiate DB Service
     // TODO: Instantiate WorkerPool (requires workerpool library setup)
     const workerPool: WorkerPool = null as any; // Placeholder
-    // TODO: Construct config objects from options
+    // Construct config objects from options
     const fileProcessorConfig: FileProcessorConfig = {
         fileStats: { maxChunkSize: options.maxChunkSize },
         adaptiveExtraction: {
@@ -197,7 +201,7 @@ async function main() {
             targetFps: options.targetFps
         }
     };
-    const similarityConfig = { // Construct SimilarityConfig
+    const similarityConfig: SimilarityConfig = { // Construct SimilarityConfig
         windowSize: options.windowSize,
         stepSize: options.stepSize,
         imageSimilarityThreshold: options.imageSimilarityThreshold,
@@ -233,7 +237,8 @@ async function main() {
         fileProcessorConfig,
         cache,
         exifTool,
-        workerPool
+        workerPool,
+        dbService // Pass dbService
     );
 
     // Stage 3: Deduplication
@@ -242,18 +247,23 @@ async function main() {
     const deduplicationResult = await deduplicateFilesFn(
         gatherFileInfoResult.validFiles,
         comparator, // Pass comparator instance
-        fileProcessorConfig,
-        cache,
-        exifTool,
-        workerPool
+        dbService   // Pass dbService
     );
 
+    // Handle potential error from deduplication
+    if (deduplicationResult.isErr()) {
+        console.error(chalk.red(`\nDeduplication failed: ${deduplicationResult.error.message}`));
+        // Decide how to proceed - exit? continue without transfer?
+        // For now, let's exit.
+        throw deduplicationResult.error; // Rethrow to be caught by main try/catch
+    }
+    const deduplicationData = deduplicationResult.value; // Unwrap successful result
     // Stage 4: File Transfer
     console.log(chalk.blue("\nStage 4: Transferring files..."));
     // Use the standalone transfer function
     await transferFilesFn(
         gatherFileInfoResult,
-        deduplicationResult,
+        deduplicationData, // Pass unwrapped data
         destination,
         options.duplicate,
         options.error,
@@ -262,12 +272,13 @@ async function main() {
         options.move,
         debugReporter, // Pass dependencies
         fileTransferService
+        // TODO: Pass dbService here? Transfer might need it if FileTransferService is refactored.
     );
 
     console.log(chalk.green("\nMedia organization completed"));
     printResults(
       gatherFileInfoResult,
-      deduplicationResult,
+      deduplicationData, // Pass unwrapped data
       [...discoveredFiles.values()].reduce(
         (sum, files) => sum + files.length,
         0,
@@ -275,6 +286,16 @@ async function main() {
     );
   } catch (error) {
     console.error(chalk.red("An unexpected error occurred:"), error);
+  } finally {
+      // Ensure DB connection is closed
+      // Need to access dbService instance created in try block
+      // This requires moving dbService instantiation outside or handling closure differently
+      // For now, assuming dbService might not be initialized if an early error occurred.
+      // await dbService?.close(); // Optional chaining
+      // TODO: Ensure exifTool is ended gracefully
+      // await exifTool?.end();
+      // TODO: Ensure workerPool is terminated
+      // await workerPool?.terminate();
   }
 }
 
@@ -302,9 +323,14 @@ function printResults(
   );
 }
 
-try {
-  await main();
-} catch (error) {
-  console.error(chalk.red("An unexpected error occurred:"), error);
-  process.exit(1);
-}
+// Wrap main execution in a try/catch block
+(async () => {
+    try {
+        await main();
+        // Explicitly exit after successful completion? Optional.
+        // process.exit(0);
+    } catch (error) {
+        console.error(chalk.red("Critical error during execution:"), error);
+        process.exit(1);
+    }
+})();

@@ -18,9 +18,9 @@ import { processSingleFile } from "./src/fileProcessor"; // Added file processor
 import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
 import { ok, err, AppResult, UnknownError, AppError } from "./src/errors"; // Removed unused AnyAppError
-import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored, mergeAndDeduplicateClusters, expandCluster } from "./src/comparatorUtils"; // Import expandCluster
-// Removed inversify imports: inject, injectable
-import { Types, type WorkerPool } from "./src/contexts/types";
+import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored, mergeAndDeduplicateClusters, expandCluster, runDbscanCore } from "./src/comparatorUtils"; // Import runDbscanCore
+// Removed inversify imports
+import { Types, type WorkerPool } from "./src/contexts/types"; // Keep WorkerPool type for now if needed elsewhere
 import { readFile } from "fs/promises";
 import { join } from "path";
 
@@ -39,7 +39,7 @@ export class MediaComparator {
     private exifTool: ExifTool, // Removed @inject()
     private similarityConfig: SimilarityConfig,
     private options: ProgramOptions,
-    private workerPool: WorkerPool, // Removed @inject()
+    private workerPool: WorkerPool, // Removed @inject() - WorkerPool might still be needed for pHash
   ) {
     this.minThreshold = Math.min(
       this.similarityConfig.imageSimilarityThreshold,
@@ -133,125 +133,45 @@ export class MediaComparator {
     });
 
     progressCallback?.("Running DBSCAN");
-    const clusters = await this.parallelDBSCAN(files, vpTree, progressCallback);
+    // Call the refactored single-threaded DBSCAN method
+    const clusters = await this.dbscanClusters(files, vpTree, progressCallback);
 
     // processResults now returns AppResult, so we can return it directly
     return this.processResults(clusters, selector);
   }
 
-  private async parallelDBSCAN(
+  // Refactored DBSCAN to run on main thread using the utility function
+  // Removed parallelization via worker pool for DBSCAN itself
+  public async dbscanClusters( // Renamed from parallelDBSCAN
     files: string[],
     vpTree: VPTree<string>,
-    progressCallback?: (progress: string) => void,
+    progressCallback?: (progress: string) => void, // Progress callback might need adjustment
   ): Promise<Set<string>[]> {
-    const batchSize = 2048;
+    const eps = 1 - this.minThreshold;
+    const minPts = 2; // Or get from config
 
-    // Batch the files and send them to the worker pool
-    let processedItems = 0;
-    const totalItems = files.length;
-    const promises = [];
-    for (let i = 0; i < totalItems; i += batchSize) {
-      const batch = files.slice(i, i + batchSize);
-      promises.push(
-        this.workerPool
-          .performDBSCAN( /* Removed argument as worker function no longer accepts it */ )
-          .then((result) => {
-            processedItems += batch.length;
-            progressCallback?.(
-              `Running DBSCAN: ${processedItems} / ${totalItems} files processed`,
-            );
-            return result;
-          }),
-      );
-    }
+    // Define the neighbor fetching function directly here
+    const getNeighborsFn = (p: string): Promise<AppResult<string[]>> => {
+        // This still uses 'this' for dependencies, which is acceptable now
+        // as it runs on the main thread context.
+        return this.getValidNeighbors(p, vpTree, eps);
+    };
 
-    const results = await Promise.all(promises);
+    // TODO: Add progress reporting if needed for single-threaded DBSCAN
+    progressCallback?.(`Running DBSCAN on ${files.length} files...`);
 
-    return mergeAndDeduplicateClusters(results.flat()); // Use imported function
+    // Call the core DBSCAN logic directly
+    const clusters = await runDbscanCore(files, eps, minPts, getNeighborsFn);
+
+    progressCallback?.(`DBSCAN finished, found ${clusters.length} clusters.`);
+
+    // Merging is likely not needed if run single-threaded, but keep for now
+    return mergeAndDeduplicateClusters(clusters);
   }
 
   // Removed mergeAndDeduplicate method (moved to comparatorUtils)
 
-  // This method is intended to be run inside a worker thread
-  // Refactored to use expandCluster utility
-  async workerDBSCAN(
-    chunk: string[],
-    vpTree: VPTree<string>,
-  ): Promise<Set<string>[]> {
-    const eps = 1 - this.minThreshold; // Epsilon based on min similarity
-    const minPts = 2; // Minimum points to form a core point (including self)
-    const clusters: Set<string>[] = [];
-    const visited = new Set<string>(); // Track visited points within this worker's chunk
-
-    // Define the neighbor fetching function required by expandCluster
-    // This still uses 'this', highlighting the need to refactor workerDBSCAN further
-    // or change how dependencies are handled in workers.
-    const getNeighborsFn = (p: string): Promise<AppResult<string[]>> => {
-        return this.getValidNeighbors(p, vpTree, eps);
-    };
-
-    for (const point of chunk) {
-      if (visited.has(point)) continue;
-      // Note: We mark point as visited *before* getting neighbors,
-      // but expandCluster expects the initial point *not* to be in visited yet.
-      // Let's adjust: mark visited inside expandCluster or after initial neighbor check.
-      // For simplicity, let expandCluster handle marking the initial point visited.
-      // visited.add(point); // Mark point as visited immediately - Moved inside expandCluster logic implicitly
-
-      // Find initial neighbors for the starting point
-      const neighborsResult = await getNeighborsFn(point);
-
-      if (neighborsResult.isErr()) {
-          console.error(`Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`);
-          visited.add(point); // Ensure point is marked visited even if neighbors fail
-          continue; // Skip point if neighbors can't be fetched
-      }
-      const neighbors = neighborsResult.value;
-
-      // Check if it's a core point (has enough neighbors)
-      // Note: DBSCAN typically requires minPts *including* the point itself.
-      // getValidNeighbors might or might not include the point itself depending on distance=0.
-      // Assuming getValidNeighbors doesn't include the point itself unless it's a true neighbor.
-      // So, check >= minPts. If it should include self, check should be >= minPts.
-      if (neighbors.length >= minPts -1) { // Check if it *could* be a core point (needs self + minPts-1 others)
-          // It *might* be a core point, try expanding the cluster
-          // Pass the initial point and its neighbors to expandCluster
-          const clusterResult = await expandCluster(
-              point,
-              neighbors, // Pass initial neighbors
-              visited,   // Pass the shared visited set (modified by expandCluster)
-              minPts,
-              getNeighborsFn // Pass the function to get neighbors for subsequent points
-          );
-
-          if (clusterResult.isErr()) {
-              console.error(`Error expanding cluster for ${point}: ${clusterResult.error.message}`);
-              // Ensure point is marked visited even if expansion fails
-              visited.add(point);
-              // Decide how to handle cluster expansion errors - skip cluster?
-              continue;
-          }
-
-          // Add the successfully expanded cluster
-          // expandCluster handles adding the initial point and marking all cluster members visited
-          clusters.push(clusterResult.value);
-      } else {
-           // Not enough neighbors to be a core point, mark as visited (noise for now)
-           visited.add(point);
-      }
-      // If not a core point, it's noise (or will be picked up by another cluster's expansion)
-      // No need to explicitly handle noise here as expandCluster handles visited set.
-    }
-
-    // Add remaining unclustered points as single-element clusters (optional, depends on noise handling)
-    // for (const point of chunk) {
-    //     if (!visited.has(point)) {
-    //         clusters.push(new Set([point]));
-    //     }
-    // }
-
-    return clusters;
-  }
+  // Removed workerDBSCAN method (logic moved to runDbscanCore in comparatorUtils)
 
   private async getValidNeighbors(
     point: string,
@@ -314,7 +234,7 @@ export class MediaComparator {
     return ok(validNeighbors.value.map((n) => n.point));
   }
 
-  private async processResults(
+  public async processResults( // Changed to public
     clusters: Set<string>[],
     selector: FileProcessor,
   ): Promise<AppResult<DeduplicationResult>> { // Update return type
