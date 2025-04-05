@@ -1,14 +1,22 @@
-<!-- Version: 2.0 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 2.3 | Last Updated: 2025-04-05 | Updated By: Cline -->
 
 # Active Context
 
-- **Current Focus:** Transitioning from test case writing to functional refactoring.
+- **Current Focus:** Planning major architectural refactoring based on user request.
 - **Recent Changes:**
-  - Added Jest and related dependencies (`@types/jest`, `ts-jest`).
-  - Configured Jest (`jest.config.js`, `tests/jest.setup.ts` with `reflect-metadata`).
-  - Created initial test file `tests/utils.test.ts` (passing).
-  - Created initial test file `tests/services/FileTransferService.test.ts`.
-  - Encountered persistent issues mocking `fs.existsSync` and/or `crypto.randomBytes` within the `bun test` environment for `FileTransferService.test.ts` conflict/sanitization tests.
-  - Test case writing paused based on user request.
-- **Next Steps:** Initiate new task for functional refactoring as requested by user.
-- **Open Questions/Decisions:** None.
+  - Completed initial functional refactoring task.
+  - Added Jest and configured it.
+  - Created and successfully ran unit tests for `src/utils.ts` and most helper functions in `src/comparatorUtils.ts` (popcount, hammingDistance JS fallback, calculateImageSimilarity, calculateEntryScore, getAdaptiveThreshold, getQuality, sortEntriesByScore).
+  - Testing paused based on user request for larger refactoring.
+- **Next Steps:** Initiate a new task (likely in Architect mode) to:
+    - Analyze the feasibility and plan the implementation of a major refactoring towards a more functional style.
+    - Evaluate alternative DI approaches (e.g., Riverpod-like patterns) or removing DI.
+    - Consider UI improvements, potentially including a Web UI.
+    - Ensure the architecture supports scaling to millions of media files.
+    - Re-evaluate testing strategy after refactoring.
+- **Open Questions/Decisions:**
+    - Optimal DI strategy (Inversify, Riverpod-like, none)?
+    - Feasibility and approach for a Web UI?
+    - Specific FP patterns to adopt?
+    - Best way to ensure scalability for millions of files (data handling, processing, caching)?
+    - How to address persistent mocking issues in `bun test`?

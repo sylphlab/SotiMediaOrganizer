@@ -1,59 +1,37 @@
-<!-- Version: 1.7 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 1.8 | Last Updated: 2025-04-05 | Updated By: Cline -->
 
 # Cline Rules & Project Intelligence
 
 *   **User Preferences:**
     *   Language for interaction: Cantonese (香港語)
     *   Language for technical content (code, docs, commits): English
+    *   **Architectural Preference:** Strong interest in refactoring towards Functional Programming. Open to exploring alternative DI patterns (Riverpod-like) or potentially removing DI. Emphasis on high performance and scalability (millions of files).
+    *   **UI Preference:** Desire for improved UI, potentially including a Web UI.
 *   **Project Patterns:**
     *   Memory Bank system is used for context persistence.
     *   Strict 500 LoC limit per source file.
-    *   Dependency Injection using `inversify` managed via a central `Context` class.
-        *   Services and Jobs typically bound as singletons.
-        *   Configuration objects bound as constants, derived from `ProgramOptions`.
-        *   Dynamic binding used for external tools requiring configuration (e.g., `ExifTool` concurrency).
-        *   Worker pool (`workerpool`) configured and bound dynamically in `Context`.
-    *   Clear separation of concerns: `MediaOrganizer` (orchestration), `MediaProcessor` (single file processing via Jobs), `MediaComparator` (comparison/deduplication).
-    *   Job-based architecture: Specific tasks (stats, metadata, feature extraction) encapsulated in dedicated Job classes (e.g., `FileStatsJob`, `MetadataExtractionJob`, `AdaptiveExtractionJob`) injected into `MediaProcessor`.
-    *   Base Job classes (`BaseFileInfoJob`, `FileHashBaseJob`) used for abstracting persistent caching.
-        *   Caching uses LMDB (via `DatabaseContext`).
-        *   `DatabaseContext` initializes root DB at `.mediadb` with compression.
-        *   Two DBs per job (results, config).
-        *   Cache key is path (`BaseFileInfoJob`) or content hash (`FileHashBaseJob`).
-        *   Cache invalidated if job config changes (`deep-eql` check).
-        *   In-memory Mutex used per cache key to prevent race conditions.
-        *   Serialization helpers handle complex types (e.g., `SharedArrayBuffer`).
-    *   Service Wrappers: Simple services (`SharpService`, `FFmpegService`) often used to configure underlying libraries (e.g., setting concurrency) and provide consistent access.
-    *   Utility Module (`src/utils.ts`): Centralizes common functions (file type detection, buffer conversions, async helpers, hex conversions) and constants (supported extensions).
-    *   Data Structures: Uses specialized structures like VP-Tree (`VPTree.ts`) for efficient nearest neighbor search.
-    *   Partial MD5 hashing (first/last chunks) used in `FileStatsJob` for large files as a performance optimization.
-    *   Metadata extraction relies on `exiftool-vendored`.
-    *   Adaptive frame extraction using complex FFmpeg `select` filters based on scene changes and intervals.
-    *   Perceptual Hashing: DCT-based algorithm implemented in TypeScript (`PerceptualHashWorker`), executed via `workerpool`.
-    *   Hamming Distance: Optimized using WASM SIMD (`assembly/index.ts`), likely replacing TypeScript version at runtime for performance.
-    *   Delegation of CPU-intensive tasks (pHash, DBSCAN) to worker threads via `workerpool`.
-        *   Workers re-initialize DI container and import main thread's `FileInfo` cache.
-    *   Deduplication Strategy: VPTree for efficient neighbor search combined with parallelized DBSCAN clustering (using `workerpool`).
-    *   Similarity Calculation: Adaptive approach using Hamming distance (WASM/TS) for images/frames and Dynamic Time Warping (DTW) for video frame sequences.
-    *   Representative Selection: Scoring system based on duration, metadata, resolution, size to select the 'best' file(s) from duplicate sets.
-    *   In-memory caching layer in `MediaProcessor` (`processFile` wrapper) to avoid reprocessing within a run.
-    *   Use of `async-mutex.Semaphore` for controlling I/O concurrency in `MediaOrganizer`.
-    *   Use of specific UI libraries (`cli-progress`, `@topcli/spinner`) for progress feedback.
-    *   Pattern of passing processor methods (e.g., `MediaProcessor.processFile`) as callbacks to comparator/other services.
-    *   Detailed HTML debug report generation for duplicate sets.
-    *   Worker threads managed via `workerpool` library, using `workerType: 'web'`. Worker code located in `src/worker/`.
+    *   *Current:* Dependency Injection using `inversify` managed via `Context.ts` (subject to change).
+    *   *Current:* Pipeline architecture decomposed into functional stages (`discovery`, `gatherer`, `deduplicator`, `transfer`).
+    *   *Current:* Job logic refactored into functions (`src/jobs/`).
+    *   *Current:* Caching isolated (`src/caching/LmdbCache.ts`).
+    *   *Current:* External tools wrapped (`src/external/`).
+    *   Use of WASM for performance-critical calculations (Hamming distance).
+    *   Use of `workerpool` for concurrency.
+    *   Use of VPTree for deduplication.
 *   **Workflow:**
     *   Read ALL Memory Bank files at the start of each task.
-    *   Update Memory Bank after task completion/significant analysis.
-    *   Use Git for version control.
+    *   Update Memory Bank after task completion/significant analysis/change in direction.
+    *   Use Git for version control. Commit frequently after logical steps.
     *   Use Windows Batch/filesystem-mcp for file/system ops, gh CLI for GitHub.
 *   **Known Challenges:**
-    *   Managing complexity of different media formats and their metadata (ExifTool parsing, date formats).
-    *   Balancing performance and accuracy in deduplication (tuning DBSCAN params, DTW cost, FFmpeg filters).
-    *   Ensuring robustness of file operations (e.g., cross-device moves).
-    *   Coordinating caching between in-memory (`MediaProcessor`) and persistent (Jobs/LMDB).
-    *   Efficient parallelization and merging of DBSCAN results.
-    *   Complexity of FFmpeg filter syntax and stream processing.
-    *   Integration/loading of WASM module for Hamming distance.
+    *   Managing complexity of different media formats and metadata.
+    *   Balancing performance and accuracy in deduplication.
+    *   Ensuring robustness of file operations.
+    *   Coordinating caching.
+    *   Efficient parallelization.
+    *   Complexity of FFmpeg filters.
+    *   Integration/loading of WASM.
+    *   **Testing Environment:** Persistent issues encountered mocking `fs.existsSync` and `crypto.randomBytes` within `bun test` environment. Need robust mocking/testing strategy for refactored code.
 *   **Tool Usage:**
     *   Prefer `filesystem-mcp` for batch file operations.
+    *   Use `write_to_file` cautiously, prefer `apply_diff` or `insert_content` for modifications unless overwriting is intended or simpler.
