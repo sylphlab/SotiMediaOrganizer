@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import "reflect-metadata";
+// Removed import "reflect-metadata";
 
 import { Command } from "commander";
 import chalk from "chalk";
@@ -10,7 +10,7 @@ import {
 } from "./src/types";
 // import { MediaOrganizer } from "./MediaOrganizer"; // Removed old class import
 import os from "os";
-import { Context } from "./src/contexts/Context";
+// Removed import { Context } from "./src/contexts/Context";
 // Removed duplicate import for discoverFilesFn
 import { gatherFileInfoFn } from "./src/gatherer";
 import { deduplicateFilesFn } from "./src/deduplicator"; // Import the new function
@@ -177,18 +177,48 @@ async function main() {
   const [source, destination] = program.args as [string, string];
   const options = program.opts<ProgramOptions>();
 
-  await Context.ensureInitialized(options);
+  // Removed DI initialization: await Context.ensureInitialized(options);
 
   // const organizer = await Context.injector.getAsync(MediaOrganizer)!; // Removed instance retrieval
   try {
-    // Get dependencies needed for functional calls
-    const cache = Context.injector.get(LmdbCache);
-    const fileProcessorConfig = Context.injector.get<FileProcessorConfig>(Types.FileProcessorConfig);
-    const exifTool = Context.injector.get(ExifTool);
-    const workerPool = await Context.injector.getAsync<WorkerPool>(Types.WorkerPool);
-    const comparator = Context.injector.get(MediaComparator);
-    const debugReporter = Context.injector.get(DebugReporter); // Get dependencies
-    const fileTransferService = Context.injector.get(FileTransferService);
+    // TODO: Manually instantiate dependencies or use a simple factory
+    const cache = new LmdbCache(); // Example instantiation
+    const exifTool = new ExifTool({ maxProcs: options.concurrency }); // Example instantiation
+    // TODO: Instantiate WorkerPool (requires workerpool library setup)
+    const workerPool: WorkerPool = null as any; // Placeholder
+    // TODO: Construct config objects from options
+    const fileProcessorConfig: FileProcessorConfig = {
+        fileStats: { maxChunkSize: options.maxChunkSize },
+        adaptiveExtraction: {
+            resolution: options.resolution,
+            sceneChangeThreshold: options.sceneChangeThreshold,
+            minFrames: options.minFrames,
+            maxSceneFrames: options.maxSceneFrames,
+            targetFps: options.targetFps
+        }
+    };
+    const similarityConfig = { // Construct SimilarityConfig
+        windowSize: options.windowSize,
+        stepSize: options.stepSize,
+        imageSimilarityThreshold: options.imageSimilarityThreshold,
+        imageVideoSimilarityThreshold: options.imageVideoSimilarityThreshold,
+        videoSimilarityThreshold: options.videoSimilarityThreshold
+    };
+    // Instantiate MediaComparator with dependencies
+    const comparator = new MediaComparator(cache, fileProcessorConfig, exifTool, similarityConfig, options, workerPool);
+    // Instantiate DebugReporter with dependencies
+    const debugReporter = new DebugReporter(comparator, cache, fileProcessorConfig, exifTool, workerPool);
+    // Instantiate FileTransferService - Needs refactoring as MediaProcessor is removed
+    // For now, let's pass the dependencies needed by processSingleFile, assuming the service will be refactored later
+    // TODO: Refactor FileTransferService constructor and internal logic
+    const fileTransferService = new FileTransferService({ // Pass dependencies as an object for now
+        config: fileProcessorConfig,
+        cache: cache,
+        exifTool: exifTool,
+        workerPool: workerPool
+    } as any); // Use 'as any' temporarily until constructor is refactored
+
+    // Removed Context.injector.get calls
     // Stage 1: File Discovery
     console.log(chalk.blue("Stage 1: Discovering files..."));
     // Use the standalone discovery function

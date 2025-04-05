@@ -1,4 +1,4 @@
-import "reflect-metadata";
+// Removed import "reflect-metadata";
 
 // Removed unused imports: MediaComparator, WorkerData, FileInfo, LmdbCache, ExifTool, processSingleFile
 // Removed unused import: FileProcessorConfig

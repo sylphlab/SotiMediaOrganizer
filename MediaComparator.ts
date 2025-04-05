@@ -19,14 +19,14 @@ import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
 import { ok, err, AppResult, UnknownError, AppError } from "./src/errors"; // Removed unused AnyAppError
 import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored, mergeAndDeduplicateClusters, expandCluster } from "./src/comparatorUtils"; // Import expandCluster
-import { inject, injectable } from "inversify";
+// Removed inversify imports: inject, injectable
 import { Types, type WorkerPool } from "./src/contexts/types";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
 // WasmExports interface moved to src/types.ts
 
-@injectable()
+// Removed @injectable() decorator
 export class MediaComparator {
   private readonly minThreshold: number;
   private wasmExports: WasmExports | null = null;
@@ -34,12 +34,12 @@ export class MediaComparator {
 
   constructor(
     // private mediaProcessor: MediaProcessor, // Removed injection
-    @inject(LmdbCache) private cache: LmdbCache, // Added injection
-    @inject(Types.FileProcessorConfig) private fileProcessorConfig: FileProcessorConfig, // Use token
-    @inject(ExifTool) private exifTool: ExifTool, // Added injection
+    private cache: LmdbCache, // Removed @inject()
+    private fileProcessorConfig: FileProcessorConfig, // Removed @inject()
+    private exifTool: ExifTool, // Removed @inject()
     private similarityConfig: SimilarityConfig,
     private options: ProgramOptions,
-    @inject(Types.WorkerPool) private workerPool: WorkerPool,
+    private workerPool: WorkerPool, // Removed @inject()
   ) {
     this.minThreshold = Math.min(
       this.similarityConfig.imageSimilarityThreshold,
