@@ -1,25 +1,32 @@
-<!-- Version: 0.7 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 1.0 | Last Updated: 2025-04-05 | Updated By: Cline -->
 
 # Project Progress
 
-- **Current Status:** Paused testing to plan a major architectural refactoring towards functional programming, improved UI, and scalability, as per user request.
+- **Current Status:** Completed Phase 1 refactoring. ESLint parsing error in `src/jobs/adaptiveExtraction.ts` resolved. Ready to commit Phase 1 changes.
 - **What Works:**
   - Memory Bank structure initialized.
   - Project renamed to MediaCurator.
-  - Core logic partially refactored towards functional style.
+  - Core logic significantly refactored towards functional style (using `neverthrow` for `Result`).
+  - Dependency Injection framework (`inversify`) removed; Manual Injection implemented.
+  - `Context.ts` and related service wrappers removed.
   - WASM optimization for Hamming distance integrated.
   - Basic Jest setup complete.
   - Unit tests for `src/utils.ts` and most helpers in `src/comparatorUtils.ts` are passing.
+  - Husky pre-commit hook updated.
+  - ESLint parsing error in `src/jobs/adaptiveExtraction.ts` fixed.
 - **What's Next / To Be Built:**
-  - **Major Refactoring (New Task):**
-    - Adopt a more functional programming style throughout the codebase.
-    - Re-evaluate and potentially replace the DI framework (Inversify).
-    - Design and implement UI improvements (potentially Web UI).
-    - Ensure architecture scales to handle millions of media files.
+  - **Commit Phase 1:** Successfully commit the completed Phase 1 changes.
+  - **Major Refactoring (Phase 2 - Scalability):**
+    - Implement SQLite DB module (`better-sqlite3`).
+    - Refactor pipeline stages (`Gathering`, `Deduplication`) for SQLite usage (streaming/batching).
+    - Optimize/Re-evaluate deduplication algorithm (VPTree/DBSCAN).
+    - Refine worker implementation.
+    - Introduce benchmarking.
+  - **Major Refactoring (Phase 3 - UI):**
+    - Refine CLI output/progress/errors.
+    - (Deferred) Web UI foundation.
   - **Testing (Post-Refactoring):**
     - Develop a comprehensive test suite covering the refactored code.
-  - Update Husky pre-commit hook.
 - **Known Issues/Blockers:**
   - Persistent issues mocking `fs.existsSync` and/or `crypto.randomBytes` within `bun test` environment (relevant for future testing).
-  - Husky pre-commit hook shows deprecation warnings.
-  - Test coverage is low pending refactoring and further test development.
+  - Test coverage is low pending completion of major refactoring (Phase 4).

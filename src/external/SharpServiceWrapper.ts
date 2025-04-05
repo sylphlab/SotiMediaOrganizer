@@ -1,4 +1,8 @@
-import sharp, { Sharp, Metadata as SharpMetadata, Stats as SharpStats } from 'sharp';
+import sharp, {
+  Sharp,
+  Metadata as SharpMetadata,
+  Stats as SharpStats,
+} from "sharp";
 import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Removed unused ok, err
 
 /**
@@ -6,7 +10,7 @@ import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Remov
  * @param concurrency The maximum number of threads sharp should use.
  */
 export function setSharpConcurrency(concurrency: number): void {
-    sharp.concurrency(concurrency);
+  sharp.concurrency(concurrency);
 }
 
 /**
@@ -15,8 +19,8 @@ export function setSharpConcurrency(concurrency: number): void {
  * @returns A sharp instance.
  */
 export function createSharpInstance(input?: Buffer | string): Sharp {
-    // Sharp can be called with or without input
-    return input ? sharp(input) : sharp();
+  // Sharp can be called with or without input
+  return input ? sharp(input) : sharp();
 }
 
 /**
@@ -24,14 +28,20 @@ export function createSharpInstance(input?: Buffer | string): Sharp {
  * @param instance A sharp instance.
  * @returns A Promise resolving to the image metadata.
  */
-export async function readSharpMetadata(instance: Sharp): Promise<AppResult<SharpMetadata>> {
-    return safeTryAsync(
-        instance.metadata(),
-        (error) => new ExternalToolError(
-            `Failed to read sharp metadata: ${error instanceof Error ? error.message : String(error)}`,
-            { tool: 'sharp', originalError: error instanceof Error ? error : undefined }
-        )
-    );
+export async function readSharpMetadata(
+  instance: Sharp,
+): Promise<AppResult<SharpMetadata>> {
+  return safeTryAsync(
+    instance.metadata(),
+    (error) =>
+      new ExternalToolError(
+        `Failed to read sharp metadata: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          tool: "sharp",
+          originalError: error instanceof Error ? error : undefined,
+        },
+      ),
+  );
 }
 
 /**
@@ -39,14 +49,20 @@ export async function readSharpMetadata(instance: Sharp): Promise<AppResult<Shar
  * @param instance A sharp instance.
  * @returns A Promise resolving to the image stats.
  */
-export async function readSharpStats(instance: Sharp): Promise<AppResult<SharpStats>> {
-     return safeTryAsync(
-        instance.stats(),
-        (error) => new ExternalToolError(
-            `Failed to read sharp stats: ${error instanceof Error ? error.message : String(error)}`,
-            { tool: 'sharp', originalError: error instanceof Error ? error : undefined }
-        )
-    );
+export async function readSharpStats(
+  instance: Sharp,
+): Promise<AppResult<SharpStats>> {
+  return safeTryAsync(
+    instance.stats(),
+    (error) =>
+      new ExternalToolError(
+        `Failed to read sharp stats: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          tool: "sharp",
+          originalError: error instanceof Error ? error : undefined,
+        },
+      ),
+  );
 }
 
 // Add wrappers for specific sharp operations as needed, e.g., resize, grayscale, toBuffer
@@ -59,8 +75,12 @@ export async function readSharpStats(instance: Sharp): Promise<AppResult<SharpSt
  * @param height The target height.
  * @returns The sharp instance for chaining.
  */
-export function resizeImage(instance: Sharp, width: number, height: number): Sharp {
-    return instance.resize(width, height);
+export function resizeImage(
+  instance: Sharp,
+  width: number,
+  height: number,
+): Sharp {
+  return instance.resize(width, height);
 }
 
 /**
@@ -69,7 +89,7 @@ export function resizeImage(instance: Sharp, width: number, height: number): Sha
  * @returns The sharp instance for chaining.
  */
 export function grayscaleImage(instance: Sharp): Sharp {
-    return instance.grayscale();
+  return instance.grayscale();
 }
 
 /**
@@ -77,12 +97,18 @@ export function grayscaleImage(instance: Sharp): Sharp {
  * @param instance The sharp instance.
  * @returns A Promise resolving to the image Buffer.
  */
-export async function imageToBuffer(instance: Sharp): Promise<AppResult<Buffer>> {
-     return safeTryAsync(
-        instance.toBuffer(),
-        (error) => new ExternalToolError(
-            `Failed to convert image to buffer: ${error instanceof Error ? error.message : String(error)}`,
-            { tool: 'sharp', originalError: error instanceof Error ? error : undefined }
-        )
-    );
+export async function imageToBuffer(
+  instance: Sharp,
+): Promise<AppResult<Buffer>> {
+  return safeTryAsync(
+    instance.toBuffer(),
+    (error) =>
+      new ExternalToolError(
+        `Failed to convert image to buffer: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          tool: "sharp",
+          originalError: error instanceof Error ? error : undefined,
+        },
+      ),
+  );
 }

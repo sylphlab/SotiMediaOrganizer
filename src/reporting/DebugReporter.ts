@@ -1,4 +1,4 @@
-import { injectable } from "inversify"; // Removed unused 'inject'
+// import { injectable } from "inversify"; // Removed unused 'inject' - REMOVED INVERSIFY
 import { writeFile } from "fs/promises";
 import { join, relative } from "path";
 import { FileInfo, DuplicateSet, FileProcessorConfig } from "../types"; // Added FileProcessorConfig
@@ -6,21 +6,20 @@ import { FileInfo, DuplicateSet, FileProcessorConfig } from "../types"; // Added
 import { MediaComparator } from "../../MediaComparator";
 import { LmdbCache } from "../caching/LmdbCache"; // Added cache import
 import { ExifTool } from "exiftool-vendored"; // Added exiftool import
-import { WorkerPool, Types } from "../contexts/types"; // Added workerpool import
+import { WorkerPool } from "../contexts/types"; // Removed unused Types import
 import { processSingleFile } from "../fileProcessor"; // Added file processor function import
-import { inject } from "inversify"; // Added inject
+// import { inject } from "inversify"; // Added inject - REMOVED INVERSIFY
 import { calculateEntryScore } from "../comparatorUtils"; // Import the utility function
 
-@injectable()
+// @injectable() // REMOVED INVERSIFY
 export class DebugReporter {
   constructor(
-    // private processor: MediaProcessor, // Removed injection
-    private comparator: MediaComparator,
-    // Inject dependencies needed for processSingleFile
-    @inject(LmdbCache) private cache: LmdbCache,
-    @inject(Types.FileProcessorConfig) private fileProcessorConfig: FileProcessorConfig,
-    @inject(ExifTool) private exifTool: ExifTool,
-    @inject(Types.WorkerPool) private workerPool: WorkerPool,
+    // Manually injected dependencies
+    private readonly comparator: MediaComparator,
+    private readonly cache: LmdbCache,
+    private readonly fileProcessorConfig: FileProcessorConfig,
+    private readonly exifTool: ExifTool,
+    private readonly workerPool: WorkerPool,
   ) {}
 
   async generateHtmlReports(
@@ -138,15 +137,31 @@ export class DebugReporter {
   ) {
     const allMedia = await Promise.all([
       ...Array.from(representatives).map(async (sourcePath) => {
-        // Use processSingleFile instead of processor.processFile
-        const info = await processSingleFile(sourcePath, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+        // Use processSingleFile instead of processor.processFile - already done
+        const infoResult = await processSingleFile(
+          sourcePath,
+          this.fileProcessorConfig,
+          this.cache,
+          this.exifTool,
+          this.workerPool,
+        );
+        // TODO: Handle potential error from infoResult using Result type
+        const info = infoResult.unwrapOr(null); // Temporary unwrap, needs proper error handling
         const score = calculateEntryScore(info!); // Use imported function
         const relativePath = this.convertToRelativePath(sourcePath, debugDir);
         return { isRepresentative: true, relativePath, info, score };
       }),
       ...Array.from(duplicates).map(async (sourcePath) => {
-        // Use processSingleFile instead of processor.processFile
-        const info = await processSingleFile(sourcePath, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+        // Use processSingleFile instead of processor.processFile - already done
+        const infoResult = await processSingleFile(
+          sourcePath,
+          this.fileProcessorConfig,
+          this.cache,
+          this.exifTool,
+          this.workerPool,
+        );
+        // TODO: Handle potential error from infoResult using Result type
+        const info = infoResult.unwrapOr(null); // Temporary unwrap, needs proper error handling
         const score = calculateEntryScore(info!); // Use imported function
         const relativePath = this.convertToRelativePath(sourcePath, debugDir);
         return { isRepresentative: false, relativePath, info, score };
@@ -162,7 +177,7 @@ export class DebugReporter {
                     <a href="${relativePath}" target="_blank" title="Click to view full size">
                         ${this.generateMediaElement(relativePath, isRepresentative)}
                     </a>
-                    ${this.generateFileDetails(info!, score)}
+                    ${info ? this.generateFileDetails(info, score) : "<p>Error processing file details</p>"}
                 </div>`,
       )
       .join("\n");

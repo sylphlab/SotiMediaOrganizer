@@ -51,16 +51,21 @@ describe("Utility Functions", () => {
       expect(res4._unsafeUnwrap()).toBe(FileType.Video);
     });
 
-    it("should return Err for unsupported extensions", () => { // Test for Err result
+    it("should return Err for unsupported extensions", () => {
+      // Test for Err result
       const res1 = getFileType("document.txt");
       expect(res1.isErr()).toBe(true);
       expect(res1._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
-      expect(res1._unsafeUnwrapErr().message).toContain("Unsupported file extension: txt");
+      expect(res1._unsafeUnwrapErr().message).toContain(
+        "Unsupported file extension: txt",
+      );
 
       const res2 = getFileTypeByExt("exe");
       expect(res2.isErr()).toBe(true);
       expect(res2._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
-      expect(res2._unsafeUnwrapErr().message).toContain("Unsupported file extension: exe");
+      expect(res2._unsafeUnwrapErr().message).toContain(
+        "Unsupported file extension: exe",
+      );
     });
 
     it("should handle paths with multiple dots", () => {
@@ -78,13 +83,17 @@ describe("Utility Functions", () => {
     });
 
     it("should return Err for filenames without extensions", () => {
-       const res1 = getFileType("myfile");
-       expect(res1.isErr()).toBe(true);
-       expect(res1._unsafeUnwrapErr().message).toContain("Unsupported file extension:"); // Empty extension
+      const res1 = getFileType("myfile");
+      expect(res1.isErr()).toBe(true);
+      expect(res1._unsafeUnwrapErr().message).toContain(
+        "Unsupported file extension:",
+      ); // Empty extension
 
-       const res2 = getFileTypeByExt("");
-       expect(res2.isErr()).toBe(true);
-       expect(res2._unsafeUnwrapErr().message).toContain("Unsupported file extension:"); // Empty extension
+      const res2 = getFileTypeByExt("");
+      expect(res2.isErr()).toBe(true);
+      expect(res2._unsafeUnwrapErr().message).toContain(
+        "Unsupported file extension:",
+      ); // Empty extension
     });
   });
 
@@ -103,29 +112,31 @@ describe("Utility Functions", () => {
   });
 
   describe("SharedArrayBuffer <-> Hex Conversions", () => {
-     it("should convert SharedArrayBuffer to hex string", () => {
-       const buffer = Buffer.from([0xDE, 0xAD, 0xBE, 0xEF]);
-       const sharedBuffer = bufferToSharedArrayBuffer(buffer);
-       expect(sharedArrayBufferToHex(sharedBuffer)).toBe("deadbeef");
-     });
+    it("should convert SharedArrayBuffer to hex string", () => {
+      const buffer = Buffer.from([0xde, 0xad, 0xbe, 0xef]);
+      const sharedBuffer = bufferToSharedArrayBuffer(buffer);
+      expect(sharedArrayBufferToHex(sharedBuffer)).toBe("deadbeef");
+    });
 
-     it("should convert hex string to SharedArrayBuffer", () => {
-       const hex = "cafebabe";
-       const expectedBuffer = Buffer.from([0xCA, 0xFE, 0xBA, 0xBE]);
-       const result = hexToSharedArrayBuffer(hex);
-       expect(result.isOk()).toBe(true);
-       const sharedBuffer = result._unsafeUnwrap(); // Unwrap
-       expect(sharedBuffer).toBeInstanceOf(SharedArrayBuffer);
-       expect(sharedBuffer.byteLength).toBe(4);
-       expect(sharedArrayBufferToBuffer(sharedBuffer)).toEqual(expectedBuffer);
-     });
+    it("should convert hex string to SharedArrayBuffer", () => {
+      const hex = "cafebabe";
+      const expectedBuffer = Buffer.from([0xca, 0xfe, 0xba, 0xbe]);
+      const result = hexToSharedArrayBuffer(hex);
+      expect(result.isOk()).toBe(true);
+      const sharedBuffer = result._unsafeUnwrap(); // Unwrap
+      expect(sharedBuffer).toBeInstanceOf(SharedArrayBuffer);
+      expect(sharedBuffer.byteLength).toBe(4);
+      expect(sharedArrayBufferToBuffer(sharedBuffer)).toEqual(expectedBuffer);
+    });
 
-     it("should return Err for odd length hex string", () => {
-       const result = hexToSharedArrayBuffer("abc");
-       expect(result.isErr()).toBe(true);
-       expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
-       expect(result._unsafeUnwrapErr().message).toContain("even number of characters");
-     });
+    it("should return Err for odd length hex string", () => {
+      const result = hexToSharedArrayBuffer("abc");
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
+      expect(result._unsafeUnwrapErr().message).toContain(
+        "even number of characters",
+      );
+    });
   });
 
   describe("Async Helpers", () => {
@@ -133,7 +144,7 @@ describe("Utility Functions", () => {
       const numbers = [1, 2, 3, 4, 5];
       // Predicate now returns Promise<AppResult<boolean>>
       const isEven = async (n: number): Promise<AppResult<boolean>> => {
-        await new Promise(resolve => setTimeout(resolve, 1)); // Simulate async work
+        await new Promise((resolve) => setTimeout(resolve, 1)); // Simulate async work
         return ok(n % 2 === 0); // Wrap boolean in ok()
       };
       const result = await filterAsync(numbers, isEven);
@@ -145,7 +156,7 @@ describe("Utility Functions", () => {
       const numbers = [1, 2, 3];
       // Mapper now returns Promise<AppResult<number>>
       const doubleAsync = async (n: number): Promise<AppResult<number>> => {
-        await new Promise(resolve => setTimeout(resolve, 1)); // Simulate async work
+        await new Promise((resolve) => setTimeout(resolve, 1)); // Simulate async work
         return ok(n * 2); // Wrap result in ok()
       };
       const result = await mapAsync(numbers, doubleAsync);

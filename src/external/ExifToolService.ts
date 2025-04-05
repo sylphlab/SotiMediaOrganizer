@@ -9,15 +9,22 @@ import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Remov
  * @param exifTool An instance of the ExifTool class.
  * @returns A Promise resolving to an AppResult containing the Tags object or an ExternalToolError.
  */
-export async function readExifTags(filePath: string, exifTool: ExifTool): Promise<AppResult<Tags>> {
-    // Use safeTryAsync to wrap the potentially throwing exifTool.read call
-    return safeTryAsync(
-        exifTool.read(filePath), // TODO: Add specific tags to read for optimization? e.g., ['-File:all']
-        (error) => new ExternalToolError(
-            `Failed to read Exif tags for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-            { tool: 'exiftool', originalError: error instanceof Error ? error : undefined }
-        )
-    );
+export async function readExifTags(
+  filePath: string,
+  exifTool: ExifTool,
+): Promise<AppResult<Tags>> {
+  // Use safeTryAsync to wrap the potentially throwing exifTool.read call
+  return safeTryAsync(
+    exifTool.read(filePath), // TODO: Add specific tags to read for optimization? e.g., ['-File:all']
+    (error) =>
+      new ExternalToolError(
+        `Failed to read Exif tags for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          tool: "exiftool",
+          originalError: error instanceof Error ? error : undefined,
+        },
+      ),
+  );
 }
 
 /**
@@ -27,7 +34,7 @@ export async function readExifTags(filePath: string, exifTool: ExifTool): Promis
  * @returns A new ExifTool instance.
  */
 export function createExifTool(concurrency: number): ExifTool {
-    return new ExifTool({ maxProcs: concurrency });
+  return new ExifTool({ maxProcs: concurrency });
 }
 
 // Consider adding a function to gracefully end the ExifTool process if needed,

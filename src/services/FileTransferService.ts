@@ -1,16 +1,32 @@
-import { injectable } from "inversify"; // Removed unused 'inject'
+import { ExifTool } from "exiftool-vendored";
+// import { injectable } from "inversify"; // Removed unused 'inject' - REMOVED INVERSIFY
 import { mkdir, copyFile, rename, unlink } from "fs/promises";
 import { join, basename, dirname, extname, parse, normalize } from "path"; // Added normalize
 import { existsSync } from "fs";
 import crypto from "crypto";
 import chalk from "chalk";
 import { MultiBar, Presets } from "cli-progress";
-import { FileInfo, DeduplicationResult, GatherFileInfoResult } from "../types";
-import { MediaProcessor } from "../MediaProcessor";
+import {
+  FileInfo,
+  DeduplicationResult,
+  GatherFileInfoResult,
+  FileProcessorConfig,
+} from "../types";
+// import { MediaProcessor } from "../MediaProcessor"; // REMOVED - Replaced by processSingleFile function
+import { processSingleFile } from "../fileProcessor";
+import { AppResult } from "../errors"; // Import AppResult for return type handling
+import { LmdbCache } from "../caching/LmdbCache";
+import { WorkerPool } from "../contexts/types";
 
-@injectable()
+// @injectable() // REMOVED INVERSIFY
 export class FileTransferService {
-  constructor(private processor: MediaProcessor) {}
+  constructor(
+    // Manually injected dependencies for processSingleFile
+    private readonly config: FileProcessorConfig,
+    private readonly cache: LmdbCache,
+    private readonly exifTool: ExifTool,
+    private readonly workerPool: WorkerPool,
+  ) {}
 
   async transferOrganizedFiles(
     gatherFileInfoResult: GatherFileInfoResult,
@@ -38,16 +54,25 @@ export class FileTransferService {
       phase: "Unique  ",
     });
     for (const filePath of deduplicationResult.uniqueFiles) {
-      const fileInfo = await this.processor.processFile(filePath); // Use injected processor
-      if (!fileInfo) {
-        // Consider logging a warning or skipping instead of throwing?
+      const fileInfoResult: AppResult<FileInfo> = await processSingleFile(
+        filePath,
+        this.config,
+        this.cache,
+        this.exifTool,
+        this.workerPool,
+      );
+
+      if (fileInfoResult.isErr()) {
         console.warn(
-          chalk.yellow(`Skipping unique file due to missing info: ${filePath}`),
+          chalk.yellow(
+            `Skipping unique file ${filePath} due to processing error:`,
+          ),
+          fileInfoResult.error,
         );
-        uniqueBar.increment(); // Increment even if skipped to keep progress accurate
+        uniqueBar.increment(); // Increment even if skipped
         continue;
-        // throw new Error(`File info not found for file ${filePath}`);
       }
+      const fileInfo = fileInfoResult.value; // Extract FileInfo on success
       const targetPath = this.generateTargetPath(
         format,
         targetDir,
@@ -104,20 +129,25 @@ export class FileTransferService {
         });
         for (const duplicateSet of deduplicationResult.duplicateSets) {
           for (const representativePath of duplicateSet.representatives) {
-            const fileInfo =
-              await this.processor.processFile(representativePath);
-            if (!fileInfo) {
+            const fileInfoResult: AppResult<FileInfo> = await processSingleFile(
+              representativePath,
+              this.config,
+              this.cache,
+              this.exifTool,
+              this.workerPool,
+            );
+
+            if (fileInfoResult.isErr()) {
               console.warn(
                 chalk.yellow(
-                  `Skipping representative file due to missing info: ${representativePath}`,
+                  `Skipping representative file ${representativePath} due to processing error:`,
                 ),
+                fileInfoResult.error,
               );
-              bestFileBar.increment();
+              bestFileBar.increment(); // Increment even if skipped
               continue;
-              // throw new Error(
-              //   `File info not found for file ${representativePath}`,
-              // );
             }
+            const fileInfo = fileInfoResult.value; // Extract FileInfo on success
             const targetPath = this.generateTargetPath(
               format,
               targetDir,
@@ -301,32 +331,33 @@ export class FileTransferService {
     };
 
     // Build a regex that specifically matches the known format keys from the 'data' object
-    const knownKeys = Object.keys(data).map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape regex special chars in keys
+    const knownKeys = Object.keys(data).map((key) =>
+      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    ); // Escape regex special chars in keys
     // Sort keys by length descending to match longer keys first (e.g., NAME.L before NAME) - might not be strictly necessary here but good practice
     knownKeys.sort((a, b) => b.length - a.length);
     // Regex to match {KEY}
-    const formatRegex = new RegExp(`\\{(${knownKeys.join('|')})\\}`, 'g');
+    const formatRegex = new RegExp(`\\{(${knownKeys.join("|")})\\}`, "g");
 
     const originalExt = parse(sourcePath).ext; // Get original extension with dot (e.g., ".jpg")
 
     let formattedPath = format.replace(formatRegex, (match, key) => {
-        let replacement = "";
-        if (key === "EXT") {
-            // Use the original extension *with* the dot if the key is EXT
-            replacement = originalExt;
-        } else {
-            replacement = (data[key] || ""); // Get value from data object for other keys
-        }
-        // Sanitize the replacement value (important for NAME, CAM etc.)
-        // Don't sanitize the extension itself here.
-        if (key !== "EXT") {
-             replacement = replacement.replace(/[<>:"|?*]/g, "_");
-        }
-        return replacement;
+      let replacement = "";
+      if (key === "EXT") {
+        // Use the original extension *with* the dot if the key is EXT
+        replacement = originalExt;
+      } else {
+        replacement = data[key] || ""; // Get value from data object for other keys
+      }
+      // Sanitize the replacement value (important for NAME, CAM etc.)
+      // Don't sanitize the extension itself here.
+      if (key !== "EXT") {
+        replacement = replacement.replace(/[<>:"|?*]/g, "_");
+      }
+      return replacement;
     });
 
     // Removed the redundant originalExt definition and the separate replace call for EXT
-
 
     // Remove leading/trailing slashes and ensure single slashes
     formattedPath = formattedPath
@@ -339,24 +370,25 @@ export class FileTransferService {
     }
 
     // Determine if the format string likely intended to specify a filename
-    const formatSpecifiesFilename = /\{NAME/.test(format) || /\{EXT\}/.test(format); // Simple check
+    const formatSpecifiesFilename =
+      /\{NAME/.test(format) || /\{EXT\}/.test(format); // Simple check
 
     let directory: string;
     let finalFilenameBase: string;
     let finalFilenameExt: string;
 
     if (formatSpecifiesFilename) {
-        // Assume formattedPath contains the intended directory and base filename (potentially without ext)
-        const parsedFormatted = parse(formattedPath.replace(/\\/g, '/'));
-        directory = parsedFormatted.dir;
-        finalFilenameBase = parsedFormatted.name; // Name part from format
-        // Use extension from format if present, otherwise use original
-        finalFilenameExt = parsedFormatted.ext || originalExt;
+      // Assume formattedPath contains the intended directory and base filename (potentially without ext)
+      const parsedFormatted = parse(formattedPath.replace(/\\/g, "/"));
+      directory = parsedFormatted.dir;
+      finalFilenameBase = parsedFormatted.name; // Name part from format
+      // Use extension from format if present, otherwise use original
+      finalFilenameExt = parsedFormatted.ext || originalExt;
     } else {
-        // Format string only specified directory structure
-        directory = formattedPath; // The whole thing is the directory
-        finalFilenameBase = name; // Use original base name
-        finalFilenameExt = ext; // Use original extension
+      // Format string only specified directory structure
+      directory = formattedPath; // The whole thing is the directory
+      finalFilenameBase = name; // Use original base name
+      finalFilenameExt = ext; // Use original extension
     }
 
     // Combine base and extension
@@ -432,17 +464,19 @@ export class FileTransferService {
     };
 
     // Build a regex that specifically matches the known format keys
-    const knownKeys = Object.keys(formatters).map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape regex special chars in keys
+    const knownKeys = Object.keys(formatters).map((key) =>
+      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+    ); // Escape regex special chars in keys
     // Sort keys by length descending to match longer keys first (e.g., DDDD before DD)
     knownKeys.sort((a, b) => b.length - a.length);
-    const formatRegex = new RegExp(`(${knownKeys.join('|')})`, 'g');
+    const formatRegex = new RegExp(`(${knownKeys.join("|")})`, "g");
 
     // Replace only the known keys
     return format.replace(formatRegex, (match) => {
-        // The matched key is the first capturing group (the whole match in this case)
-        const formatter = formatters[match];
-        // If a formatter exists for the key, call it, otherwise return the original match (shouldn't happen with this regex)
-        return formatter ? formatter() : match;
+      // The matched key is the first capturing group (the whole match in this case)
+      const formatter = formatters[match];
+      // If a formatter exists for the key, call it, otherwise return the original match (shouldn't happen with this regex)
+      return formatter ? formatter() : match;
     });
   }
 
@@ -463,9 +497,7 @@ export class FileTransferService {
     return weekNo;
   }
 
-
   private generateRandomId(): string {
     return crypto.randomBytes(4).toString("hex");
   }
 }
-

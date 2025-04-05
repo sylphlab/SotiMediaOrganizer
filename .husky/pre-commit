@@ -1,5 +1,4 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# Removed deprecated husky lines
 
 bun test
 bunx eslint .

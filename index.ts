@@ -8,7 +8,7 @@ import {
   type DeduplicationResult,
   type GatherFileInfoResult,
   FileProcessorConfig, // Added FileProcessorConfig
-  SimilarityConfig // Added SimilarityConfig
+  SimilarityConfig, // Added SimilarityConfig
 } from "./src/types";
 // import { MediaOrganizer } from "./MediaOrganizer"; // Removed old class import
 import os from "os";
@@ -17,9 +17,11 @@ import os from "os";
 import { gatherFileInfoFn } from "./src/gatherer";
 import { deduplicateFilesFn } from "./src/deduplicator"; // Import the new function
 import { LmdbCache } from "./src/caching/LmdbCache"; // Import dependencies
-// Removed FileProcessorConfig import (already imported above)
 import { ExifTool } from "exiftool-vendored";
-import { WorkerPool, Types } from "./src/contexts/types"; // Keep Types for now if needed elsewhere
+import { WorkerPool } from "./src/contexts/types"; // Removed unused Types import
+import workerpool, { Pool } from "workerpool"; // Import the Pool type
+import sharp from "sharp"; // Add sharp import
+import type { CustomWorker } from "./src/worker/worker"; // Import worker type for pool proxy
 import { MediaComparator } from "./MediaComparator";
 import { transferFilesFn } from "./src/transfer"; // Import the new function
 import { DebugReporter } from "./src/reporting/DebugReporter"; // Import dependencies
@@ -183,96 +185,138 @@ async function main() {
   // Removed DI initialization: await Context.ensureInitialized(options);
 
   // const organizer = await Context.injector.getAsync(MediaOrganizer)!; // Removed instance retrieval
+  let exifTool: ExifTool | null = null; // Declare outside try
+  let pool: Pool | null = null; // Use the imported Pool type
+  let cache: LmdbCache | null = null; // Declare cache outside try
+  // Removed duplicate cache declaration
   try {
+    // Set sharp concurrency based on options
+    sharp.concurrency(options.concurrency);
+
     // Manually instantiate dependencies
-    const cache = new LmdbCache(); // Example instantiation
-    const exifTool = new ExifTool({ maxProcs: options.concurrency }); // Example instantiation
+    const cacheResult = await LmdbCache.create(); // Use async factory method
+    if (cacheResult.isErr()) {
+      // Handle error during cache creation (e.g., log and exit)
+      console.error(
+        chalk.red("Failed to initialize cache database:"),
+        cacheResult.error,
+      );
+      process.exit(1);
+    }
+    cache = cacheResult.value; // Assign inside try
+    exifTool = new ExifTool({ maxProcs: options.concurrency }); // Assign inside try
     const dbService = new MetadataDBService(); // Instantiate DB Service
-    // TODO: Instantiate WorkerPool (requires workerpool library setup)
-    const workerPool: WorkerPool = null as any; // Placeholder
+    // Instantiate WorkerPool
+    pool = workerpool.pool(__dirname + "/src/worker/worker.js", {
+      // Assign inside try
+      workerType: "thread", // Use 'thread' for Node.js environment
+      maxWorkers: options.concurrency,
+    });
+    const workerPool: WorkerPool = await pool.proxy<CustomWorker>();
     // Construct config objects from options
     const fileProcessorConfig: FileProcessorConfig = {
-        fileStats: { maxChunkSize: options.maxChunkSize },
-        adaptiveExtraction: {
-            resolution: options.resolution,
-            sceneChangeThreshold: options.sceneChangeThreshold,
-            minFrames: options.minFrames,
-            maxSceneFrames: options.maxSceneFrames,
-            targetFps: options.targetFps
-        }
+      fileStats: { maxChunkSize: options.maxChunkSize },
+      adaptiveExtraction: {
+        resolution: options.resolution,
+        sceneChangeThreshold: options.sceneChangeThreshold,
+        minFrames: options.minFrames,
+        maxSceneFrames: options.maxSceneFrames,
+        targetFps: options.targetFps,
+      },
     };
-    const similarityConfig: SimilarityConfig = { // Construct SimilarityConfig
-        windowSize: options.windowSize,
-        stepSize: options.stepSize,
-        imageSimilarityThreshold: options.imageSimilarityThreshold,
-        imageVideoSimilarityThreshold: options.imageVideoSimilarityThreshold,
-        videoSimilarityThreshold: options.videoSimilarityThreshold
+    const similarityConfig: SimilarityConfig = {
+      // Construct SimilarityConfig
+      windowSize: options.windowSize,
+      stepSize: options.stepSize,
+      imageSimilarityThreshold: options.imageSimilarityThreshold,
+      imageVideoSimilarityThreshold: options.imageVideoSimilarityThreshold,
+      videoSimilarityThreshold: options.videoSimilarityThreshold,
     };
     // Instantiate MediaComparator with dependencies
-    const comparator = new MediaComparator(cache, fileProcessorConfig, exifTool, similarityConfig, options, workerPool);
+    const comparator = new MediaComparator(
+      cache,
+      fileProcessorConfig,
+      exifTool,
+      similarityConfig,
+      options,
+      workerPool,
+    );
     // Instantiate DebugReporter with dependencies
-    const debugReporter = new DebugReporter(comparator, cache, fileProcessorConfig, exifTool, workerPool);
+    const debugReporter = new DebugReporter(
+      comparator,
+      cache,
+      fileProcessorConfig,
+      exifTool,
+      workerPool,
+    );
     // Instantiate FileTransferService - Needs refactoring as MediaProcessor is removed
     // For now, let's pass the dependencies needed by processSingleFile, assuming the service will be refactored later
     // TODO: Refactor FileTransferService constructor and internal logic
-    const fileTransferService = new FileTransferService({ // Pass dependencies as an object for now
-        config: fileProcessorConfig,
-        cache: cache,
-        exifTool: exifTool,
-        workerPool: workerPool
-    } as any); // Use 'as any' temporarily until constructor is refactored
+    const fileTransferService = new FileTransferService(
+      fileProcessorConfig, // Pass config directly
+      cache, // Pass cache directly
+      exifTool, // Pass exifTool directly
+      workerPool, // Pass workerPool directly
+    );
 
     // Removed Context.injector.get calls
     // Stage 1: File Discovery
     console.log(chalk.blue("Stage 1: Discovering files..."));
     // Use the standalone discovery function
-    const discoveredFiles = await discoverFilesFn([source], options.concurrency);
+    const discoveredFiles = await discoverFilesFn(
+      [source],
+      options.concurrency,
+    );
 
     // Stage 2: Gathering Information
     console.log(chalk.blue("\nStage 2: Gathering file information..."));
     // Use the standalone gatherer function
     const gatherFileInfoResult = await gatherFileInfoFn(
-        discoveredFiles,
-        options.concurrency,
-        fileProcessorConfig,
-        cache,
-        exifTool,
-        workerPool,
-        dbService // Pass dbService
+      discoveredFiles,
+      options.concurrency,
+      fileProcessorConfig,
+      cache,
+      exifTool,
+      workerPool,
+      dbService, // Pass dbService
     );
 
     // Stage 3: Deduplication
     console.log(chalk.blue("\nStage 3: Deduplicating files..."));
     // Use the standalone deduplicator function
     const deduplicationResult = await deduplicateFilesFn(
-        gatherFileInfoResult.validFiles,
-        comparator, // Pass comparator instance
-        dbService   // Pass dbService
+      gatherFileInfoResult.validFiles,
+      comparator, // Pass comparator instance
+      dbService, // Pass dbService
     );
 
     // Handle potential error from deduplication
     if (deduplicationResult.isErr()) {
-        console.error(chalk.red(`\nDeduplication failed: ${deduplicationResult.error.message}`));
-        // Decide how to proceed - exit? continue without transfer?
-        // For now, let's exit.
-        throw deduplicationResult.error; // Rethrow to be caught by main try/catch
+      console.error(
+        chalk.red(
+          `\nDeduplication failed: ${deduplicationResult.error.message}`,
+        ),
+      );
+      // Decide how to proceed - exit? continue without transfer?
+      // For now, let's exit.
+      throw deduplicationResult.error; // Rethrow to be caught by main try/catch
     }
     const deduplicationData = deduplicationResult.value; // Unwrap successful result
     // Stage 4: File Transfer
     console.log(chalk.blue("\nStage 4: Transferring files..."));
     // Use the standalone transfer function
     await transferFilesFn(
-        gatherFileInfoResult,
-        deduplicationData, // Pass unwrapped data
-        destination,
-        options.duplicate,
-        options.error,
-        options.debug,
-        options.format,
-        options.move,
-        debugReporter, // Pass dependencies
-        fileTransferService
-        // TODO: Pass dbService here? Transfer might need it if FileTransferService is refactored.
+      gatherFileInfoResult,
+      deduplicationData, // Pass unwrapped data
+      destination,
+      options.duplicate,
+      options.error,
+      options.debug,
+      options.format,
+      options.move,
+      debugReporter, // Pass dependencies
+      fileTransferService,
+      // TODO: Pass dbService here? Transfer might need it if FileTransferService is refactored.
     );
 
     console.log(chalk.green("\nMedia organization completed"));
@@ -287,15 +331,16 @@ async function main() {
   } catch (error) {
     console.error(chalk.red("An unexpected error occurred:"), error);
   } finally {
-      // Ensure DB connection is closed
-      // Need to access dbService instance created in try block
-      // This requires moving dbService instantiation outside or handling closure differently
-      // For now, assuming dbService might not be initialized if an early error occurred.
-      // await dbService?.close(); // Optional chaining
-      // TODO: Ensure exifTool is ended gracefully
-      // await exifTool?.end();
-      // TODO: Ensure workerPool is terminated
-      // await workerPool?.terminate();
+    // Ensure DB connection is closed
+    // Need to access dbService instance created in try block
+    // This requires moving dbService instantiation outside or handling closure differently
+    // For now, assuming dbService might not be initialized if an early error occurred.
+    await cache?.close(); // Close the cache DB
+    // await dbService?.close(); // Optional chaining - dbService is separate now
+    // Ensure exifTool is ended gracefully
+    await exifTool?.end();
+    // Ensure workerPool is terminated
+    await pool?.terminate(); // Terminate the pool, not the proxy
   }
 }
 
@@ -325,12 +370,12 @@ function printResults(
 
 // Wrap main execution in a try/catch block
 (async () => {
-    try {
-        await main();
-        // Explicitly exit after successful completion? Optional.
-        // process.exit(0);
-    } catch (error) {
-        console.error(chalk.red("Critical error during execution:"), error);
-        process.exit(1);
-    }
+  try {
+    await main();
+    // Explicitly exit after successful completion? Optional.
+    // process.exit(0);
+  } catch (error) {
+    console.error(chalk.red("Critical error during execution:"), error);
+    process.exit(1);
+  }
 })();

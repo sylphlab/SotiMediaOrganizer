@@ -1,9 +1,9 @@
 // Removed import "reflect-metadata";
 
-import { FileProcessorConfig, SimilarityConfig, WasmExports, DBSCANWorkerData, MediaInfo } from "../types"; // Import necessary types
-import { VPNode, VPTree } from "../../VPTree"; // Import VPTree types
-import { runDbscanCore, calculateImageSimilarity } from "../comparatorUtils"; // Corrected import name & Import DBSCAN logic
-import { AppResult, ok, err, AppError } from "../errors"; // Import AppResult types
+// Removed unused imports: FileProcessorConfig, SimilarityConfig, WasmExports, DBSCANWorkerData, MediaInfo
+// Removed unused imports: VPNode, VPTree
+// Removed unused imports: runDbscanCore, calculateImageSimilarity
+// Removed unused imports: AppResult, ok, err, AppError (errors handled by throwing in computePerceptualHash)
 // TODO: Need a way to get FileInfo for distance calculation in worker
 // Option A: Pass DBService instance/config (complex)
 // Option B: Pass relevant FileInfo subset via workerData (memory intensive?)
@@ -11,7 +11,6 @@ import { AppResult, ok, err, AppError } from "../errors"; // Import AppResult ty
 import workerpool from "workerpool";
 import { PerceptualHashWorker } from "./perceptualHashWorker";
 // DBSCANWorkerData interface is now imported from types.ts
-
 
 // Removed performDBSCAN function as DBSCAN now runs on main thread
 
@@ -28,10 +27,10 @@ function computePerceptualHash(
   // Handle AppResult from computePerceptualHash
   const result = worker.computePerceptualHash(imageBuffer);
   if (result.isErr()) {
-      // Decide how to handle worker errors - throw? log? return specific value?
-      // Throwing for now, as this indicates a failure within the worker itself.
-      console.error("Error computing perceptual hash in worker:", result.error);
-      throw result.error; // Or convert to a standard Error
+    // Decide how to handle worker errors - throw? log? return specific value?
+    // Throwing for now, as this indicates a failure within the worker itself.
+    console.error("Error computing perceptual hash in worker:", result.error);
+    throw result.error; // Or convert to a standard Error
   }
   return result.value; // Return unwrapped value
 }

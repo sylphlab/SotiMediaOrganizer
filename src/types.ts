@@ -1,6 +1,8 @@
 import { VPNode } from "../VPTree";
 import { AppResult } from "./errors"; // Import AppResult
 
+// Removed redundant error interface definitions (using classes from src/errors.ts instead)
+
 export enum FileType {
   Video,
   Image,
@@ -104,11 +106,10 @@ export class JobConfig {
 
 // Combine necessary configs for processSingleFile function
 export interface FileProcessorConfig {
-    fileStats: FileStatsConfig;
-    adaptiveExtraction: AdaptiveExtractionConfig;
-    // Metadata has no specific config other than FileStatsConfig for hash key
+  fileStats: FileStatsConfig;
+  adaptiveExtraction: AdaptiveExtractionConfig;
+  // Metadata has no specific config other than FileStatsConfig for hash key
 }
-
 
 export class MediaInfo {
   frames: FrameInfo[];
@@ -148,7 +149,6 @@ export type MaybePromise<T> = T | Promise<T>;
 
 export type FileProcessor = (file: string) => Promise<AppResult<FileInfo>>; // Updated return type
 
-
 // Define the expected exports from the WASM module
 export interface WasmExports {
   hammingDistanceSIMD(a: Uint8Array, b: Uint8Array): number;
@@ -156,17 +156,16 @@ export interface WasmExports {
   memory: WebAssembly.Memory;
 }
 
-
 // Data passed to DBSCAN worker
 export interface DBSCANWorkerData {
-    chunk: string[];
-    eps: number;
-    minPts: number;
-    // Option: Pass VPTree root (if using reduced tree) - Requires VPTree reconstruction in worker
-    vpTreeRoot: VPNode<string> | null; // Root of the VPTree for this batch/subset
-    // Pass necessary configs for distance calculation
-    fileProcessorConfig: FileProcessorConfig; // Needed if processSingleFile is called indirectly
-    similarityConfig: SimilarityConfig; // Needed for calculateSimilarity
-    wasmExports: WasmExports | null; // Needed for hammingDistance
-    // TODO: Revisit how FileInfo/distance is handled in worker context
+  chunk: string[];
+  eps: number;
+  minPts: number;
+  // Option: Pass VPTree root (if using reduced tree) - Requires VPTree reconstruction in worker
+  vpTreeRoot: VPNode<string> | null; // Root of the VPTree for this batch/subset
+  // Pass necessary configs for distance calculation
+  fileProcessorConfig: FileProcessorConfig; // Needed if processSingleFile is called indirectly
+  similarityConfig: SimilarityConfig; // Needed for calculateSimilarity
+  wasmExports: WasmExports | null; // Needed for hammingDistance
+  // TODO: Revisit how FileInfo/distance is handled in worker context
 }

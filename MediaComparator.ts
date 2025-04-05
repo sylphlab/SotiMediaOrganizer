@@ -17,10 +17,19 @@ import { ExifTool } from "exiftool-vendored"; // Added exiftool import
 import { processSingleFile } from "./src/fileProcessor"; // Added file processor function import
 import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
-import { ok, err, AppResult, UnknownError, AppError } from "./src/errors"; // Removed unused AnyAppError
-import { calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, getAdaptiveThreshold, sortEntriesByScore, selectRepresentativesFromScored, mergeAndDeduplicateClusters, expandCluster, runDbscanCore } from "./src/comparatorUtils"; // Import runDbscanCore
+import { ok, err, AppResult, AppError } from "./src/errors"; // Removed unused AnyAppError, UnknownError
+import {
+  calculateImageSimilarity,
+  calculateImageVideoSimilarity,
+  calculateSequenceSimilarityDTW,
+  getAdaptiveThreshold,
+  sortEntriesByScore,
+  selectRepresentativesFromScored,
+  mergeAndDeduplicateClusters,
+  runDbscanCore,
+} from "./src/comparatorUtils"; // Import runDbscanCore, Removed expandCluster
 // Removed inversify imports
-import { Types, type WorkerPool } from "./src/contexts/types"; // Keep WorkerPool type for now if needed elsewhere
+import { type WorkerPool } from "./src/contexts/types"; // Removed unused Types import
 import { readFile } from "fs/promises";
 import { join } from "path";
 
@@ -100,7 +109,8 @@ export class MediaComparator {
     files: string[],
     selector: FileProcessor,
     progressCallback?: (progress: string) => void,
-  ): Promise<AppResult<DeduplicationResult>> { // Update return type
+  ): Promise<AppResult<DeduplicationResult>> {
+    // Update return type
     // Ensure WASM is loaded before proceeding with distance calculations if needed
     if (this.wasmInitializationPromise) {
       await this.wasmInitializationPromise;
@@ -116,13 +126,20 @@ export class MediaComparator {
 
       // Check for errors
       // Check for errors
+      // TODO: Refactor VPTree to handle AppResult<number> from distance function
       if (resultA.isErr()) {
-          console.error(`Error processing file ${a} for distance calculation: ${resultA.error.message}`);
-          return Infinity; // Return max distance on error
+        console.error(
+          `[VPTree Build] Error processing file ${a} for distance calculation, using Infinity distance:`,
+          resultA.error,
+        );
+        return Infinity; // Return max distance on error
       }
       if (resultB.isErr()) {
-          console.error(`Error processing file ${b} for distance calculation: ${resultB.error.message}`);
-          return Infinity; // Return max distance on error
+        console.error(
+          `[VPTree Build] Error processing file ${b} for distance calculation, using Infinity distance:`,
+          resultB.error,
+        );
+        return Infinity; // Return max distance on error
       }
 
       // Unwrap successful results
@@ -142,7 +159,8 @@ export class MediaComparator {
 
   // Refactored DBSCAN to run on main thread using the utility function
   // Removed parallelization via worker pool for DBSCAN itself
-  public async dbscanClusters( // Renamed from parallelDBSCAN
+  public async dbscanClusters(
+    // Renamed from parallelDBSCAN
     files: string[],
     vpTree: VPTree<string>,
     progressCallback?: (progress: string) => void, // Progress callback might need adjustment
@@ -152,9 +170,19 @@ export class MediaComparator {
 
     // Define the neighbor fetching function directly here
     const getNeighborsFn = (p: string): Promise<AppResult<string[]>> => {
-        // This still uses 'this' for dependencies, which is acceptable now
-        // as it runs on the main thread context.
-        return this.getValidNeighbors(p, vpTree, eps);
+      // This still uses 'this' for dependencies, which is acceptable now
+      // as it runs on the main thread context.
+      // Call static method and pass dependencies
+      return MediaComparator.getValidNeighbors(
+        p,
+        vpTree,
+        eps,
+        this.fileProcessorConfig,
+        this.cache,
+        this.exifTool,
+        this.workerPool,
+        this.similarityConfig,
+      );
     };
 
     // TODO: Add progress reporting if needed for single-threaded DBSCAN
@@ -173,11 +201,20 @@ export class MediaComparator {
 
   // Removed workerDBSCAN method (logic moved to runDbscanCore in comparatorUtils)
 
-  private async getValidNeighbors(
+  // Made public and static (or move to utils) as it no longer relies on 'this' instance state
+  // except for dependencies which are now passed in.
+  public static async getValidNeighbors(
+    // Changed to static, added dependencies
     point: string,
     vpTree: VPTree<string>,
     eps: number,
-  ): Promise<AppResult<string[]>> { // Update return type
+    // Dependencies passed as arguments:
+    fileProcessorConfig: FileProcessorConfig,
+    cache: LmdbCache,
+    exifTool: ExifTool,
+    workerPool: WorkerPool,
+    similarityConfig: SimilarityConfig,
+  ): Promise<AppResult<string[]>> {
     // Search VPTree for potential neighbors within epsilon distance
     const potentialNeighbors = await vpTree.search(point, {
       maxDistance: eps,
@@ -186,11 +223,24 @@ export class MediaComparator {
 
     // Fetch FileInfo for the query point once
     // Fetch FileInfo using the new functional approach
-    const fileInfo1Result = await processSingleFile(point, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+    const fileInfo1Result = await processSingleFile(
+      point,
+      fileProcessorConfig,
+      cache,
+      exifTool,
+      workerPool,
+    ); // Use passed args
     if (fileInfo1Result.isErr()) {
-        console.error(`Error processing file ${point} in getValidNeighbors: ${fileInfo1Result.error.message}`);
-        // Cannot proceed without file info, return error or empty array? Returning error.
-        return err(new AppError(`Failed to get FileInfo for ${point} in getValidNeighbors`, { originalError: fileInfo1Result.error }));
+      console.error(
+        `Error processing file ${point} in getValidNeighbors: ${fileInfo1Result.error.message}`,
+      );
+      // Cannot proceed without file info, return error or empty array? Returning error.
+      return err(
+        new AppError(
+          `Failed to get FileInfo for ${point} in getValidNeighbors`,
+          { originalError: fileInfo1Result.error },
+        ),
+      ); // Keep AppError for now
     }
     const fileInfo1 = fileInfo1Result.value; // Unwrap
     const media1 = fileInfo1.media;
@@ -198,7 +248,8 @@ export class MediaComparator {
     // Filter potential neighbors based on the adaptive similarity threshold
     const validNeighbors = await filterAsync(
       potentialNeighbors,
-      async (neighbor): Promise<AppResult<boolean>> => { // Callback returns AppResult
+      async (neighbor): Promise<AppResult<boolean>> => {
+        // Callback returns AppResult
         // Don't compare a point to itself in the context of finding neighbors
         if (neighbor.point === point) return ok(false);
 
@@ -206,18 +257,29 @@ export class MediaComparator {
         const similarity = 1 - neighbor.distance;
 
         // Fetch FileInfo for the neighbor using the new functional approach
-        // TODO: processSingleFile should also return AppResult - handle this later
-        const fileInfo2Result = await processSingleFile(neighbor.point, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
-         if (fileInfo2Result.isErr()) {
-            console.error(`Error processing neighbor file ${neighbor.point} in getValidNeighbors: ${fileInfo2Result.error.message}`);
-            // Treat as non-valid neighbor if processing fails
-            return ok(false);
+        const fileInfo2Result = await processSingleFile(
+          neighbor.point,
+          fileProcessorConfig,
+          cache,
+          exifTool,
+          workerPool,
+        ); // Use passed args
+        if (fileInfo2Result.isErr()) {
+          console.error(
+            `Error processing neighbor file ${neighbor.point} in getValidNeighbors: ${fileInfo2Result.error.message}`,
+          );
+          // Treat as non-valid neighbor if processing fails
+          return ok(false);
         }
         const fileInfo2 = fileInfo2Result.value; // Unwrap
         const media2 = fileInfo2.media;
 
         // Get the specific threshold for this pair of media types
-        const threshold = getAdaptiveThreshold(media1, media2, this.similarityConfig); // Use imported function
+        const threshold = getAdaptiveThreshold(
+          media1,
+          media2,
+          similarityConfig,
+        ); // Use passed arg
 
         // Keep neighbor if similarity meets or exceeds the adaptive threshold
         return ok(similarity >= threshold);
@@ -226,7 +288,7 @@ export class MediaComparator {
 
     // Handle the result of filterAsync
     if (validNeighbors.isErr()) {
-        return err(validNeighbors.error); // Propagate error
+      return err(validNeighbors.error); // Propagate error
     }
 
     // Return only the points (file paths) of the valid neighbors
@@ -234,10 +296,12 @@ export class MediaComparator {
     return ok(validNeighbors.value.map((n) => n.point));
   }
 
-  public async processResults( // Changed to public
+  public async processResults(
+    // Changed to public
     clusters: Set<string>[],
     selector: FileProcessor,
-  ): Promise<AppResult<DeduplicationResult>> { // Update return type
+  ): Promise<AppResult<DeduplicationResult>> {
+    // Update return type
     const uniqueFiles = new Set<string>();
     const duplicateSets: Array<{
       bestFile: string;
@@ -257,12 +321,15 @@ export class MediaComparator {
         );
 
         if (representativesResult.isErr()) {
-            // Decide how to handle error - log and skip cluster? Propagate?
-            console.error(`Error selecting representatives for cluster: ${representativesResult.error.message}`, clusterArray);
-            // Option: Skip this cluster
-            continue;
-            // Option: Propagate error (would require changing processResults signature further)
-            // return err(representativesResult.error);
+          // Decide how to handle error - log and skip cluster? Propagate?
+          console.error(
+            `Error selecting representatives for cluster: ${representativesResult.error.message}`,
+            clusterArray,
+          );
+          // Option: Skip this cluster
+          continue;
+          // Option: Propagate error (would require changing processResults signature further)
+          // return err(representativesResult.error);
         }
         const representatives = representativesResult.value;
         // Ensure representatives is not empty before proceeding
@@ -299,17 +366,36 @@ export class MediaComparator {
     const distanceFn = async (a: string, b: string): Promise<number> => {
       // Use different variable names to avoid redeclaration
       const [resA, resB] = await Promise.all([
-        processSingleFile(a, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool), // Use processSingleFile directly
-        processSingleFile(b, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool),
+        processSingleFile(
+          a,
+          this.fileProcessorConfig,
+          this.cache,
+          this.exifTool,
+          this.workerPool,
+        ), // Use processSingleFile directly
+        processSingleFile(
+          b,
+          this.fileProcessorConfig,
+          this.cache,
+          this.exifTool,
+          this.workerPool,
+        ),
       ]);
       // Check for errors (similar to the VPTree build distance function)
+      // TODO: Refactor VPTree to handle AppResult<number> from distance function
       if (resA.isErr()) {
-          console.error(`Error processing file ${a} for distance calculation (recreated tree): ${resA.error.message}`);
-          return Infinity;
+        console.error(
+          `[VPTree Recreate] Error processing file ${a} for distance calculation, using Infinity distance:`,
+          resA.error,
+        );
+        return Infinity;
       }
       if (resB.isErr()) {
-          console.error(`Error processing file ${b} for distance calculation (recreated tree): ${resB.error.message}`);
-          return Infinity;
+        console.error(
+          `[VPTree Recreate] Error processing file ${b} for distance calculation, using Infinity distance:`,
+          resB.error,
+        );
+        return Infinity;
       }
       // Unwrap successful results
       const infoA = resA.value;
@@ -322,55 +408,70 @@ export class MediaComparator {
   private async selectRepresentatives(
     cluster: string[],
     selector: FileProcessor,
-  ): Promise<AppResult<string[]>> { // Update return type
+  ): Promise<AppResult<string[]>> {
+    // Update return type
     if (cluster.length <= 1) return ok(cluster); // Wrap base case in ok()
 
     // Fetch FileInfo for all entries concurrently
-    const entriesWithInfoResult = await mapAsync(cluster, async (entry): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
+    const entriesWithInfoResult = await mapAsync(
+      cluster,
+      async (
+        entry,
+      ): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
         const fileInfoResult = await selector(entry); // selector returns AppResult<FileInfo>
         if (fileInfoResult.isErr()) {
-            // Propagate error if file processing fails
-            return err(new AppError(`Failed processing ${entry} in selectRepresentatives`, { originalError: fileInfoResult.error }));
+          // Propagate error if file processing fails
+          return err(
+            new AppError(
+              `Failed processing ${entry} in selectRepresentatives`,
+              { originalError: fileInfoResult.error },
+            ),
+          );
         }
         return ok({ entry, fileInfo: fileInfoResult.value }); // Return Ok result
-    });
+      },
+    );
 
     if (entriesWithInfoResult.isErr()) {
-        return err(entriesWithInfoResult.error); // Propagate error
+      return err(entriesWithInfoResult.error); // Propagate error
     }
-    const entriesWithInfo: { entry: string; fileInfo: FileInfo }[] = entriesWithInfoResult.value; // Unwrap with explicit type
+    const entriesWithInfo: { entry: string; fileInfo: FileInfo }[] =
+      entriesWithInfoResult.value; // Unwrap with explicit type
 
     // Score and sort using the utility function
     const sortedScoredEntries = sortEntriesByScore(entriesWithInfo); // Use imported function
 
     // Select representatives using the utility function
     // Need to map sortedScoredEntries back to { entry, fileInfo } format expected by selectRepresentativesFromScored
-    const sortedEntriesWithInfo = sortedScoredEntries.map(scored => {
+    const sortedEntriesWithInfo = sortedScoredEntries
+      .map((scored) => {
         // entriesWithInfo is now guaranteed to be an array here
-        const original = entriesWithInfo.find(e => e.entry === scored.entry);
+        const original = entriesWithInfo.find((e) => e.entry === scored.entry);
         // Add a check for safety instead of non-null assertion
         if (!original) {
-             console.error(`Could not find original entry info for ${scored.entry} during representative selection.`);
-             // Decide how to handle - skip this entry? return error?
-             // For now, filter it out later if fileInfo is needed and missing.
-             return { entry: scored.entry, fileInfo: null }; // Indicate missing info
+          console.error(
+            `Could not find original entry info for ${scored.entry} during representative selection.`,
+          );
+          // Decide how to handle - skip this entry? return error?
+          // For now, filter it out later if fileInfo is needed and missing.
+          return { entry: scored.entry, fileInfo: null }; // Indicate missing info
         }
         return { entry: scored.entry, fileInfo: original.fileInfo };
-    }).filter(e => e.fileInfo !== null) as { entry: string; fileInfo: FileInfo }[]; // Filter out entries where original wasn't found and cast back
-
+      })
+      .filter((e) => e.fileInfo !== null) as {
+      entry: string;
+      fileInfo: FileInfo;
+    }[]; // Filter out entries where original wasn't found and cast back
 
     // selectRepresentativesFromScored likely doesn't return AppResult yet, wrap if needed
     // Assuming it returns string[] for now
-    try {
-        const representatives = selectRepresentativesFromScored(
-            sortedEntriesWithInfo,
-            this.similarityConfig,
-            this.wasmExports
-        );
-        return ok(representatives);
-    } catch (error) {
-        return err(new UnknownError(error)); // Wrap potential errors
-    }
+    // selectRepresentativesFromScored is deterministic based on input, no try/catch needed here.
+    const representatives = selectRepresentativesFromScored(
+      sortedEntriesWithInfo,
+      this.similarityConfig,
+      this.wasmExports,
+    );
+    return ok(representatives);
   }
 
   // getQuality moved to comparatorUtils.ts
@@ -380,21 +481,32 @@ export class MediaComparator {
   private async scoreEntries(
     entries: string[],
     selector: FileProcessor,
-  ): Promise<AppResult<string[]>> { // Update return type
+  ): Promise<AppResult<string[]>> {
+    // Update return type
     // Fetch FileInfo for all entries concurrently
-    const entriesWithInfoResult = await mapAsync(entries, async (entry): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
+    const entriesWithInfoResult = await mapAsync(
+      entries,
+      async (
+        entry,
+      ): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
         const fileInfoResult = await selector(entry); // selector returns AppResult<FileInfo>
-         if (fileInfoResult.isErr()) {
-            // Propagate error if file processing fails
-            return err(new AppError(`Failed processing ${entry} in scoreEntries`, { originalError: fileInfoResult.error }));
+        if (fileInfoResult.isErr()) {
+          // Propagate error if file processing fails
+          return err(
+            new AppError(`Failed processing ${entry} in scoreEntries`, {
+              originalError: fileInfoResult.error,
+            }),
+          );
         }
         return ok({ entry, fileInfo: fileInfoResult.value }); // Return Ok result
-    });
+      },
+    );
 
-     if (entriesWithInfoResult.isErr()) {
-        return err(entriesWithInfoResult.error); // Propagate error
+    if (entriesWithInfoResult.isErr()) {
+      return err(entriesWithInfoResult.error); // Propagate error
     }
-    const entriesWithInfo: { entry: string; fileInfo: FileInfo }[] = entriesWithInfoResult.value; // Unwrap with explicit type
+    const entriesWithInfo: { entry: string; fileInfo: FileInfo }[] =
+      entriesWithInfoResult.value; // Unwrap with explicit type
 
     // Score and sort using the utility function
     const sortedScoredEntries = sortEntriesByScore(entriesWithInfo); // Use imported function
@@ -412,9 +524,14 @@ export class MediaComparator {
     const isImage2 = media2.duration === 0;
 
     if (isImage1 && isImage2) {
-      return calculateImageSimilarity(media1.frames[0], media2.frames[0], this.wasmExports); // Use imported function
+      return calculateImageSimilarity(
+        media1.frames[0],
+        media2.frames[0],
+        this.wasmExports,
+      ); // Use imported function
     } else if (isImage1 || isImage2) {
-      return calculateImageVideoSimilarity( // Use imported function
+      return calculateImageVideoSimilarity(
+        // Use imported function
         isImage1 ? media1 : media2,
         isImage1 ? media2 : media1,
         this.similarityConfig,
@@ -467,7 +584,8 @@ export class MediaComparator {
       // Ensure subsequences are not empty before calculating similarity
       if (longerSubseq.length === 0 || shorterSubseq.length === 0) continue;
 
-      const windowSimilarity = calculateSequenceSimilarityDTW( // Use imported function
+      const windowSimilarity = calculateSequenceSimilarityDTW(
+        // Use imported function
         longerSubseq,
         shorterSubseq,
         this.wasmExports,

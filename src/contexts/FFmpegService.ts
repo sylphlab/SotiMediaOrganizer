@@ -1,7 +1,7 @@
-import { injectable } from "inversify";
+// import { injectable } from "inversify"; // REMOVED INVERSIFY
 import ffmpeg from "fluent-ffmpeg";
 
-@injectable()
+// @injectable() // REMOVED INVERSIFY
 export class FFmpegService {
   constructor() {}
 

@@ -1,4 +1,10 @@
-import { FileInfo, FrameInfo, MediaInfo, SimilarityConfig, WasmExports } from "./types";
+import {
+  FileInfo,
+  FrameInfo,
+  MediaInfo,
+  SimilarityConfig,
+  WasmExports,
+} from "./types";
 import { AppResult, ok, err, AppError } from "./errors"; // Added AppResult imports
 
 // Popcount for 8-bit numbers
@@ -58,12 +64,12 @@ export function hammingDistance(
   // Process full 64-bit chunks common to both arrays
   const commonChunks = Math.floor(minLen / 8);
   if (commonChunks > 0) {
-      // Directly use the SharedArrayBuffer, specify byteOffset 0 and length in elements
-      const view1_ts = new BigUint64Array(hash1, 0, commonChunks);
-      const view2_ts = new BigUint64Array(hash2, 0, commonChunks);
-      for (let i = 0; i < commonChunks; i++) {
-          distance_ts += popcount64(view1_ts[i] ^ view2_ts[i]);
-      }
+    // Directly use the SharedArrayBuffer, specify byteOffset 0 and length in elements
+    const view1_ts = new BigUint64Array(hash1, 0, commonChunks);
+    const view2_ts = new BigUint64Array(hash2, 0, commonChunks);
+    for (let i = 0; i < commonChunks; i++) {
+      distance_ts += popcount64(view1_ts[i] ^ view2_ts[i]);
+    }
   }
 
   // Process remaining bytes
@@ -73,18 +79,18 @@ export function hammingDistance(
 
   // Compare remaining common bytes
   for (let i = startByteIndex; i < minLen; i++) {
-      distance_ts += BigInt(popcount8(uint8View1_ts[i] ^ uint8View2_ts[i]));
+    distance_ts += BigInt(popcount8(uint8View1_ts[i] ^ uint8View2_ts[i]));
   }
 
   // Add bits from the longer hash's remaining bytes (compared against 0)
   if (len1 > len2) {
-      for (let i = minLen; i < len1; i++) {
-          distance_ts += BigInt(popcount8(uint8View1_ts[i]));
-      }
+    for (let i = minLen; i < len1; i++) {
+      distance_ts += BigInt(popcount8(uint8View1_ts[i]));
+    }
   } else if (len2 > len1) {
-      for (let i = minLen; i < len2; i++) {
-          distance_ts += BigInt(popcount8(uint8View2_ts[i]));
-      }
+    for (let i = minLen; i < len2; i++) {
+      distance_ts += BigInt(popcount8(uint8View2_ts[i]));
+    }
   }
 
   return Number(distance_ts);
@@ -121,7 +127,7 @@ export function calculateImageSimilarity(
 export function calculateImageVideoSimilarity(
   image: MediaInfo,
   video: MediaInfo,
-  similarityConfig: Pick<SimilarityConfig, 'imageVideoSimilarityThreshold'>, // Only need the relevant threshold
+  similarityConfig: Pick<SimilarityConfig, "imageVideoSimilarityThreshold">, // Only need the relevant threshold
   wasmExports: WasmExports | null,
 ): number {
   if (
@@ -137,15 +143,17 @@ export function calculateImageVideoSimilarity(
 
   for (const videoFrame of video.frames) {
     if (!videoFrame?.hash) continue; // Skip frames with missing hashes
-    const similarity = calculateImageSimilarity(imageFrame, videoFrame, wasmExports);
+    const similarity = calculateImageSimilarity(
+      imageFrame,
+      videoFrame,
+      wasmExports,
+    );
 
     if (similarity > bestSimilarity) {
       bestSimilarity = similarity;
 
       // Early exit if we find a similarity above the threshold
-      if (
-        bestSimilarity >= similarityConfig.imageVideoSimilarityThreshold
-      ) {
+      if (bestSimilarity >= similarityConfig.imageVideoSimilarityThreshold) {
         return bestSimilarity;
       }
     }
@@ -182,16 +190,19 @@ export function calculateSequenceSimilarityDTW(
       const temp = dtw[j]; // Store value from top (dtw[i-1][j]) before overwriting
 
       // Cost is 1 - similarity (distance) between current frames
-      const cost = 1 - calculateImageSimilarity(seq1[i - 1], seq2[j - 1], wasmExports);
+      const cost =
+        1 - calculateImageSimilarity(seq1[i - 1], seq2[j - 1], wasmExports);
       // Ensure cost is non-negative
       const nonNegativeCost = Math.max(0, cost);
 
       // Update DTW cost: cost of current match + minimum cost from previous states
-      dtw[j] = nonNegativeCost + Math.min(
-        prev,       // Cost from diagonal (dtw[i-1][j-1])
-        dtw[j],     // Cost from top (dtw[i-1][j])
-        dtw[j - 1]  // Cost from left (dtw[i][j-1])
-      );
+      dtw[j] =
+        nonNegativeCost +
+        Math.min(
+          prev, // Cost from diagonal (dtw[i-1][j-1])
+          dtw[j], // Cost from top (dtw[i-1][j])
+          dtw[j - 1], // Cost from left (dtw[i][j-1])
+        );
 
       prev = temp; // Update prev for the next iteration (becomes dtw[i-1][j])
     }
@@ -207,7 +218,6 @@ export function calculateSequenceSimilarityDTW(
   // Return similarity: 1 - normalized distance
   return Math.max(0, 1 - normalizedDistance); // Ensure similarity is not negative
 }
-
 
 // Removed duplicate import
 
@@ -231,7 +241,8 @@ export function calculateEntryScore(fileInfo: FileInfo): number {
 
   // Add score for metadata completeness
   if (fileInfo.metadata.imageDate) score += 2000;
-  if (fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude) score += 300;
+  if (fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude)
+    score += 300;
   if (fileInfo.metadata.cameraModel) score += 200;
 
   // Add score based on resolution (sqrt scale)
@@ -248,7 +259,6 @@ export function calculateEntryScore(fileInfo: FileInfo): number {
   return score;
 }
 
-
 /**
  * Gets the appropriate similarity threshold based on the types of the two media items.
  * @param media1 First media info.
@@ -259,18 +269,21 @@ export function calculateEntryScore(fileInfo: FileInfo): number {
 export function getAdaptiveThreshold(
   media1: MediaInfo,
   media2: MediaInfo,
-  similarityConfig: Pick<SimilarityConfig, 'imageSimilarityThreshold' | 'imageVideoSimilarityThreshold' | 'videoSimilarityThreshold'>
+  similarityConfig: Pick<
+    SimilarityConfig,
+    | "imageSimilarityThreshold"
+    | "imageVideoSimilarityThreshold"
+    | "videoSimilarityThreshold"
+  >,
 ): number {
   const isImage1 = media1.duration === 0;
   const isImage2 = media2.duration === 0;
 
-  if (isImage1 && isImage2)
-    return similarityConfig.imageSimilarityThreshold;
+  if (isImage1 && isImage2) return similarityConfig.imageSimilarityThreshold;
   if (isImage1 || isImage2)
     return similarityConfig.imageVideoSimilarityThreshold;
   return similarityConfig.videoSimilarityThreshold;
 }
-
 
 // Removed duplicate import
 
@@ -290,7 +303,7 @@ export function getQuality(fileInfo: FileInfo): number {
  * @returns A sorted array of objects containing file path and score, sorted descending by score.
  */
 export function sortEntriesByScore(
-  entriesWithInfo: { entry: string; fileInfo: FileInfo }[]
+  entriesWithInfo: { entry: string; fileInfo: FileInfo }[],
 ): { entry: string; score: number }[] {
   const scoredEntries = entriesWithInfo.map(({ entry, fileInfo }) => ({
     entry,
@@ -316,17 +329,18 @@ export function sortEntriesByScore(
 export function selectRepresentativeCaptures(
   potentialCaptures: { entry: string; fileInfo: FileInfo }[],
   bestVideoInfo: FileInfo,
-  similarityConfig: Pick<SimilarityConfig, 'imageSimilarityThreshold'>,
+  similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold">,
   wasmExports: WasmExports | null,
 ): string[] {
   const uniqueCaptures = new Set<string>();
   const processedCaptures = new Set<string>(); // Keep track of processed captures to avoid redundant comparisons
 
   // Filter for high-quality captures first
-  const highQualityCaptures = potentialCaptures.filter(({ fileInfo }) =>
-    fileInfo.media.duration === 0 && // Is an image
-    getQuality(fileInfo) >= getQuality(bestVideoInfo) && // Comparable or better quality
-    (!bestVideoInfo.metadata.imageDate || !!fileInfo.metadata.imageDate) // Has date if video has date
+  const highQualityCaptures = potentialCaptures.filter(
+    ({ fileInfo }) =>
+      fileInfo.media.duration === 0 && // Is an image
+      getQuality(fileInfo) >= getQuality(bestVideoInfo) && // Comparable or better quality
+      (!bestVideoInfo.metadata.imageDate || !!fileInfo.metadata.imageDate), // Has date if video has date
   );
 
   // Assumes highQualityCaptures are sorted by score descending by the caller (scoreEntries)
@@ -338,12 +352,15 @@ export function selectRepresentativeCaptures(
     // Compare against already selected unique captures
     for (const capture2 of uniqueCaptures) {
       // Find FileInfo for capture2 within highQualityCaptures
-      const capture2Data = highQualityCaptures.find(c => c.entry === capture2);
+      const capture2Data = highQualityCaptures.find(
+        (c) => c.entry === capture2,
+      );
       if (!capture2Data) continue; // Should not happen
       const info2 = capture2Data.fileInfo;
 
       // Ensure both frames exist before comparing
-      if (!info1.media.frames[0]?.hash || !info2.media.frames[0]?.hash) continue;
+      if (!info1.media.frames[0]?.hash || !info2.media.frames[0]?.hash)
+        continue;
 
       const similarity = calculateImageSimilarity(
         info1.media.frames[0],
@@ -366,7 +383,6 @@ export function selectRepresentativeCaptures(
   return Array.from(uniqueCaptures);
 }
 
-
 /**
  * Selects representative file(s) from a cluster of already scored and sorted entries.
  * Handles the logic for choosing between a single best image or a best video plus unique high-quality captures.
@@ -377,11 +393,12 @@ export function selectRepresentativeCaptures(
  */
 export function selectRepresentativesFromScored(
   sortedEntriesWithInfo: { entry: string; fileInfo: FileInfo }[],
-  similarityConfig: Pick<SimilarityConfig, 'imageSimilarityThreshold'>,
+  similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold">,
   wasmExports: WasmExports | null,
 ): string[] {
   if (!sortedEntriesWithInfo || sortedEntriesWithInfo.length === 0) return [];
-  if (sortedEntriesWithInfo.length === 1) return [sortedEntriesWithInfo[0].entry];
+  if (sortedEntriesWithInfo.length === 1)
+    return [sortedEntriesWithInfo[0].entry];
 
   const bestEntryData = sortedEntriesWithInfo[0];
   const bestEntry = bestEntryData.entry;
@@ -397,7 +414,7 @@ export function selectRepresentativesFromScored(
       potentialCapturesWithInfo,
       bestFileInfo,
       similarityConfig,
-      wasmExports
+      wasmExports,
     );
     // Combine the best video with the selected unique image captures
     return [bestEntry, ...uniqueImageCaptures];
@@ -406,55 +423,55 @@ export function selectRepresentativesFromScored(
 
 // Removed extra closing brace
 
-
 /**
  * Merges overlapping clusters from potentially parallel DBSCAN results.
  * @param clusters An array of cluster sets (Set<string>).
  * @returns An array of merged, unique cluster sets.
  */
-export function mergeAndDeduplicateClusters(clusters: Set<string>[]): Set<string>[] {
-    const merged: Set<string>[] = [];
-    const elementToClusterMap = new Map<string, Set<string>>();
+export function mergeAndDeduplicateClusters(
+  clusters: Set<string>[],
+): Set<string>[] {
+  const merged: Set<string>[] = [];
+  const elementToClusterMap = new Map<string, Set<string>>();
 
-    for (const cluster of clusters) {
-      const relatedClusters = new Set<Set<string>>();
-      for (const element of cluster) {
-        const existingCluster = elementToClusterMap.get(element);
-        if (existingCluster) {
-          relatedClusters.add(existingCluster);
-        }
-      }
-
-      if (relatedClusters.size === 0) {
-        // New cluster, no overlap found yet
-        merged.push(cluster);
-        for (const element of cluster) {
-          elementToClusterMap.set(element, cluster);
-        }
-      } else {
-        // Merge this cluster with all related existing clusters
-        const mergedCluster = new Set<string>(cluster);
-        for (const relatedCluster of relatedClusters) {
-          for (const element of relatedCluster) {
-            mergedCluster.add(element);
-          }
-          // Remove the old cluster from merged list
-          const indexToRemove = merged.indexOf(relatedCluster);
-          if (indexToRemove > -1) {
-            merged.splice(indexToRemove, 1);
-          }
-        }
-        merged.push(mergedCluster);
-        // Update map for all elements in the newly merged cluster
-        for (const element of mergedCluster) {
-          elementToClusterMap.set(element, mergedCluster);
-        }
+  for (const cluster of clusters) {
+    const relatedClusters = new Set<Set<string>>();
+    for (const element of cluster) {
+      const existingCluster = elementToClusterMap.get(element);
+      if (existingCluster) {
+        relatedClusters.add(existingCluster);
       }
     }
 
-    return merged;
-}
+    if (relatedClusters.size === 0) {
+      // New cluster, no overlap found yet
+      merged.push(cluster);
+      for (const element of cluster) {
+        elementToClusterMap.set(element, cluster);
+      }
+    } else {
+      // Merge this cluster with all related existing clusters
+      const mergedCluster = new Set<string>(cluster);
+      for (const relatedCluster of relatedClusters) {
+        for (const element of relatedCluster) {
+          mergedCluster.add(element);
+        }
+        // Remove the old cluster from merged list
+        const indexToRemove = merged.indexOf(relatedCluster);
+        if (indexToRemove > -1) {
+          merged.splice(indexToRemove, 1);
+        }
+      }
+      merged.push(mergedCluster);
+      // Update map for all elements in the newly merged cluster
+      for (const element of mergedCluster) {
+        elementToClusterMap.set(element, mergedCluster);
+      }
+    }
+  }
 
+  return merged;
+}
 
 /**
  * Expands a cluster in DBSCAN starting from a core point.
@@ -471,7 +488,7 @@ export async function expandCluster( // Add export back
   neighbors: string[],
   visited: Set<string>,
   minPts: number,
-  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>
+  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>,
 ): Promise<AppResult<Set<string>>> {
   const cluster = new Set<string>([point]);
   const queue = [...neighbors]; // Initialize queue with initial neighbors
@@ -489,7 +506,12 @@ export async function expandCluster( // Add export back
 
       if (currentNeighborsResult.isErr()) {
         // Propagate error if neighbor fetching fails
-        return err(new AppError(`Failed to get neighbors for ${currentPoint} during cluster expansion`, { originalError: currentNeighborsResult.error }));
+        return err(
+          new AppError(
+            `Failed to get neighbors for ${currentPoint} during cluster expansion`,
+            { originalError: currentNeighborsResult.error },
+          ),
+        );
       }
 
       const currentNeighbors = currentNeighborsResult.value;
@@ -500,7 +522,7 @@ export async function expandCluster( // Add export back
           if (!visited.has(neighbor)) {
             // Check if already in queue to avoid duplicates (though Set handles final cluster)
             if (!queue.slice(queueIndex).includes(neighbor)) {
-                 queue.push(neighbor);
+              queue.push(neighbor);
             }
           }
           // Add to cluster even if visited but not yet clustered (handles border points)
@@ -515,12 +537,10 @@ export async function expandCluster( // Add export back
     // Add it to ensure completeness. DBSCAN variants handle this differently.
     // A simple approach is to just add it if it's a neighbor.
     // cluster.add(currentPoint); // Re-adding might be redundant if handled above
-
   }
 
   return ok(cluster);
 }
-
 
 /**
  * Core DBSCAN clustering logic.
@@ -534,8 +554,9 @@ export async function runDbscanCore(
   chunk: string[],
   eps: number,
   minPts: number,
-  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>
-): Promise<Set<string>[]> { // Return raw clusters, error handling done within getNeighborsFn/expandCluster calls
+  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>,
+): Promise<Set<string>[]> {
+  // Return raw clusters, error handling done within getNeighborsFn/expandCluster calls
   const clusters: Set<string>[] = [];
   const visited = new Set<string>(); // Track visited points for this chunk
 
@@ -547,33 +568,37 @@ export async function runDbscanCore(
     const neighborsResult = await getNeighborsFn(point);
 
     if (neighborsResult.isErr()) {
-        console.error(`Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`);
-        visited.add(point); // Ensure point is marked visited even if neighbors fail
-        continue; // Skip point if neighbors can't be fetched
+      console.error(
+        `Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`,
+      );
+      visited.add(point); // Ensure point is marked visited even if neighbors fail
+      continue; // Skip point if neighbors can't be fetched
     }
     const neighbors = neighborsResult.value;
 
     // Check if it's a core point (has enough neighbors)
-    if (neighbors.length >= minPts - 1) { // Check if it *could* be a core point
-        const clusterResult = await expandCluster(
-            point,
-            neighbors,
-            visited,
-            minPts,
-            getNeighborsFn
-        );
+    if (neighbors.length >= minPts - 1) {
+      // Check if it *could* be a core point
+      const clusterResult = await expandCluster(
+        point,
+        neighbors,
+        visited,
+        minPts,
+        getNeighborsFn,
+      );
 
-        if (clusterResult.isErr()) {
-            console.error(`Error expanding cluster for ${point}: ${clusterResult.error.message}`);
-            visited.add(point); // Ensure point is marked visited even if expansion fails
-            continue;
-        }
-        clusters.push(clusterResult.value);
+      if (clusterResult.isErr()) {
+        console.error(
+          `Error expanding cluster for ${point}: ${clusterResult.error.message}`,
+        );
+        visited.add(point); // Ensure point is marked visited even if expansion fails
+        continue;
+      }
+      clusters.push(clusterResult.value);
     } else {
-         // Not enough neighbors to be a core point, mark as visited (noise for now)
-         visited.add(point);
+      // Not enough neighbors to be a core point, mark as visited (noise for now)
+      visited.add(point);
     }
   }
   return clusters;
 }
-

@@ -1,8 +1,8 @@
 import sharp from "sharp";
 import { ProgramOptions } from "../types";
-import { injectable } from "inversify";
+// import { injectable } from "inversify"; // REMOVED INVERSIFY
 
-@injectable()
+// @injectable() // REMOVED INVERSIFY
 export class SharpService {
   constructor(options: ProgramOptions) {
     sharp.concurrency(options.concurrency);

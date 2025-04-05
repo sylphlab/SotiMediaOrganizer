@@ -4,7 +4,18 @@ import { ExifDate, ExifDateTime, Tags } from "exiftool-vendored";
 import { createHash } from "crypto";
 import { createReadStream, Stats } from "fs";
 import { stat } from "fs/promises";
-import { AppResult, ok, err, FileSystemError, ValidationError, UnknownError, HashingError, safeTryAsync, safeTry, AppError } from "./errors"; // Removed unused AnyAppError
+import {
+  AppResult,
+  ok,
+  err,
+  FileSystemError,
+  ValidationError,
+  UnknownError,
+  HashingError,
+  safeTryAsync,
+  safeTry,
+  AppError,
+} from "./errors"; // Removed unused AnyAppError
 
 export function getFileType(filePath: string): AppResult<FileType> {
   const ext = extname(filePath).slice(1).toLowerCase();
@@ -17,7 +28,11 @@ export function getFileTypeByExt(ext: string): AppResult<FileType> {
       return ok(fileType);
     }
   }
-  return err(new ValidationError(`Unsupported file extension: ${ext}`, { validationDetails: { extension: ext } }));
+  return err(
+    new ValidationError(`Unsupported file extension: ${ext}`, {
+      validationDetails: { extension: ext },
+    }),
+  );
 }
 
 export const SUPPORTED_EXTENSIONS = {
@@ -109,18 +124,21 @@ export async function filterAsync<T>(
   arr: T[],
   filter: (item: T) => Promise<AppResult<boolean>>,
 ): Promise<AppResult<T[]>> {
-  const results = await Promise.all(arr.map(item => safeTryAsync(filter(item))));
+  const results = await Promise.all(
+    arr.map((item) => safeTryAsync(filter(item))),
+  );
   const filtered: T[] = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.isErr()) {
       return err(result.error); // Propagate the first error encountered
     }
-    if (result.value.isOk() && result.value.value) { // Check inner result is Ok and true
-       filtered.push(arr[i]);
+    if (result.value.isOk() && result.value.value) {
+      // Check inner result is Ok and true
+      filtered.push(arr[i]);
     } else if (result.value.isErr()) {
-        // If the filter function itself returned an error, propagate it
-        return err(result.value.error);
+      // If the filter function itself returned an error, propagate it
+      return err(result.value.error);
     }
   }
   return ok(filtered);
@@ -154,9 +172,15 @@ export function sharedArrayBufferToHex(buffer: SharedArrayBuffer): string {
 }
 
 // Convert hex string to SharedArrayBuffer
-export function hexToSharedArrayBuffer(hex: string): AppResult<SharedArrayBuffer> {
+export function hexToSharedArrayBuffer(
+  hex: string,
+): AppResult<SharedArrayBuffer> {
   if (hex.length % 2 !== 0) {
-    return err(new ValidationError("Hex string must have an even number of characters", { validationDetails: { length: hex.length } }));
+    return err(
+      new ValidationError("Hex string must have an even number of characters", {
+        validationDetails: { length: hex.length },
+      }),
+    );
   }
   try {
     const buffer = new SharedArrayBuffer(hex.length / 2);
@@ -164,7 +188,11 @@ export function hexToSharedArrayBuffer(hex: string): AppResult<SharedArrayBuffer
     for (let i = 0; i < hex.length; i += 2) {
       const byte = parseInt(hex.substr(i, 2), 16);
       if (isNaN(byte)) {
-        return err(new ValidationError("Hex string contains non-hex characters", { validationDetails: { substring: hex.substr(i, 2) } }));
+        return err(
+          new ValidationError("Hex string contains non-hex characters", {
+            validationDetails: { substring: hex.substr(i, 2) },
+          }),
+        );
       }
       view[i / 2] = byte;
     }
@@ -197,8 +225,10 @@ export async function calculateFileHash(
   const hashPart = (
     start: number = 0,
     size?: number,
-  ): Promise<AppResult<void>> => { // Correct return type annotation
-    return new Promise<AppResult<void>>((resolve) => { // Resolve with AppResult
+  ): Promise<AppResult<void>> => {
+    // Correct return type annotation
+    return new Promise<AppResult<void>>((resolve) => {
+      // Resolve with AppResult
       const stream = createReadStream(filePath, {
         start,
         end: size ? start + size - 1 : undefined,
@@ -206,7 +236,18 @@ export async function calculateFileHash(
       stream.on("data", (chunk: Buffer) => hash.update(chunk));
       stream.on("end", () => resolve(ok(undefined))); // Resolve with ok result
       stream.on("error", (streamError) => {
-        resolve(err(new FileSystemError(`Error reading file chunk: ${streamError.message}`, { path: filePath, operation: 'readStream', originalError: streamError }))); // Resolve with err result
+        resolve(
+          err(
+            new FileSystemError(
+              `Error reading file chunk: ${streamError.message}`,
+              {
+                path: filePath,
+                operation: "readStream",
+                originalError: streamError,
+              },
+            ),
+          ),
+        ); // Resolve with err result
       });
     });
   };
@@ -216,14 +257,17 @@ export async function calculateFileHash(
     // Ensure chunkSize is an integer and handle potential edge cases (e.g., fileSize < chunkSize)
     const safeChunkSize = Math.max(1, Math.floor(chunkSize));
     if (fileSize >= safeChunkSize * 2) {
-        const part1Result = await hashPart(0, safeChunkSize);
-        if (part1Result.isErr()) return err(part1Result.error); // Reconstruct Err with correct type
-        const part2Result = await hashPart(fileSize - safeChunkSize, safeChunkSize);
-        if (part2Result.isErr()) return err(part2Result.error); // Reconstruct Err with correct type
+      const part1Result = await hashPart(0, safeChunkSize);
+      if (part1Result.isErr()) return err(part1Result.error); // Reconstruct Err with correct type
+      const part2Result = await hashPart(
+        fileSize - safeChunkSize,
+        safeChunkSize,
+      );
+      if (part2Result.isErr()) return err(part2Result.error); // Reconstruct Err with correct type
     } else {
-        // If the file is smaller than two chunks, hash the whole thing
-        const fullResult = await hashPart();
-        if (fullResult.isErr()) return err(fullResult.error); // Reconstruct Err with correct type
+      // If the file is smaller than two chunks, hash the whole thing
+      const fullResult = await hashPart();
+      if (fullResult.isErr()) return err(fullResult.error); // Reconstruct Err with correct type
     }
   } else {
     const fullResult = await hashPart();
@@ -232,9 +276,13 @@ export async function calculateFileHash(
 
   // Wrap the final buffer conversion in case of errors (though less likely here)
   try {
-      return ok(bufferToSharedArrayBuffer(hash.digest()));
+    return ok(bufferToSharedArrayBuffer(hash.digest()));
   } catch (error) {
-      return err(new HashingError("Failed to convert hash digest to SharedArrayBuffer", { originalError: error instanceof Error ? error : undefined }));
+    return err(
+      new HashingError("Failed to convert hash digest to SharedArrayBuffer", {
+        originalError: error instanceof Error ? error : undefined,
+      }),
+    );
   }
 }
 // Duplicate import removed
@@ -263,26 +311,33 @@ function parseExifDate(
  * @returns A Metadata object.
  */
 export function parseExifTagsToMetadata(tags: Tags): AppResult<Metadata> {
-    // Use safeTry to wrap the parsing logic, catching unexpected errors
-    return safeTry(() => {
-        const metadata: Metadata = {
-            imageDate:
-                parseExifDate(tags.DateTimeOriginal) ??
-                parseExifDate(tags.CreateDate) ??
-                parseExifDate(tags.MediaCreateDate),
-            width: tags.ImageWidth || tags.ExifImageWidth || 0,
-            height: tags.ImageHeight || tags.ExifImageHeight || 0,
-            gpsLatitude: tags.GPSLatitude,
-            gpsLongitude: tags.GPSLongitude,
-            cameraModel: tags.Model,
-        };
-        // Add validation if needed - e.g., check if width/height are valid
-        // if (metadata.width <= 0 || metadata.height <= 0) {
-        //     // Decide how to handle - return error or default?
-        //     // For now, allowing 0 as per original logic
-        // }
-        return metadata;
-    }, (error) => new AppError(`Failed to parse EXIF tags object: ${error instanceof Error ? error.message : String(error)}`, { originalError: error }));
+  // Use safeTry to wrap the parsing logic, catching unexpected errors
+  return safeTry(
+    () => {
+      const metadata: Metadata = {
+        imageDate:
+          parseExifDate(tags.DateTimeOriginal) ??
+          parseExifDate(tags.CreateDate) ??
+          parseExifDate(tags.MediaCreateDate),
+        width: tags.ImageWidth || tags.ExifImageWidth || 0,
+        height: tags.ImageHeight || tags.ExifImageHeight || 0,
+        gpsLatitude: tags.GPSLatitude,
+        gpsLongitude: tags.GPSLongitude,
+        cameraModel: tags.Model,
+      };
+      // Add validation if needed - e.g., check if width/height are valid
+      // if (metadata.width <= 0 || metadata.height <= 0) {
+      //     // Decide how to handle - return error or default?
+      //     // For now, allowing 0 as per original logic
+      // }
+      return metadata;
+    },
+    (error) =>
+      new AppError(
+        `Failed to parse EXIF tags object: ${error instanceof Error ? error.message : String(error)}`,
+        { originalError: error },
+      ),
+  );
 }
 
 /**
@@ -293,49 +348,57 @@ export function parseExifTagsToMetadata(tags: Tags): AppResult<Metadata> {
  * @param k The 0-based index of the element to find (e.g., k=0 for minimum, k=floor(n/2) for median).
  * @returns The k-th smallest element.
  */
-export function quickSelect(arr: Float32Array | number[], k: number): AppResult<number> {
-    // Ensure k is within bounds
-    if (k < 0 || k >= arr.length) {
-        return err(new ValidationError(`Index k (${k}) out of bounds for array length ${arr.length}`, { validationDetails: { k, length: arr.length } }));
-    }
+export function quickSelect(
+  arr: Float32Array | number[],
+  k: number,
+): AppResult<number> {
+  // Ensure k is within bounds
+  if (k < 0 || k >= arr.length) {
+    return err(
+      new ValidationError(
+        `Index k (${k}) out of bounds for array length ${arr.length}`,
+        { validationDetails: { k, length: arr.length } },
+      ),
+    );
+  }
 
-    // Base case for recursion
-    if (arr.length === 1) {
-        return ok(arr[0]);
-    }
+  // Base case for recursion
+  if (arr.length === 1) {
+    return ok(arr[0]);
+  }
 
-    // Choose a pivot (simple middle element strategy)
-    const pivotIndex = Math.floor(arr.length / 2);
-    const pivot = arr[pivotIndex];
+  // Choose a pivot (simple middle element strategy)
+  const pivotIndex = Math.floor(arr.length / 2);
+  const pivot = arr[pivotIndex];
 
-    // Partition the array (excluding the pivot itself initially)
-    const left: number[] = [];
-    const right: number[] = [];
-    const pivots: number[] = []; // To handle duplicate pivot values
+  // Partition the array (excluding the pivot itself initially)
+  const left: number[] = [];
+  const right: number[] = [];
+  const pivots: number[] = []; // To handle duplicate pivot values
 
-    for (let i = 0; i < arr.length; i++) {
-        const element = arr[i];
-        if (element < pivot) {
-            left.push(element);
-        } else if (element > pivot) {
-            right.push(element);
-        } else {
-            pivots.push(element);
-        }
-    }
-
-    // Determine which partition contains the k-th element
-    if (k < left.length) {
-        // k-th element is in the left partition
-        return quickSelect(left, k);
-    } else if (k < left.length + pivots.length) {
-        // k-th element is one of the pivots
-        return ok(pivot);
+  for (let i = 0; i < arr.length; i++) {
+    const element = arr[i];
+    if (element < pivot) {
+      left.push(element);
+    } else if (element > pivot) {
+      right.push(element);
     } else {
-        // k-th element is in the right partition
-        // Adjust k to be relative to the right partition's start
-        return quickSelect(right, k - left.length - pivots.length);
+      pivots.push(element);
     }
+  }
+
+  // Determine which partition contains the k-th element
+  if (k < left.length) {
+    // k-th element is in the left partition
+    return quickSelect(left, k);
+  } else if (k < left.length + pivots.length) {
+    // k-th element is one of the pivots
+    return ok(pivot);
+  } else {
+    // k-th element is in the right partition
+    // Adjust k to be relative to the right partition's start
+    return quickSelect(right, k - left.length - pivots.length);
+  }
 }
 
 /**
@@ -344,27 +407,30 @@ export function quickSelect(arr: Float32Array | number[], k: number): AppResult<
  * @param hashSize The size of the hash dimension (e.g., 8 for 8x8 hash). Default is 8.
  * @returns An object containing pre-computed dctCoefficients and normFactors.
  */
-export function createDCTConstants(resolution: number, hashSize: number = 8): { dctCoefficients: Float32Array, normFactors: Float32Array } {
-    const size = resolution;
-    const scale = Math.sqrt(2 / size);
+export function createDCTConstants(
+  resolution: number,
+  hashSize: number = 8,
+): { dctCoefficients: Float32Array; normFactors: Float32Array } {
+  const size = resolution;
+  const scale = Math.sqrt(2 / size);
 
-    // Pre-compute DCT coefficients
-    const dctCoefficients = new Float32Array(size * hashSize);
-    for (let u = 0; u < hashSize; u++) {
-        for (let x = 0; x < size; x++) {
-            dctCoefficients[u * size + x] = Math.cos(
-                ((2 * x + 1) * u * Math.PI) / (2 * size),
-            );
-        }
+  // Pre-compute DCT coefficients
+  const dctCoefficients = new Float32Array(size * hashSize);
+  for (let u = 0; u < hashSize; u++) {
+    for (let x = 0; x < size; x++) {
+      dctCoefficients[u * size + x] = Math.cos(
+        ((2 * x + 1) * u * Math.PI) / (2 * size),
+      );
     }
+  }
 
-    // Pre-compute normalization factors
-    const normFactors = new Float32Array(hashSize);
-    for (let i = 0; i < hashSize; i++) {
-        normFactors[i] = i === 0 ? scale / Math.SQRT2 : scale;
-    }
+  // Pre-compute normalization factors
+  const normFactors = new Float32Array(hashSize);
+  for (let i = 0; i < hashSize; i++) {
+    normFactors[i] = i === 0 ? scale / Math.SQRT2 : scale;
+  }
 
-    return { dctCoefficients, normFactors };
+  return { dctCoefficients, normFactors };
 }
 
 /**
@@ -377,43 +443,56 @@ export function createDCTConstants(resolution: number, hashSize: number = 8): { 
  * @returns The top-left hashSize x hashSize DCT coefficients.
  */
 export function computeFastDCT(
-    input: Uint8Array,
-    size: number,
-    hashSize: number,
-    dctConstants: { dctCoefficients: Float32Array, normFactors: Float32Array }
+  input: Uint8Array,
+  size: number,
+  hashSize: number,
+  dctConstants: { dctCoefficients: Float32Array; normFactors: Float32Array },
 ): AppResult<Float32Array> {
-    const output = new Float32Array(hashSize * hashSize);
-    const temp = new Float32Array(hashSize);
-    const { dctCoefficients, normFactors } = dctConstants;
+  const output = new Float32Array(hashSize * hashSize);
+  const temp = new Float32Array(hashSize);
+  const { dctCoefficients, normFactors } = dctConstants;
 
-    for (let y = 0; y < size; y++) {
-        // DCT row transform
-        for (let u = 0; u < hashSize; u++) {
-            let sum = 0;
-            const coeffOffset = u * size;
-            for (let x = 0; x < size; x++) {
-                sum += input[y * size + x] * dctCoefficients[coeffOffset + x];
-            }
-            temp[u] = sum;
-        }
-
-        // DCT column transform and normalization
-        for (let v = 0; v < hashSize; v++) {
-            const normFactor = normFactors[v];
-            // Ensure vCoeff index is within bounds of dctCoefficients
-            const vCoeffIndex = v * size + y;
-            if (vCoeffIndex >= dctCoefficients.length) {
-                 // Return an error instead of logging and continuing
-                 return err(new ValidationError(`DCT coefficient index out of bounds during column transform`, { validationDetails: { v, size, y, index: vCoeffIndex, length: dctCoefficients.length }}));
-            }
-            const vCoeff = dctCoefficients[vCoeffIndex];
-            const outputOffset = v * hashSize;
-            for (let u = 0; u < hashSize; u++) {
-                output[outputOffset + u] += normFactor * temp[u] * vCoeff;
-            }
-        }
+  for (let y = 0; y < size; y++) {
+    // DCT row transform
+    for (let u = 0; u < hashSize; u++) {
+      let sum = 0;
+      const coeffOffset = u * size;
+      for (let x = 0; x < size; x++) {
+        sum += input[y * size + x] * dctCoefficients[coeffOffset + x];
+      }
+      temp[u] = sum;
     }
-    return ok(output);
+
+    // DCT column transform and normalization
+    for (let v = 0; v < hashSize; v++) {
+      const normFactor = normFactors[v];
+      // Ensure vCoeff index is within bounds of dctCoefficients
+      const vCoeffIndex = v * size + y;
+      if (vCoeffIndex >= dctCoefficients.length) {
+        // Return an error instead of logging and continuing
+        return err(
+          new ValidationError(
+            `DCT coefficient index out of bounds during column transform`,
+            {
+              validationDetails: {
+                v,
+                size,
+                y,
+                index: vCoeffIndex,
+                length: dctCoefficients.length,
+              },
+            },
+          ),
+        );
+      }
+      const vCoeff = dctCoefficients[vCoeffIndex];
+      const outputOffset = v * hashSize;
+      for (let u = 0; u < hashSize; u++) {
+        output[outputOffset + u] += normFactor * temp[u] * vCoeff;
+      }
+    }
+  }
+  return ok(output);
 }
 
 // Removed incorrect import line
@@ -423,15 +502,24 @@ export function computeFastDCT(
  * @param filePath The path to the file.
  * @returns A Promise resolving to the Stats object.
  */
-export async function getFileStats(filePath: string): Promise<AppResult<Stats>> {
-    return safeTryAsync(
-        stat(filePath),
-        (e) => new FileSystemError(`Failed to get stats for file: ${e instanceof Error ? e.message : String(e)}`, { path: filePath, operation: 'stat', originalError: e instanceof Error ? e : undefined })
-    );
+export async function getFileStats(
+  filePath: string,
+): Promise<AppResult<Stats>> {
+  return safeTryAsync(
+    stat(filePath),
+    (e) =>
+      new FileSystemError(
+        `Failed to get stats for file: ${e instanceof Error ? e.message : String(e)}`,
+        {
+          path: filePath,
+          operation: "stat",
+          originalError: e instanceof Error ? e : undefined,
+        },
+      ),
+  );
 }
 
 // Removed duplicated code block
-
 
 /**
  * Computes the final perceptual hash bits from the DCT coefficients.
@@ -439,55 +527,65 @@ export async function getFileStats(filePath: string): Promise<AppResult<Stats>> 
  * @param hashSize The dimension of the hash (e.g., 8 for 8x8).
  * @returns The perceptual hash as a Uint8Array.
  */
-export function computeHashFromDCT(dct: Float32Array, hashSize: number): AppResult<Uint8Array> {
-    if (dct.length === 0) {
-        return err(new ValidationError("DCT array cannot be empty"));
+export function computeHashFromDCT(
+  dct: Float32Array,
+  hashSize: number,
+): AppResult<Uint8Array> {
+  if (dct.length === 0) {
+    return err(new ValidationError("DCT array cannot be empty"));
+  }
+  // Compute median of AC components (excluding DC component at index 0)
+  const acValues = new Float32Array(Math.max(0, dct.length - 1)); // Ensure non-negative length
+  for (let i = 1; i < dct.length; i++) {
+    acValues[i - 1] = Math.abs(dct[i]);
+  }
+
+  if (acValues.length === 0) {
+    // Handle case where DCT only had DC component (e.g., 1x1 input)
+    // Decide on appropriate behavior - maybe return zero hash or error?
+    // For now, let's return an error as median is undefined.
+    return err(
+      new ValidationError(
+        "Cannot compute median AC value from DCT with only DC component",
+      ),
+    );
+  }
+
+  const medianResult = quickSelect(acValues, Math.floor(acValues.length / 2));
+  if (medianResult.isErr()) {
+    // Propagate error from quickSelect (e.g., index out of bounds, though unlikely here)
+    return err(medianResult.error);
+  }
+  const medianAC = medianResult.value;
+
+  // Compute hash bits
+  const hash = new Uint8Array(hashSize); // Assuming hashSize is 8 for byte packing
+  const numHashBits = hashSize * hashSize; // Total number of bits in the hash
+
+  if (hashSize !== 8) {
+    console.warn(
+      "computeHashFromDCT currently assumes hashSize=8 for byte packing. Results may be incorrect for other sizes.",
+    );
+  }
+
+  for (let i = 0; i < numHashBits; i++) {
+    // Map linear index i to 2D indices (row, col) if needed, or process linearly
+    // Example for 8x8 packed into bytes:
+    const byteIndex = Math.floor(i / 8);
+    const bitIndex = i % 8;
+
+    if (dct[i] > medianAC) {
+      if (byteIndex < hash.length) {
+        // Ensure byteIndex is within bounds
+        hash[byteIndex] |= 1 << bitIndex;
+      }
     }
-    // Compute median of AC components (excluding DC component at index 0)
-    const acValues = new Float32Array(Math.max(0, dct.length - 1)); // Ensure non-negative length
-    for (let i = 1; i < dct.length; i++) {
-        acValues[i - 1] = Math.abs(dct[i]);
-    }
+  }
 
-    if (acValues.length === 0) {
-        // Handle case where DCT only had DC component (e.g., 1x1 input)
-        // Decide on appropriate behavior - maybe return zero hash or error?
-        // For now, let's return an error as median is undefined.
-        return err(new ValidationError("Cannot compute median AC value from DCT with only DC component"));
-    }
+  // If hashSize is not 8, the packing logic needs adjustment.
+  // For simplicity, this example assumes hashSize=8.
 
-    const medianResult = quickSelect(acValues, Math.floor(acValues.length / 2));
-    if (medianResult.isErr()) {
-        // Propagate error from quickSelect (e.g., index out of bounds, though unlikely here)
-        return err(medianResult.error);
-    }
-    const medianAC = medianResult.value;
-
-    // Compute hash bits
-    const hash = new Uint8Array(hashSize); // Assuming hashSize is 8 for byte packing
-    const numHashBits = hashSize * hashSize; // Total number of bits in the hash
-
-    if (hashSize !== 8) {
-        console.warn("computeHashFromDCT currently assumes hashSize=8 for byte packing. Results may be incorrect for other sizes.");
-    }
-
-    for (let i = 0; i < numHashBits; i++) {
-        // Map linear index i to 2D indices (row, col) if needed, or process linearly
-        // Example for 8x8 packed into bytes:
-        const byteIndex = Math.floor(i / 8);
-        const bitIndex = i % 8;
-
-        if (dct[i] > medianAC) {
-             if (byteIndex < hash.length) { // Ensure byteIndex is within bounds
-                 hash[byteIndex] |= (1 << bitIndex);
-             }
-        }
-    }
-
-    // If hashSize is not 8, the packing logic needs adjustment.
-    // For simplicity, this example assumes hashSize=8.
-
-    return ok(hash);
+  return ok(hash);
 }
 
 // Removed leftover comment
