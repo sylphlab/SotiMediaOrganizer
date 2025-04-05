@@ -1,6 +1,6 @@
 # MediaCurator Major Refactoring Plan
 
-**Version:** 1.0
+**Version:** 1.1
 **Date:** 2025-04-05
 **Author:** Cline
 
@@ -42,7 +42,7 @@ We will evolve the architecture based on the following:
 - **Scalability Strategy:**
   - **Data Handling:** Avoid loading all file metadata/hashes into memory at once. Implement streaming or batch processing where possible.
   - **Metadata/State Storage:** Introduce SQLite to store file metadata, hashes, and potentially deduplication state via a dedicated `Metadata DB Module`. This allows for more complex querying and better scaling. LMDB might still be used for simpler caching tasks if appropriate, managed by a separate `Caching Module`.
-  - **Deduplication Algorithm:** Re-evaluate VPTree/DBSCAN for memory usage with millions of points. Explore alternatives or optimizations (e.g., approximate nearest neighbor algorithms, different clustering approaches, pre-filtering).
+  - **Deduplication Algorithm:** **Decision:** Replace in-memory VPTree/DBSCAN with a DB-centric approach using Locality-Sensitive Hashing (LSH) for candidate selection, leveraging SQLite indexing.
   - **Concurrency:** Refine worker usage. Ensure workers operate on batches of data and interact minimally with shared state/cache/DB to avoid bottlenecks.
 - **UI Strategy:**
   - **CLI:** Refine output using libraries like `chalk`, improve progress indicators (potentially per-stage), provide clearer error messages, and potentially interactive configuration prompts.
@@ -108,7 +108,7 @@ We will evolve the architecture based on the following:
 2.  **Phase 2: Scalability Enhancements**
     - **Task 2.1:** Implement the `Metadata DB Module` using SQLite.
     - **Task 2.2:** Refactor pipeline stages (`Gathering`, `Deduplication`) to use the SQLite DB, focusing on streaming/batching and reduced memory footprint.
-    - **Task 2.3:** Optimize/Re-evaluate the deduplication algorithm (VPTree/DBSCAN) for memory and performance with large datasets. Implement changes in the `Computation Module`.
+    - **Task 2.3:** Implement DB-centric LSH approach: Modify DB schema to store LSH keys, add DB service methods for candidate querying (`findSimilarCandidates`), refactor `deduplicateFilesFn` to use LSH query loop instead of VPTree/DBSCAN.
     - **Task 2.4:** Refine worker implementation for better batching and reduced contention with the DB.
     - **Task 2.5:** Introduce benchmarking for key stages and perform initial optimizations.
 3.  **Phase 3: UI Improvements**
@@ -135,6 +135,6 @@ We will evolve the architecture based on the following:
 ### 7. Open Questions & Next Steps
 
 - Final decision between Manual Injection vs. Context/Reader approach for dependency provision (during Phase 1).
-- Specific optimizations for the deduplication algorithm (during Phase 2).
+- Specific LSH function/parameters and DB indexing strategy for optimal performance (during Phase 2).
 
 **Next Step:** Begin implementation, starting with Phase 1.

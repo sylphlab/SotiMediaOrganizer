@@ -8,21 +8,24 @@ import { mkdirSync } from "fs";
 // Define the structure of the data stored in the DB
 // This might evolve as we refactor further
 export interface FileInfoRow {
-  // Add export
   filePath: string; // Primary Key
-  contentHash: string | null; // From FileStats (hex)
-  size: number | null; // From FileStats
-  createdAt: number | null; // Store as Unix timestamp (milliseconds)
-  modifiedAt: number | null; // Store as Unix timestamp (milliseconds)
-  imageWidth: number | null; // From Metadata
-  imageHeight: number | null; // From Metadata
-  gpsLatitude: number | null; // From Metadata
-  gpsLongitude: number | null; // From Metadata
-  cameraModel: string | null; // From Metadata
-  imageDate: number | null; // Store as Unix timestamp (milliseconds)
-  mediaDuration: number | null; // From MediaInfo
-  pHash: string | null; // Perceptual hash (hex) - Assuming single hash for now
-  // Add other relevant fields as needed, e.g., specific frame hashes, features
+  contentHash?: string | null; // From FileStats (hex)
+  size?: number | null; // From FileStats
+  createdAt?: number | null; // Store as Unix timestamp (milliseconds)
+  modifiedAt?: number | null; // Store as Unix timestamp (milliseconds)
+  imageWidth?: number | null; // From Metadata
+  imageHeight?: number | null; // From Metadata
+  gpsLatitude?: number | null; // From Metadata
+  gpsLongitude?: number | null; // From Metadata
+  cameraModel?: string | null; // From Metadata
+  imageDate?: number | null; // Store as Unix timestamp (milliseconds)
+  mediaDuration?: number | null; // From MediaInfo
+  pHash?: string | null; // Perceptual hash (hex) - Assuming single hash for now
+  // LSH Keys (4 bands of 16 bits from pHash)
+  lshKey1?: string | null;
+  lshKey2?: string | null;
+  lshKey3?: string | null;
+  lshKey4?: string | null;
 }
 
 export class MetadataDBService {
@@ -82,7 +85,11 @@ export class MetadataDBService {
                 cameraModel TEXT,
                 imageDate INTEGER,
                 mediaDuration REAL,
-                pHash TEXT
+                pHash TEXT,
+                lshKey1 TEXT,
+                lshKey2 TEXT,
+                lshKey3 TEXT,
+                lshKey4 TEXT
             );
         `);
 
@@ -94,13 +101,46 @@ export class MetadataDBService {
       `CREATE INDEX IF NOT EXISTS idx_files_pHash ON files (pHash);`,
     );
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_files_size ON files (size);`);
-    // Add more indexes as needed based on query patterns
+    // Add indexes for LSH keys
+    this.db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey1 ON files (lshKey1);`,
+    );
+    this.db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey2 ON files (lshKey2);`,
+    );
+    this.db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey3 ON files (lshKey3);`,
+    );
+    this.db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey4 ON files (lshKey4);`,
+    );
+  }
+
+  // Helper to generate LSH keys from pHash hex string
+  private generateLshKeys(pHashHex: string | null): (string | null)[] {
+    const keys: (string | null)[] = [null, null, null, null];
+    if (pHashHex && pHashHex.length === 16) {
+      // Expect 64-bit hash (16 hex chars)
+      keys[0] = pHashHex.substring(0, 4);
+      keys[1] = pHashHex.substring(4, 8);
+      keys[2] = pHashHex.substring(8, 12);
+      keys[3] = pHashHex.substring(12, 16);
+    } else if (pHashHex) {
+      console.warn(
+        `Invalid pHash length (${pHashHex.length}) for LSH key generation: ${pHashHex}`,
+      );
+    }
+    return keys;
   }
 
   // Helper to convert FileInfo to DB row format
   private fileInfoToRow(filePath: string, fileInfo: FileInfo): FileInfoRow {
-    // TODO: Handle potential missing pHash if MediaInfo structure changes
-    const pHashBuffer = fileInfo.media?.frames?.[0]?.hash; // Assuming pHash is the first frame's hash for now
+    const pHashBuffer = fileInfo.media?.frames?.[0]?.hash;
+    const pHashHex = pHashBuffer
+      ? Buffer.from(pHashBuffer).toString("hex")
+      : null;
+    const lshKeys = this.generateLshKeys(pHashHex);
+
     return {
       filePath: filePath,
       contentHash: fileInfo.fileStats?.hash
@@ -116,7 +156,11 @@ export class MetadataDBService {
       cameraModel: fileInfo.metadata?.cameraModel ?? null,
       imageDate: fileInfo.metadata?.imageDate?.getTime() ?? null,
       mediaDuration: fileInfo.media?.duration ?? null,
-      pHash: pHashBuffer ? Buffer.from(pHashBuffer).toString("hex") : null,
+      pHash: pHashHex,
+      lshKey1: lshKeys[0],
+      lshKey2: lshKeys[1],
+      lshKey3: lshKeys[2],
+      lshKey4: lshKeys[3],
     };
   }
 
@@ -166,11 +210,13 @@ export class MetadataDBService {
             INSERT INTO files (
                 filePath, contentHash, size, createdAt, modifiedAt,
                 imageWidth, imageHeight, gpsLatitude, gpsLongitude,
-                cameraModel, imageDate, mediaDuration, pHash
+                cameraModel, imageDate, mediaDuration, pHash,
+                lshKey1, lshKey2, lshKey3, lshKey4
             ) VALUES (
                 @filePath, @contentHash, @size, @createdAt, @modifiedAt,
                 @imageWidth, @imageHeight, @gpsLatitude, @gpsLongitude,
-                @cameraModel, @imageDate, @mediaDuration, @pHash
+                @cameraModel, @imageDate, @mediaDuration, @pHash,
+                @lshKey1, @lshKey2, @lshKey3, @lshKey4
             )
             ON CONFLICT(filePath) DO UPDATE SET
                 contentHash = excluded.contentHash,
@@ -184,7 +230,11 @@ export class MetadataDBService {
                 cameraModel = excluded.cameraModel,
                 imageDate = excluded.imageDate,
                 mediaDuration = excluded.mediaDuration,
-                pHash = excluded.pHash;
+                pHash = excluded.pHash,
+                lshKey1 = excluded.lshKey1,
+                lshKey2 = excluded.lshKey2,
+                lshKey3 = excluded.lshKey3,
+                lshKey4 = excluded.lshKey4;
         `);
 
     return safeTry(
@@ -283,9 +333,64 @@ export class MetadataDBService {
     );
   }
 
-  // TODO: Implement efficient *similar* pHash searching (Hamming distance <= d).
-  // This might require schema changes (e.g., storing hash components) or LSH.
-  // For now, neighbor finding logic outside the DB will need to handle similarity checks.
+  /**
+   * Finds potential similar files based on matching LSH keys.
+   * @param filePath The path of the file to exclude from results.
+   * @param lshKeys The LSH keys generated for the file's pHash.
+   * @returns An AppResult containing an array of file paths for potential neighbors.
+   */
+  public findSimilarCandidates(
+    filePath: string,
+    lshKeys: (string | null)[],
+  ): AppResult<string[]> {
+    const validKeys = lshKeys.filter((key) => key !== null) as string[];
+    if (validKeys.length === 0) {
+      return ok([]); // No valid keys to search with
+    }
+
+    const placeholders = validKeys.map(() => "?").join(", ");
+    const whereClauses = [
+      validKeys.length > 0 ? `lshKey1 IN (${placeholders})` : null,
+      validKeys.length > 0 ? `lshKey2 IN (${placeholders})` : null,
+      validKeys.length > 0 ? `lshKey3 IN (${placeholders})` : null,
+      validKeys.length > 0 ? `lshKey4 IN (${placeholders})` : null,
+    ].filter((clause) => clause !== null); // Filter out null clauses if a key is null
+
+    if (whereClauses.length === 0) {
+      return ok([]); // Should not happen if validKeys check passed, but safety check
+    }
+
+    const sql = `
+          SELECT filePath
+          FROM files
+          WHERE (${whereClauses.join(" OR ")})
+            AND filePath != ?
+      `;
+
+    const params = [
+      ...validKeys,
+      ...validKeys,
+      ...validKeys,
+      ...validKeys,
+      filePath,
+    ]; // Repeat keys for each IN clause, add filePath exclusion
+
+    const stmt = this.db.prepare(sql);
+    return safeTry(
+      () => {
+        const rows = stmt.all(...params) as { filePath: string }[];
+        return rows.map((row) => row.filePath);
+      },
+      (e) =>
+        new DatabaseError(
+          `Failed to find similar candidates for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
+          {
+            originalError: e instanceof Error ? e : undefined,
+            operation: "findSimilar",
+          },
+        ),
+    );
+  }
 
   /**
    * Closes the database connection.

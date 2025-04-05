@@ -1,33 +1,35 @@
-<!-- Version: 1.9 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 2.0 | Last Updated: 2025-04-05 | Updated By: Cline -->
 
 # System Patterns & Architecture
 
-- **Current State (Post-Initial Refactor):**
+- **Current State (Post-Phase 1 Refactor):**
   - CLI application entry via `index.ts` using `commander`.
   - Core logic decomposed into pipeline stage functions (`src/discovery.ts`, `src/gatherer.ts`, `src/deduplicator.ts`, `src/transfer.ts`).
   - Pure computational logic extracted to utils (`src/utils.ts`, `src/comparatorUtils.ts`).
-  - Caching isolated (`src/caching/LmdbCache.ts`).
-  - External tool interactions wrapped (`src/external/`).
-  - Job classes refactored into functional forms (`src/jobs/`).
+  - Caching isolated (`src/caching/LmdbCache.ts`), refactored to use `AppResult`.
+  - External tool interactions wrapped (`src/external/`), refactored to use `AppResult`.
+  - Job logic refactored into functional forms (`src/jobs/`), using `AppResult`.
   - `MediaProcessor` class replaced by functional `processSingleFile` (`src/fileProcessor.ts`).
-  - Dependency Injection still managed by `inversify` via `Context.ts`, binding refactored components and services.
-  - Concurrency via `workerpool` for pHash and DBSCAN.
+  - **Dependency Management:** Manual Injection implemented in `index.ts` (Inversify removed).
+  - **Error Handling:** Standardized using `neverthrow` (`AppResult`) via `src/errors.ts`.
+  - Concurrency via `workerpool` for pHash.
   - WASM used for optimized Hamming distance.
-  - VPTree used for deduplication neighbor search.
+  - **Deduplication (Pre-Phase 2):** Still uses VPTree/DBSCAN via `MediaComparator`, relying on pre-fetched data. Exact matching uses DB pHash.
 - **Future Direction (User Request):**
-  - **Major Refactoring:** Move towards a more thorough functional programming paradigm.
-  - **Dependency Injection:** Re-evaluate the use of `inversify`. Explore alternatives like Riverpod-inspired atom/provider patterns or potentially removing the DI framework if FP style makes it less necessary.
-  - **UI:** Consider improvements beyond the current CLI, potentially including a Web UI.
-  - **Scalability:** Architecture must explicitly support processing millions of files (implications for data structures, memory usage, caching, concurrency).
-- **Key Components (Post-Initial Refactor):**
-  - `index.ts`: CLI setup, orchestrates pipeline function calls.
-  - `src/discovery.ts`, `src/gatherer.ts`, `src/deduplicator.ts`, `src/transfer.ts`: Pipeline stage logic.
-  - `src/fileProcessor.ts`: Handles processing of a single file (replaces `MediaProcessor`).
-  - `src/comparatorUtils.ts`, `src/utils.ts`: Utility functions.
-  - `src/jobs/`: Refactored job logic (functional style).
-  - `src/caching/LmdbCache.ts`: LMDB caching implementation.
-  - `src/external/`: Wrappers for exiftool, sharp, ffmpeg.
-  - `MediaComparator.ts`: Still contains significant imperative logic for deduplication (VPTree, DBSCAN).
-  - `Context.ts`: Manages DI (subject to change).
-  - `src/worker/`: Worker thread logic.
-  - `assembly/`: WASM code.
+  - **Major Refactoring (Ongoing):** Continue functional refactoring, focusing on scalability and potentially UI.
+  - **Dependency Injection:** **Decision:** Manual Injection adopted.
+  - **UI:** **Decision:** CLI improvements prioritized over Web UI for now.
+  - **Scalability:** **Decision:** Adopt SQLite (`better-sqlite3`) for metadata/state. **Decision:** Replace VPTree/DBSCAN with DB-centric LSH approach for similarity search (Phase 2).
+- **Key Components (Post-Phase 1):**
+  - `index.ts`: CLI setup, orchestrates pipeline, performs Manual DI.
+  - `src/discovery.ts`, `src/gatherer.ts`, `src/deduplicator.ts`, `src/transfer.ts`: Pipeline stage logic (using `AppResult`).
+  - `src/fileProcessor.ts`: Handles processing of a single file (using `AppResult`).
+  - `src/comparatorUtils.ts`, `src/utils.ts`: Utility functions (using `AppResult` where applicable).
+  - `src/jobs/`: Refactored job logic (functional style, using `AppResult`).
+  - `src/caching/LmdbCache.ts`: LMDB caching implementation (using `AppResult`).
+  - `src/external/`: Wrappers for exiftool, sharp, ffmpeg (using `AppResult`).
+  - `src/services/MetadataDBService.ts`: SQLite database service (using `AppResult`).
+  - `MediaComparator.ts`: Contains similarity calculation logic and legacy VPTree/DBSCAN orchestration (partially refactored, target for Phase 2 changes).
+  - `src/errors.ts`: Defines `AppError` classes and `AppResult` type (using `neverthrow`).
+  - `src/worker/`: Worker thread logic (pHash).
+  - `assembly/`: WASM code (Hamming distance).

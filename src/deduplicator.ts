@@ -3,24 +3,27 @@ import { MediaComparator } from "../MediaComparator";
 import { Spinner } from "@topcli/spinner";
 import { MetadataDBService } from "./services/MetadataDBService"; // Import DB Service
 import { AppResult, err, ok, DatabaseError } from "./errors"; // Import error types
-import { mergeAndDeduplicateClusters } from "./comparatorUtils"; // Removed unused runDbscanCore import
+import {
+  mergeAndDeduplicateClusters,
+  getAdaptiveThreshold,
+} from "./comparatorUtils"; // Import merge function and threshold helper
 // import { bufferToSharedArrayBuffer } from "./utils"; // Removed unused import
 // import { FileInfoRow } from "./services/MetadataDBService"; // Removed unused import
-import { VPTree } from "../VPTree"; // Import VPTree
-import { MediaInfo } from "./types"; // Import MediaInfo
-// Removed unused imports for getValidNeighbors dependencies
+// import { VPTree } from "../VPTree"; // Removed VPTree import
+import { MediaInfo, SimilarityConfig } from "./types"; // Import MediaInfo and SimilarityConfig
 
 /**
  * Performs deduplication on a list of valid files.
  * @param validFiles Array of file paths that were successfully processed.
- * @param comparator Instance of MediaComparator (contains VPTree/DBSCAN logic).
+ * @param comparator Instance of MediaComparator (used for similarity calculation and result processing).
  * @param dbService MetadataDBService instance.
  * @returns A Promise resolving to an AppResult containing the DeduplicationResult or an error.
  */
 export async function deduplicateFilesFn(
   validFiles: string[],
-  comparator: MediaComparator,
+  comparator: MediaComparator, // Still needed for calculateSimilarity and processResults
   dbService: MetadataDBService,
+  similarityConfig: SimilarityConfig, // Pass config directly
 ): Promise<AppResult<DeduplicationResult>> {
   // Update return type
   // TODO: Abstract spinner logic later
@@ -80,43 +83,117 @@ export async function deduplicateFilesFn(
   });
   spinner.text = `Found ${exactDuplicateClusters.length} exact duplicate sets via pHash.`;
 
-  // --- Step 2: Cluster Potentially Similar Files using VPTree/DBSCAN ---
-  const filesToCluster = Array.from(potentiallySimilarFiles);
-  let similarityClusters: Set<string>[] = [];
+  // --- Step 2: Find Similarity Clusters using LSH ---
+  spinner.text = `Finding similar files using LSH for ${potentiallySimilarFiles.size} candidates...`;
+  const similarityClusters: Set<string>[] = [];
+  const processedForSimilarity = new Set<string>(); // Track files already added to a similarity cluster
 
-  if (filesToCluster.length > 1) {
-    spinner.text = `Building VPTree for ${filesToCluster.length} potentially similar files...`;
-    // Define DB-aware distance function for the reduced set
-    const distanceFn = async (a: string, b: string): Promise<number> => {
-      // Info should already be in allFileInfoMap from earlier fetch
-      const fileInfoA = allFileInfoMap.get(a);
-      const fileInfoB = allFileInfoMap.get(b);
-      if (!fileInfoA || !fileInfoB || !fileInfoA.media || !fileInfoB.media) {
-        console.warn(`Missing FileInfo in map for distance calc (${a}, ${b})`);
-        return Infinity;
-      }
-      return (
-        1 -
-        comparator.calculateSimilarity(
-          fileInfoA.media as MediaInfo,
-          fileInfoB.media as MediaInfo,
-        )
+  // Helper to generate LSH keys (copied from MetadataDBService for local use)
+  const generateLshKeys = (pHashHex: string | null): (string | null)[] => {
+    const keys: (string | null)[] = [null, null, null, null];
+    if (pHashHex && pHashHex.length === 16) {
+      // Expect 64-bit hash (16 hex chars)
+      keys[0] = pHashHex.substring(0, 4);
+      keys[1] = pHashHex.substring(4, 8);
+      keys[2] = pHashHex.substring(8, 12);
+      keys[3] = pHashHex.substring(12, 16);
+    } else if (pHashHex) {
+      console.warn(
+        `Invalid pHash length (${pHashHex.length}) for LSH key generation: ${pHashHex}`,
       );
-    };
+    }
+    return keys;
+  };
 
-    const vpTree = await VPTree.build(filesToCluster, distanceFn);
+  for (const targetFile of potentiallySimilarFiles) {
+    if (processedForSimilarity.has(targetFile)) {
+      continue; // Skip if already part of a similarity cluster
+    }
 
-    spinner.text = `Running DBSCAN on ${filesToCluster.length} files...`;
-    // Call the refactored single-threaded DBSCAN method
-    similarityClusters = await comparator.dbscanClusters(
-      // Use renamed method
-      filesToCluster,
-      vpTree,
-      (progress) => (spinner.text = `Running DBSCAN... ${progress}`), // Keep progress callback
+    const targetFileInfo = allFileInfoMap.get(targetFile);
+    const targetPHashBuffer = targetFileInfo?.media?.frames?.[0]?.hash;
+    const targetPHashHex = targetPHashBuffer
+      ? Buffer.from(targetPHashBuffer).toString("hex")
+      : null;
+
+    if (!targetPHashHex) {
+      console.warn(
+        `Skipping similarity check for ${targetFile} due to missing pHash.`,
+      );
+      processedForSimilarity.add(targetFile); // Mark as processed (treated as unique in similarity phase)
+      continue;
+    }
+
+    const targetLshKeys = generateLshKeys(targetPHashHex);
+    const candidateResult = await dbService.findSimilarCandidates(
+      targetFile,
+      targetLshKeys,
     );
-  } else {
-    spinner.text = "Skipping VPTree/DBSCAN (<=1 potentially similar file).";
+
+    if (candidateResult.isErr()) {
+      console.error(
+        `Error finding LSH candidates for ${targetFile}: ${candidateResult.error.message}`,
+      );
+      processedForSimilarity.add(targetFile); // Mark as processed to avoid retrying
+      continue;
+    }
+
+    const candidatePaths = candidateResult.value;
+    const similarNeighbors = new Set<string>([targetFile]); // Start cluster with the target file
+
+    if (candidatePaths.length > 0) {
+      // Fetch info for candidates (can optimize by fetching only needed fields)
+      // For now, use the existing map, assuming candidates were in the initial fetch
+      const candidateInfoMap = new Map<string, Partial<FileInfo>>();
+      candidatePaths.forEach((p) => {
+        if (allFileInfoMap.has(p)) {
+          candidateInfoMap.set(p, allFileInfoMap.get(p)!);
+        } else {
+          console.warn(
+            `Candidate ${p} for ${targetFile} not found in pre-fetched map.`,
+          );
+        }
+      });
+
+      for (const candidateFile of candidatePaths) {
+        if (processedForSimilarity.has(candidateFile)) {
+          continue; // Skip if candidate already belongs to another cluster
+        }
+
+        const candidateFileInfo = candidateInfoMap.get(candidateFile);
+        // Ensure targetFileInfo is also valid here before comparison
+        if (!targetFileInfo?.media || !candidateFileInfo?.media) {
+          continue; // Skip if media info is missing for comparison
+        }
+
+        const similarity = comparator.calculateSimilarity(
+          targetFileInfo.media as MediaInfo,
+          candidateFileInfo.media as MediaInfo,
+        );
+        // Ensure comparator.similarityConfig is accessible or passed correctly
+        const threshold = getAdaptiveThreshold(
+          targetFileInfo.media as MediaInfo,
+          candidateFileInfo.media as MediaInfo,
+          similarityConfig,
+        ); // Use passed config
+
+        if (similarity >= threshold) {
+          similarNeighbors.add(candidateFile);
+        }
+      }
+    }
+
+    // If neighbors were found (cluster size > 1), add to similarityClusters and mark all as processed
+    if (similarNeighbors.size > 1) {
+      similarityClusters.push(similarNeighbors);
+      similarNeighbors.forEach((file) => processedForSimilarity.add(file));
+    } else {
+      // If no similar neighbors found, mark only the target file as processed (unique in similarity phase)
+      processedForSimilarity.add(targetFile);
+    }
+    spinner.text = `Finding similar files... (${processedForSimilarity.size}/${potentiallySimilarFiles.size} checked)`;
   }
+  spinner.text = `Found ${similarityClusters.length} similarity clusters via LSH.`;
 
   // --- Step 3: Merge Exact and Similarity Clusters ---
   spinner.text = "Merging cluster results...";
