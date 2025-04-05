@@ -7,16 +7,28 @@ import {
   ProgramOptions,
   FileProcessor,
   WorkerData,
+  // MaybePromise, // Removed unused import
 } from "./src/types";
 import { MediaProcessor } from "./src/MediaProcessor";
 import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
 import { inject, injectable } from "inversify";
 import { Types, type WorkerPool } from "./src/contexts/types";
+import { readFile } from "fs/promises";
+import { join } from "path";
+
+// Define the expected exports from the WASM module
+interface WasmExports {
+  hammingDistanceSIMD(a: Uint8Array, b: Uint8Array): number;
+  // Add other exports if needed, ensure memory is exported if using complex types
+  memory: WebAssembly.Memory;
+}
 
 @injectable()
 export class MediaComparator {
   private readonly minThreshold: number;
+  private wasmExports: WasmExports | null = null;
+  private wasmInitializationPromise: Promise<void> | null = null;
 
   constructor(
     private mediaProcessor: MediaProcessor,
@@ -29,36 +41,104 @@ export class MediaComparator {
       this.similarityConfig.imageVideoSimilarityThreshold,
       this.similarityConfig.videoSimilarityThreshold,
     );
+    // Start WASM initialization, but don't block constructor
+    this.wasmInitializationPromise = this.initializeWasm().catch((err) => {
+      console.error("Failed to initialize WASM for Hamming distance:", err);
+      this.wasmExports = null; // Ensure fallback if init fails
+    });
+  }
+
+  private async initializeWasm(): Promise<void> {
+    try {
+      // Assuming the WASM file is copied to the dist directory during build
+      const wasmPath = join(__dirname, "..", "dist", "index.wasm");
+      const wasmBuffer = await readFile(wasmPath);
+      const wasmModule = await WebAssembly.instantiate(wasmBuffer, {
+        // Add necessary imports if your WASM module requires them
+        // Example for AssemblyScript's default abort:
+        env: {
+          abort: (
+            message: number,
+            fileName: number,
+            lineNumber: number,
+            columnNumber: number,
+          ) => {
+            // In a real app, you might want to decode the message/filename pointers
+            // using the WASM memory, but for now, just throw an error.
+            throw new Error(
+              `WASM aborted: msg=${message} file=${fileName} L${lineNumber} C${columnNumber}`,
+            );
+          },
+          // Add other required env functions if any
+        },
+      });
+      this.wasmExports = wasmModule.instance.exports as unknown as WasmExports;
+
+      // Verify the expected function exists
+      if (typeof this.wasmExports?.hammingDistanceSIMD !== "function") {
+        console.warn(
+          "WASM loaded but hammingDistanceSIMD function not found. Falling back to JS.",
+        );
+        this.wasmExports = null;
+      } else {
+        // console.log("WASM Hamming distance function loaded successfully."); // Optional success log
+      }
+    } catch (err) {
+      console.error("Failed to load or instantiate WASM module:", err);
+      this.wasmExports = null; // Ensure fallback on error
+    }
   }
 
   private hammingDistance(
     hash1: SharedArrayBuffer,
     hash2: SharedArrayBuffer,
   ): number {
-    // Use BigUint64Array for 64-bit operations
-    const view1 = new BigUint64Array(hash1);
-    const view2 = new BigUint64Array(hash2);
-
-    let distance = 0n;
-
-    // Process 64-bit chunks
-    for (let i = 0; i < view1.length; i++) {
-      distance += this.popcount64(view1[i] ^ view2[i]);
-    }
-
-    // Handle remaining bytes
-    const remainingBytes = hash1.byteLength % 8;
-    if (remainingBytes > 0) {
-      const uint8View1 = new Uint8Array(hash1);
-      const uint8View2 = new Uint8Array(hash2);
-      const startIndex = hash1.byteLength - remainingBytes;
-
-      for (let i = startIndex; i < hash1.byteLength; i++) {
-        distance += BigInt(this.popcount8(uint8View1[i] ^ uint8View2[i]));
+    // Use WASM implementation if available and loaded successfully
+    // Note: We don't await the initialization promise here for performance.
+    // If WASM isn't ready on the first few calls, it falls back to JS.
+    // Subsequent calls will use WASM once it's loaded.
+    if (this.wasmExports?.hammingDistanceSIMD) {
+      try {
+        // Pass Uint8Array views to the WASM function
+        const view1 = new Uint8Array(hash1);
+        const view2 = new Uint8Array(hash2);
+        // Ensure the WASM function is called correctly.
+        // AssemblyScript StaticArray<u8> maps to Uint8Array in JS.
+        return this.wasmExports.hammingDistanceSIMD(view1, view2);
+      } catch (wasmError) {
+        console.error(
+          "WASM hammingDistanceSIMD call failed, falling back to JS:",
+          wasmError,
+        );
+        // Fall through to JS implementation if WASM call fails
       }
     }
 
-    return Number(distance);
+    // Fallback to TypeScript implementation
+    const view1_ts = new BigUint64Array(hash1);
+    const view2_ts = new BigUint64Array(hash2);
+    let distance_ts = 0n;
+
+    // Process 64-bit chunks
+    for (let i = 0; i < view1_ts.length; i++) {
+      distance_ts += this.popcount64(view1_ts[i] ^ view2_ts[i]);
+    }
+
+    // Handle remaining bytes
+    const remainingBytes_ts = hash1.byteLength % 8;
+    if (remainingBytes_ts > 0) {
+      const uint8View1_ts = new Uint8Array(hash1);
+      const uint8View2_ts = new Uint8Array(hash2);
+      const startIndex_ts = hash1.byteLength - remainingBytes_ts;
+
+      for (let i = startIndex_ts; i < hash1.byteLength; i++) {
+        distance_ts += BigInt(
+          this.popcount8(uint8View1_ts[i] ^ uint8View2_ts[i]),
+        );
+      }
+    }
+
+    return Number(distance_ts);
   }
 
   private popcount64(n: bigint): bigint {
@@ -79,12 +159,18 @@ export class MediaComparator {
     selector: FileProcessor,
     progressCallback?: (progress: string) => void,
   ): Promise<DeduplicationResult> {
+    // Ensure WASM is loaded before proceeding with distance calculations if needed
+    if (this.wasmInitializationPromise) {
+      await this.wasmInitializationPromise;
+    }
+
     progressCallback?.("Building VPTree");
     const vpTree = await VPTree.build(files, async (a, b) => {
       const [fileInfoA, fileInfoB] = await Promise.all([
         selector(a),
         selector(b),
       ]);
+      // calculateSimilarity will now potentially use WASM hammingDistance
       return 1 - this.calculateSimilarity(fileInfoA.media, fileInfoB.media);
     });
 
@@ -111,9 +197,9 @@ export class MediaComparator {
         this.workerPool
           .performDBSCAN(
             <WorkerData>{
-              root: vpTree.getRoot(),
-              fileInfoCache: this.mediaProcessor.exportCache(),
-              options: this.options,
+              root: vpTree.getRoot(), // Pass VPTree root node
+              fileInfoCache: this.mediaProcessor.exportCache(), // Pass current cache
+              options: this.options, // Pass program options
             },
             batch,
           )
@@ -156,9 +242,14 @@ export class MediaComparator {
           for (const element of relatedCluster) {
             mergedCluster.add(element);
           }
-          merged.splice(merged.indexOf(relatedCluster), 1);
+          // Remove the old cluster from merged list
+          const indexToRemove = merged.indexOf(relatedCluster);
+          if (indexToRemove > -1) {
+            merged.splice(indexToRemove, 1);
+          }
         }
         merged.push(mergedCluster);
+        // Update map for all elements in the newly merged cluster
         for (const element of mergedCluster) {
           elementToClusterMap.set(element, mergedCluster);
         }
@@ -168,53 +259,86 @@ export class MediaComparator {
     return merged;
   }
 
+  // This method is intended to be run inside a worker thread
   async workerDBSCAN(
     chunk: string[],
     vpTree: VPTree<string>,
   ): Promise<Set<string>[]> {
-    const eps = 1 - this.minThreshold;
-    const minPts = 2;
+    const eps = 1 - this.minThreshold; // Epsilon based on min similarity
+    const minPts = 2; // Minimum points to form a core point (including self)
     const clusters: Set<string>[] = [];
-    const visited = new Set<string>();
+    const visited = new Set<string>(); // Track visited points within this worker's chunk
 
     for (const point of chunk) {
       if (visited.has(point)) continue;
       visited.add(point);
 
+      // Find neighbors using VPTree and validate with adaptive threshold
       const neighbors = await this.getValidNeighbors(point, vpTree, eps);
 
+      // If not enough neighbors, it's noise (or a single-element cluster for now)
       if (neighbors.length < minPts) {
-        clusters.push(new Set([point]));
-        continue;
+        // Mark as noise or handle later during merge? For now, treat as single cluster.
+        // clusters.push(new Set([point])); // Option 1: Treat as single cluster
+        continue; // Option 2: Mark as noise (implicitly handled by not adding to any cluster)
       }
 
-      const cluster = new Set<string>([point]);
-      const stack = [...neighbors];
+      // Expand cluster
+      const currentCluster = new Set<string>();
+      const queue = [...neighbors]; // Initialize queue with neighbors
 
-      while (stack.length > 0) {
-        const current = stack.pop()!;
-        if (visited.has(current)) continue;
-        visited.add(current);
+      while (queue.length > 0) {
+        const currentPoint = queue.shift()!; // Get next point from queue
 
-        cluster.add(current);
+        // If point hasn't been visited or added to a cluster yet
+        if (!visited.has(currentPoint)) {
+          visited.add(currentPoint);
+          currentCluster.add(currentPoint);
 
-        const currentNeighbors = await this.getValidNeighbors(
-          current,
-          vpTree,
-          eps,
-        );
+          // Find neighbors of the current point
+          const currentNeighbors = await this.getValidNeighbors(
+            currentPoint,
+            vpTree,
+            eps,
+          );
 
-        if (currentNeighbors.length >= minPts) {
-          for (const neighbor of currentNeighbors) {
-            if (!visited.has(neighbor)) {
-              stack.push(neighbor);
+          // If it's a core point, add its neighbors to the queue
+          if (currentNeighbors.length >= minPts) {
+            for (const neighbor of currentNeighbors) {
+              if (!visited.has(neighbor)) {
+                // Add only unvisited neighbors
+                queue.push(neighbor);
+              }
             }
           }
         }
+        // If point was visited but not yet part of any cluster (noise initially), add it
+        // This handles border points correctly.
+        // Note: This check might not be strictly necessary if noise points are ignored earlier.
+        // else if (!elementToClusterMap.has(currentPoint)) { // Assuming elementToClusterMap is available or handled differently
+        //    currentCluster.add(currentPoint);
+        // }
       }
 
-      clusters.push(cluster);
+      // Add the formed cluster if it's not empty
+      if (currentCluster.size > 0) {
+        // Add the initial point if it wasn't added during expansion (can happen if it was visited early)
+        if (!currentCluster.has(point)) {
+          currentCluster.add(point);
+        }
+        clusters.push(currentCluster);
+      } else if (!visited.has(point)) {
+        // Handle the case where the initial point itself was noise but wasn't processed
+        // clusters.push(new Set([point])); // Or ignore noise
+      }
     }
+
+    // Add remaining unclustered points as single-element clusters (optional, depends on noise handling)
+    // for (const point of chunk) {
+    //     if (!visited.has(point)) {
+    //         clusters.push(new Set([point]));
+    //     }
+    // }
 
     return clusters;
   }
@@ -224,20 +348,39 @@ export class MediaComparator {
     vpTree: VPTree<string>,
     eps: number,
   ): Promise<string[]> {
-    const neighbors = await vpTree.search(point, {
+    // Search VPTree for potential neighbors within epsilon distance
+    const potentialNeighbors = await vpTree.search(point, {
       maxDistance: eps,
-      sort: false,
+      sort: false, // No need to sort here
     });
+
+    // Fetch FileInfo for the query point once
     const media1 = (await this.mediaProcessor.processFile(point)).media;
-    const result = await filterAsync(neighbors, async (neighbor) => {
-      if (neighbor.point === point) return true;
-      const similarity = 1 - neighbor.distance;
-      const media2 = (await this.mediaProcessor.processFile(neighbor.point))
-        .media;
-      const threshold = this.getAdaptiveThreshold(media1, media2);
-      return similarity >= threshold;
-    });
-    return result.map((n) => n.point);
+
+    // Filter potential neighbors based on the adaptive similarity threshold
+    const validNeighbors = await filterAsync(
+      potentialNeighbors,
+      async (neighbor) => {
+        // Don't compare a point to itself in the context of finding neighbors
+        if (neighbor.point === point) return false;
+
+        // Calculate actual similarity (1 - distance)
+        const similarity = 1 - neighbor.distance;
+
+        // Fetch FileInfo for the neighbor
+        const media2 = (await this.mediaProcessor.processFile(neighbor.point))
+          .media;
+
+        // Get the specific threshold for this pair of media types
+        const threshold = this.getAdaptiveThreshold(media1, media2);
+
+        // Keep neighbor if similarity meets or exceeds the adaptive threshold
+        return similarity >= threshold;
+      },
+    );
+
+    // Return only the points (file paths) of the valid neighbors
+    return validNeighbors.map((n) => n.point);
   }
 
   private async processResults(
@@ -254,22 +397,36 @@ export class MediaComparator {
     for (const cluster of clusters) {
       if (cluster.size === 1) {
         uniqueFiles.add(cluster.values().next().value);
-      } else {
+      } else if (cluster.size > 1) {
+        // Ensure cluster has more than one item
         const clusterArray = Array.from(cluster);
         const representatives = await this.selectRepresentatives(
           clusterArray,
           selector,
         );
-        const representativeSet = new Set(representatives);
-        const duplicateSet = new Set(
-          clusterArray.filter((f) => !representativeSet.has(f)),
-        );
+        // Ensure representatives is not empty before proceeding
+        if (representatives.length > 0) {
+          const representativeSet = new Set(representatives);
+          const duplicateSet = new Set(
+            clusterArray.filter((f) => !representativeSet.has(f)),
+          );
 
-        duplicateSets.push({
-          bestFile: representatives[0],
-          representatives: representativeSet,
-          duplicates: duplicateSet,
-        });
+          // Only add if there are actual duplicates
+          if (duplicateSet.size > 0 || representativeSet.size > 1) {
+            duplicateSets.push({
+              bestFile: representatives[0], // Assume first representative is 'best' for folder naming
+              representatives: representativeSet,
+              duplicates: duplicateSet,
+            });
+          } else {
+            // If only one representative and no duplicates, treat as unique
+            uniqueFiles.add(representatives[0]);
+          }
+        } else {
+          // Handle cases where no representative could be selected (should not happen ideally)
+          // Add all items as unique for safety? Or log an error?
+          cluster.forEach((item) => uniqueFiles.add(item));
+        }
       }
     }
 
@@ -277,13 +434,15 @@ export class MediaComparator {
   }
 
   createVPTreeByRoot(root: VPNode<string>): VPTree<string> {
-    return new VPTree<string>(root, async (a, b) => {
+    // Recreate the distance function for the new VPTree instance
+    const distanceFn = async (a: string, b: string): Promise<number> => {
       const [fileInfoA, fileInfoB] = await Promise.all([
         this.mediaProcessor.processFile(a),
         this.mediaProcessor.processFile(b),
       ]);
       return 1 - this.calculateSimilarity(fileInfoA.media, fileInfoB.media);
-    });
+    };
+    return new VPTree<string>(root, distanceFn);
   }
 
   private async selectRepresentatives(
@@ -296,29 +455,34 @@ export class MediaComparator {
     const bestEntry = sortedEntries[0];
     const bestFileInfo = await selector(bestEntry);
 
+    // If the best entry is an image, only return that image.
     if (bestFileInfo.media.duration === 0) {
       return [bestEntry];
     } else {
+      // If the best entry is a video, handle potential high-quality image captures within the cluster.
       return this.handleMultiFrameBest(sortedEntries, selector);
     }
   }
 
   private getQuality(fileInfo: FileInfo): number {
-    return fileInfo.metadata.width * fileInfo.metadata.height;
+    // Use optional chaining and provide default 0 if width/height are missing
+    return (fileInfo.metadata.width ?? 0) * (fileInfo.metadata.height ?? 0);
   }
 
   private async handleMultiFrameBest(
     sortedEntries: string[],
     selector: FileProcessor,
   ): Promise<string[]> {
-    const bestEntry = sortedEntries[0];
+    const bestEntry = sortedEntries[0]; // This is guaranteed to be a video based on caller logic
     const bestFileInfo = await selector(bestEntry);
-    const representatives: string[] = [bestEntry];
+    const representatives: string[] = [bestEntry]; // Start with the best video
 
+    // Find potential high-quality image captures within the same cluster
     const potentialCaptures = await filterAsync(
-      sortedEntries,
+      sortedEntries.slice(1), // Exclude the best video itself
       async (entry) => {
         const fileInfo = await selector(entry);
+        // Check if it's an image, has comparable or better quality, and has date info if the video does
         return (
           fileInfo.media.duration === 0 &&
           this.getQuality(fileInfo) >= this.getQuality(bestFileInfo) &&
@@ -327,12 +491,42 @@ export class MediaComparator {
       },
     );
 
+    // If high-quality image captures exist, deduplicate them among themselves
     if (potentialCaptures.length > 0) {
-      const { uniqueFiles } = await this.deduplicateFiles(
-        potentialCaptures,
-        selector,
-      );
-      representatives.push(...uniqueFiles);
+      // Need a temporary comparator instance or pass necessary config/methods if running this outside main flow
+      // For simplicity here, assume we can call deduplicateFiles recursively (might need adjustment)
+      // This recursive call needs careful handling to avoid infinite loops if logic isn't strict.
+      // A safer approach might be to just compare these images pairwise.
+      // Let's simplify: just compare pairwise for now.
+      const uniqueCaptures = new Set<string>();
+      const processedCaptures = new Set<string>();
+
+      for (const capture1 of potentialCaptures) {
+        if (processedCaptures.has(capture1)) continue;
+
+        let isDuplicate = false;
+        for (const capture2 of uniqueCaptures) {
+          const info1 = await selector(capture1);
+          const info2 = await selector(capture2);
+          const similarity = this.calculateImageSimilarity(
+            info1.media.frames[0],
+            info2.media.frames[0],
+          );
+          if (similarity >= this.similarityConfig.imageSimilarityThreshold) {
+            isDuplicate = true;
+            // Keep the one with the higher score (already sorted by score)
+            processedCaptures.add(capture1);
+            break;
+          }
+        }
+
+        if (!isDuplicate) {
+          uniqueCaptures.add(capture1);
+          processedCaptures.add(capture1);
+        }
+      }
+
+      representatives.push(...uniqueCaptures);
     }
 
     return representatives;
@@ -342,35 +536,44 @@ export class MediaComparator {
     entries: string[],
     selector: FileProcessor,
   ): Promise<string[]> {
-    return (
-      await mapAsync(entries, async (entry) => ({
-        entry,
-        score: this.calculateEntryScore(await selector(entry)),
-      }))
-    )
-      .sort((a, b) => b.score - a.score)
-      .map((scored) => scored.entry);
+    // Map entries to { entry, score } objects
+    const scoredEntries = await mapAsync(entries, async (entry) => ({
+      entry,
+      score: this.calculateEntryScore(await selector(entry)),
+    }));
+
+    // Sort by score descending
+    scoredEntries.sort((a, b) => b.score - a.score);
+
+    // Return just the sorted entry paths
+    return scoredEntries.map((scored) => scored.entry);
   }
 
+  // Public for potential use in DebugReporter
   calculateEntryScore(fileInfo: FileInfo): number {
     let score = 0;
 
+    // Prioritize videos slightly
     if (fileInfo.media.duration > 0) {
       score += 10000;
     }
 
+    // Add score based on duration (log scale)
     score += Math.log(fileInfo.media.duration + 1) * 100;
 
+    // Add score for metadata completeness
     if (fileInfo.metadata.imageDate) score += 2000;
     if (fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude)
       score += 300;
     if (fileInfo.metadata.cameraModel) score += 200;
 
+    // Add score based on resolution (sqrt scale)
     if (fileInfo.metadata.width && fileInfo.metadata.height) {
       score += Math.sqrt(fileInfo.metadata.width * fileInfo.metadata.height);
     }
 
-    score += Math.log(fileInfo.fileStats.size) * 5;
+    // Add score based on file size (log scale)
+    score += Math.log(fileInfo.fileStats.size + 1) * 5; // Add 1 to avoid log(0)
 
     return score;
   }
@@ -395,8 +598,10 @@ export class MediaComparator {
     frame1: FrameInfo,
     frame2: FrameInfo,
   ): number {
+    if (!frame1?.hash || !frame2?.hash) return 0; // Guard against missing hashes
     const distance = this.hammingDistance(frame1.hash, frame2.hash);
     const maxDistance = frame1.hash.byteLength * 8;
+    if (maxDistance === 0) return 1; // Avoid division by zero if hash length is 0
     return 1 - distance / maxDistance;
   }
 
@@ -404,14 +609,19 @@ export class MediaComparator {
     image: MediaInfo,
     video: MediaInfo,
   ): number {
-    if (image.frames.length === 0 || video.frames.length === 0) {
-      return 0; // Return 0 similarity if either the image or video has no frames
+    if (
+      image.frames.length === 0 ||
+      video.frames.length === 0 ||
+      !image.frames[0]?.hash
+    ) {
+      return 0; // Return 0 similarity if either has no frames or image hash is missing
     }
 
     const imageFrame = image.frames[0];
     let bestSimilarity = 0;
 
     for (const videoFrame of video.frames) {
+      if (!videoFrame?.hash) continue; // Skip frames with missing hashes
       const similarity = this.calculateImageSimilarity(imageFrame, videoFrame);
 
       if (similarity > bestSimilarity) {
@@ -433,17 +643,26 @@ export class MediaComparator {
     media1: MediaInfo,
     media2: MediaInfo,
   ): number {
+    if (media1.frames.length === 0 || media2.frames.length === 0) {
+      return 0; // Return 0 similarity if either video has no frames
+    }
+
     const [shorterMedia, longerMedia] =
       media1.duration <= media2.duration ? [media1, media2] : [media2, media1];
 
+    // Ensure durations are positive before proceeding
+    if (shorterMedia.duration <= 0 || longerMedia.duration <= 0) return 0;
+
     const windowDuration = shorterMedia.duration;
-    const stepSize = this.similarityConfig.stepSize;
+    const stepSize =
+      this.similarityConfig.stepSize > 0 ? this.similarityConfig.stepSize : 1; // Ensure stepSize is positive
 
     let bestSimilarity = 0;
 
     for (
       let startTime = 0;
-      startTime <= longerMedia.duration - windowDuration;
+      // Ensure loop condition prevents infinite loops if windowDuration is 0 or negative
+      startTime <= longerMedia.duration - windowDuration && windowDuration > 0;
       startTime += stepSize
     ) {
       const endTime = startTime + windowDuration;
@@ -454,6 +673,9 @@ export class MediaComparator {
         endTime,
       );
       const shorterSubseq = shorterMedia.frames;
+
+      // Ensure subsequences are not empty before calculating similarity
+      if (longerSubseq.length === 0 || shorterSubseq.length === 0) continue;
 
       const windowSimilarity = this.calculateSequenceSimilarityDTW(
         longerSubseq,
@@ -474,8 +696,12 @@ export class MediaComparator {
     startTime: number,
     endTime: number,
   ): FrameInfo[] {
+    // Filter out frames with missing hashes as well
     return media.frames.filter(
-      (frame) => frame.timestamp >= startTime && frame.timestamp <= endTime,
+      (frame) =>
+        frame?.hash &&
+        frame.timestamp >= startTime &&
+        frame.timestamp <= endTime,
     );
   }
 
@@ -485,22 +711,33 @@ export class MediaComparator {
   ): number {
     const m = seq1.length;
     const n = seq2.length;
+    if (m === 0 || n === 0) return 0; // Return 0 if either sequence is empty
+
     const dtw: number[] = new Array(n + 1).fill(Infinity);
     dtw[0] = 0;
 
     for (let i = 1; i <= m; i++) {
       let prev = dtw[0];
-      dtw[0] = Infinity;
+      dtw[0] = Infinity; // Reset start of row
       for (let j = 1; j <= n; j++) {
         const temp = dtw[j];
+        // Cost is 1 - similarity (distance)
         const cost =
           1 - this.calculateImageSimilarity(seq1[i - 1], seq2[j - 1]);
-        dtw[j] = cost + Math.min(prev, dtw[j], dtw[j - 1]);
+        // Ensure cost is non-negative
+        const nonNegativeCost = Math.max(0, cost);
+        dtw[j] = nonNegativeCost + Math.min(prev, dtw[j], dtw[j - 1]);
         prev = temp;
       }
     }
 
-    return 1 - dtw[n] / Math.max(m, n);
+    const maxLen = Math.max(m, n);
+    if (maxLen === 0) return 1; // Perfect similarity if both sequences are empty? Or 0? Let's say 1.
+
+    // Normalized distance: DTW cost / max path length (heuristic)
+    const normalizedDistance = dtw[n] / maxLen;
+    // Return similarity: 1 - normalized distance
+    return Math.max(0, 1 - normalizedDistance); // Ensure similarity is not negative
   }
 
   private getAdaptiveThreshold(media1: MediaInfo, media2: MediaInfo): number {
