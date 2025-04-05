@@ -20,6 +20,7 @@ import workerpool from "workerpool";
 import type { CustomWorker } from "../worker/worker";
 import { Types, WorkerPool } from "./types";
 import { DebugReporter } from "../reporting/DebugReporter"; // Import DebugReporter
+import { FileTransferService } from "../services/FileTransferService"; // Import FileTransferService
 
 export class Context {
   private static _container: Container | null;
@@ -52,6 +53,7 @@ export class Context {
     container.bind(DatabaseContext).toSelf().inSingletonScope();
     container.bind(FFmpegService).toSelf().inSingletonScope();
 
+    container.bind(FileTransferService).toSelf().inSingletonScope(); // Bind FileTransferService
     container.bind(DebugReporter).toSelf().inSingletonScope(); // Bind DebugReporter
     // jobs
     container.bind(AdaptiveExtractionJob).toSelf().inSingletonScope();

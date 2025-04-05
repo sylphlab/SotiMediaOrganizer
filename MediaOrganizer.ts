@@ -1,41 +1,44 @@
 import {
-  type FileInfo,
+  // type FileInfo, // No longer needed directly
   type DeduplicationResult,
   type Stats,
   type GatherFileInfoResult,
-  // type DuplicateSet, // Removed as it's no longer used directly here
 } from "./src/types";
 import {
-  mkdir,
-  copyFile,
-  rename,
-  unlink,
-  // writeFile, // Removed as it's moved to DebugReporter
+  mkdir, // Keep mkdir for debug dir creation
+  unlink, // Keep unlink for clearing debug dir
   readdir, // Keep readdir for discoverFiles and debug dir clearing
+  // copyFile, rename moved to FileTransferService
+  // writeFile removed
 } from "fs/promises";
-import { join, basename, dirname, extname, parse } from "path";
-import { existsSync } from "fs";
-import crypto from "crypto";
+import { join } from "path"; // Keep only join for debug dir clearing
+// Removed unused path imports: basename, dirname, extname, parse
+// import { existsSync } from "fs"; // Moved
+// import crypto from "crypto"; // Moved to FileTransferService
 import chalk from "chalk";
-import { MultiBar, Presets } from "cli-progress";
-import cliProgress from "cli-progress";
-import path from "path";
+import cliProgress from "cli-progress"; // Keep for gatherFileInfo
+// MultiBar, Presets moved to FileTransferService
+// import path from "path"; // Default import no longer needed, using named 'join'
 import { Spinner } from "@topcli/spinner";
 import { MediaComparator } from "./MediaComparator";
+import path from "path"; // Re-add default import for path.join/extname
 import { MediaProcessor } from "./src/MediaProcessor";
 import { ALL_SUPPORTED_EXTENSIONS, getFileTypeByExt } from "./src/utils";
 import { injectable, inject } from "inversify"; // Add inject
 import { Semaphore } from "async-mutex";
-import { DebugReporter } from "./src/reporting/DebugReporter"; // Import DebugReporter
+import { DebugReporter } from "./src/reporting/DebugReporter";
+import { FileTransferService } from "./src/services/FileTransferService"; // Import FileTransferService
 
 @injectable()
 export class MediaOrganizer {
   constructor(
     private processor: MediaProcessor,
     private comparator: MediaComparator,
-    @inject(DebugReporter) private debugReporter: DebugReporter, // Inject DebugReporter
+    @inject(DebugReporter) private debugReporter: DebugReporter,
+    @inject(FileTransferService)
+    private fileTransferService: FileTransferService, // Inject FileTransferService
   ) {
-    // console.log("MediaOrganizer created", !!processor, !!comparator); // Optional: remove log
+    // console.log("MediaOrganizer created");
   }
 
   async discoverFiles(
@@ -286,355 +289,53 @@ export class MediaOrganizer {
     format: string,
     shouldMove: boolean,
   ): Promise<void> {
-    // Debug mode: Copy all files in duplicate sets
+    // Handle debug report generation first
     if (debugDir) {
       await mkdir(debugDir, { recursive: true });
-
-      // clear the debug directory
+      // Clear the debug directory (optional, depends on desired behavior)
       const debugFiles = await readdir(debugDir);
       for (const file of debugFiles) {
-        await unlink(join(debugDir, file));
+        // Be cautious with unlink, maybe move to a timestamped subfolder instead?
+        // For now, keeping original behavior.
+        try {
+          await unlink(join(debugDir, file));
+        } catch (err) {
+          console.warn(
+            chalk.yellow(
+              `Could not clear file in debug directory: ${join(debugDir, file)}`,
+            ),
+            err,
+          );
+        }
       }
 
       if (deduplicationResult.duplicateSets.length > 0) {
-        // Generate HTML content for all sets using DebugReporter
         await this.debugReporter.generateHtmlReports(
           deduplicationResult.duplicateSets,
           debugDir,
         );
-        // Logging for index generation moved to DebugReporter or handled differently if needed
-
         console.log(
           chalk.yellow(
-            `Debug mode: Duplicate set reports have been saved to ${debugDir}`,
+            `\nDebug mode: Duplicate set reports have been saved to ${debugDir}`,
           ),
         );
       } else {
-        console.log(chalk.yellow("Debug mode: No duplicate sets found"));
+        console.log(chalk.yellow("\nDebug mode: No duplicate sets found"));
       }
     }
 
-    const multibar = new MultiBar(
-      {
-        clearOnComplete: false,
-        hideCursor: true,
-        format:
-          "{phase} " +
-          chalk.cyan("{bar}") +
-          " {percentage}% || {value}/{total} Files",
-      },
-      Presets.shades_classic,
+    // Delegate actual file transfers to the service
+    await this.fileTransferService.transferOrganizedFiles(
+      gatherFileInfoResult,
+      deduplicationResult,
+      targetDir,
+      duplicateDir,
+      errorDir,
+      format,
+      shouldMove,
     );
-
-    // Transfer unique files
-    const uniqueBar = multibar.create(deduplicationResult.uniqueFiles.size, 0, {
-      phase: "Unique  ",
-    });
-    for (const filePath of deduplicationResult.uniqueFiles) {
-      const fileInfo = await this.processor.processFile(filePath);
-      if (!fileInfo) {
-        throw new Error(`File info not found for file ${filePath}`);
-      }
-      const targetPath = this.generateTargetPath(
-        format,
-        targetDir,
-        fileInfo,
-        filePath,
-      );
-      await this.transferOrCopyFile(filePath, targetPath, !shouldMove);
-      uniqueBar.increment();
-    }
-
-    // Handle duplicate files
-    if (duplicateDir) {
-      const duplicateCount = Array.from(
-        deduplicationResult.duplicateSets.values(),
-      ).reduce((sum, set) => sum + set.duplicates.size, 0);
-      const duplicateBar = multibar.create(duplicateCount, 0, {
-        phase: "Duplicate",
-      });
-
-      for (const duplicateSet of deduplicationResult.duplicateSets) {
-        const bestFile = duplicateSet.bestFile;
-        const duplicateFolderName = basename(bestFile, extname(bestFile));
-        const duplicateSetFolder = join(duplicateDir, duplicateFolderName);
-
-        for (const duplicatePath of duplicateSet.duplicates) {
-          await this.transferOrCopyFile(
-            duplicatePath,
-            join(duplicateSetFolder, basename(duplicatePath)),
-            !shouldMove,
-          );
-          duplicateBar.increment();
-        }
-      }
-
-      console.log(
-        chalk.yellow(
-          `Duplicate files have been ${shouldMove ? "moved" : "copied"} to ${duplicateDir}`,
-        ),
-      );
-    } else {
-      // If no duplicateDir is specified, we still need to process (move or copy) the best files from each duplicate set
-      const representativeCount = Array.from(
-        deduplicationResult.duplicateSets.values(),
-      ).reduce((sum, set) => sum + set.representatives.size, 0);
-      const bestFileBar = multibar.create(representativeCount, 0, {
-        phase: "Best File",
-      });
-      for (const duplicateSet of deduplicationResult.duplicateSets) {
-        const representatives = duplicateSet.representatives;
-        for (const representativePath of representatives) {
-          const fileInfo = await this.processor.processFile(representativePath);
-          if (!fileInfo) {
-            throw new Error(
-              `File info not found for file ${representativePath}`,
-            );
-          }
-          const targetPath = this.generateTargetPath(
-            format,
-            targetDir,
-            fileInfo,
-            representativePath,
-          );
-          await this.transferOrCopyFile(
-            representativePath,
-            targetPath,
-            !shouldMove,
-          );
-          bestFileBar.increment();
-        }
-      }
-    }
-
-    // Handle error files
-    if (errorDir && gatherFileInfoResult.errorFiles.length > 0) {
-      const errorBar = multibar.create(
-        gatherFileInfoResult.errorFiles.length,
-        0,
-        { phase: "Error   " },
-      );
-      for (const errorFilePath of gatherFileInfoResult.errorFiles) {
-        const targetPath = join(errorDir, basename(errorFilePath));
-        await this.transferOrCopyFile(errorFilePath, targetPath, !shouldMove);
-        errorBar.increment();
-      }
-    }
-
-    multibar.stop();
-    console.log(chalk.green("\nFile transfer completed"));
   }
 
-  private async transferOrCopyFile(
-    sourcePath: string,
-    targetPath: string,
-    isCopy: boolean,
-  ): Promise<void> {
-    await mkdir(dirname(targetPath), { recursive: true });
-    if (isCopy) {
-      await copyFile(sourcePath, targetPath);
-    } else {
-      try {
-        await rename(sourcePath, targetPath);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          error.code === "EXDEV"
-        ) {
-          // Cross-device move, fallback to copy-then-delete
-          await copyFile(sourcePath, targetPath);
-          await unlink(sourcePath);
-        } else {
-          throw error;
-        }
-      }
-    }
-  }
-
-  private generateTargetPath(
-    format: string,
-    targetDir: string,
-    fileInfo: FileInfo,
-    sourcePath: string,
-  ): string {
-    const mixedDate =
-      fileInfo.metadata.imageDate || fileInfo.fileStats.createdAt;
-    const { name, ext } = parse(sourcePath);
-
-    function generateRandomId(): string {
-      return crypto.randomBytes(4).toString("hex");
-    }
-
-    const data: { [key: string]: string } = {
-      "I.YYYY": this.formatDate(fileInfo.metadata.imageDate, "YYYY"),
-      "I.YY": this.formatDate(fileInfo.metadata.imageDate, "YY"),
-      "I.MMMM": this.formatDate(fileInfo.metadata.imageDate, "MMMM"),
-      "I.MMM": this.formatDate(fileInfo.metadata.imageDate, "MMM"),
-      "I.MM": this.formatDate(fileInfo.metadata.imageDate, "MM"),
-      "I.M": this.formatDate(fileInfo.metadata.imageDate, "M"),
-      "I.DD": this.formatDate(fileInfo.metadata.imageDate, "DD"),
-      "I.D": this.formatDate(fileInfo.metadata.imageDate, "D"),
-      "I.DDDD": this.formatDate(fileInfo.metadata.imageDate, "DDDD"),
-      "I.DDD": this.formatDate(fileInfo.metadata.imageDate, "DDD"),
-      "I.HH": this.formatDate(fileInfo.metadata.imageDate, "HH"),
-      "I.H": this.formatDate(fileInfo.metadata.imageDate, "H"),
-      "I.hh": this.formatDate(fileInfo.metadata.imageDate, "hh"),
-      "I.h": this.formatDate(fileInfo.metadata.imageDate, "h"),
-      "I.mm": this.formatDate(fileInfo.metadata.imageDate, "mm"),
-      "I.m": this.formatDate(fileInfo.metadata.imageDate, "m"),
-      "I.ss": this.formatDate(fileInfo.metadata.imageDate, "ss"),
-      "I.s": this.formatDate(fileInfo.metadata.imageDate, "s"),
-      "I.a": this.formatDate(fileInfo.metadata.imageDate, "a"),
-      "I.A": this.formatDate(fileInfo.metadata.imageDate, "A"),
-      "I.WW": this.formatDate(fileInfo.metadata.imageDate, "WW"),
-
-      "F.YYYY": this.formatDate(fileInfo.fileStats.createdAt, "YYYY"),
-      "F.YY": this.formatDate(fileInfo.fileStats.createdAt, "YY"),
-      "F.MMMM": this.formatDate(fileInfo.fileStats.createdAt, "MMMM"),
-      "F.MMM": this.formatDate(fileInfo.fileStats.createdAt, "MMM"),
-      "F.MM": this.formatDate(fileInfo.fileStats.createdAt, "MM"),
-      "F.M": this.formatDate(fileInfo.fileStats.createdAt, "M"),
-      "F.DD": this.formatDate(fileInfo.fileStats.createdAt, "DD"),
-      "F.D": this.formatDate(fileInfo.fileStats.createdAt, "D"),
-      "F.DDDD": this.formatDate(fileInfo.fileStats.createdAt, "DDDD"),
-      "F.DDD": this.formatDate(fileInfo.fileStats.createdAt, "DDD"),
-      "F.HH": this.formatDate(fileInfo.fileStats.createdAt, "HH"),
-      "F.H": this.formatDate(fileInfo.fileStats.createdAt, "H"),
-      "F.hh": this.formatDate(fileInfo.fileStats.createdAt, "hh"),
-      "F.h": this.formatDate(fileInfo.fileStats.createdAt, "h"),
-      "F.mm": this.formatDate(fileInfo.fileStats.createdAt, "mm"),
-      "F.m": this.formatDate(fileInfo.fileStats.createdAt, "m"),
-      "F.ss": this.formatDate(fileInfo.fileStats.createdAt, "ss"),
-      "F.s": this.formatDate(fileInfo.fileStats.createdAt, "s"),
-      "F.a": this.formatDate(fileInfo.fileStats.createdAt, "a"),
-      "F.A": this.formatDate(fileInfo.fileStats.createdAt, "A"),
-      "F.WW": this.formatDate(fileInfo.fileStats.createdAt, "WW"),
-
-      "D.YYYY": this.formatDate(mixedDate, "YYYY"),
-      "D.YY": this.formatDate(mixedDate, "YY"),
-      "D.MMMM": this.formatDate(mixedDate, "MMMM"),
-      "D.MMM": this.formatDate(mixedDate, "MMM"),
-      "D.MM": this.formatDate(mixedDate, "MM"),
-      "D.M": this.formatDate(mixedDate, "M"),
-      "D.DD": this.formatDate(mixedDate, "DD"),
-      "D.D": this.formatDate(mixedDate, "D"),
-      "D.DDDD": this.formatDate(mixedDate, "DDDD"),
-      "D.DDD": this.formatDate(mixedDate, "DDD"),
-      "D.HH": this.formatDate(mixedDate, "HH"),
-      "D.H": this.formatDate(mixedDate, "H"),
-      "D.hh": this.formatDate(mixedDate, "hh"),
-      "D.h": this.formatDate(mixedDate, "h"),
-      "D.mm": this.formatDate(mixedDate, "mm"),
-      "D.m": this.formatDate(mixedDate, "m"),
-      "D.ss": this.formatDate(mixedDate, "ss"),
-      "D.s": this.formatDate(mixedDate, "s"),
-      "D.a": this.formatDate(mixedDate, "a"),
-      "D.A": this.formatDate(mixedDate, "A"),
-      "D.WW": this.formatDate(mixedDate, "WW"),
-
-      NAME: name,
-      "NAME.L": name.toLowerCase(),
-      "NAME.U": name.toUpperCase(),
-      EXT: ext.slice(1).toLowerCase(),
-      RND: generateRandomId(),
-      GEO:
-        fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude
-          ? `${fileInfo.metadata.gpsLatitude.toFixed(2)}_${fileInfo.metadata.gpsLongitude.toFixed(2)}`
-          : "",
-      CAM: fileInfo.metadata.cameraModel || "",
-      TYPE: fileInfo.media.duration > 0 ? "Video" : "Image",
-      "HAS.GEO":
-        fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude
-          ? "GeoTagged"
-          : "NoGeo",
-      "HAS.CAM": fileInfo.metadata.cameraModel ? "WithCamera" : "NoCamera",
-      "HAS.DATE":
-        fileInfo.metadata.imageDate &&
-        !isNaN(fileInfo.metadata.imageDate.getTime())
-          ? "Dated"
-          : "NoDate",
-    };
-
-    let formattedPath = format.replace(/\{([^{}]+)\}/g, (match, key) => {
-      return data[key] || "";
-    });
-
-    formattedPath = formattedPath.split("/").filter(Boolean).join("/");
-
-    if (!formattedPath) {
-      formattedPath = "NoDate";
-    }
-
-    const parts = formattedPath.split("/");
-    const lastPart = parts[parts.length - 1];
-    let directory, filename;
-
-    if (lastPart.includes(".") && lastPart.split(".").pop() === data["EXT"]) {
-      directory = parts.slice(0, -1).join("/");
-      filename = lastPart;
-    } else {
-      directory = formattedPath;
-      filename = `${name}${ext}`;
-    }
-
-    let fullPath = join(targetDir, directory, filename);
-
-    while (existsSync(fullPath)) {
-      const { name: conflictName, ext: conflictExt } = parse(fullPath);
-      fullPath = join(
-        dirname(fullPath),
-        `${conflictName}_${generateRandomId()}${conflictExt}`,
-      );
-    }
-
-    return fullPath;
-  }
-
-  private formatDate(date: Date | undefined, format: string): string {
-    if (!date || isNaN(date.getTime())) {
-      return "";
-    }
-
-    const pad = (num: number) => num.toString().padStart(2, "0");
-
-    const formatters: { [key: string]: () => string } = {
-      YYYY: () => date.getFullYear().toString(),
-      YY: () => date.getFullYear().toString().slice(-2),
-      MMMM: () => date.toLocaleString("default", { month: "long" }),
-      MMM: () => date.toLocaleString("default", { month: "short" }),
-      MM: () => pad(date.getMonth() + 1),
-      M: () => (date.getMonth() + 1).toString(),
-      DD: () => pad(date.getDate()),
-      D: () => date.getDate().toString(),
-      DDDD: () => date.toLocaleString("default", { weekday: "long" }),
-      DDD: () => date.toLocaleString("default", { weekday: "short" }),
-      HH: () => pad(date.getHours()),
-      H: () => date.getHours().toString(),
-      hh: () => pad(date.getHours() % 12 || 12),
-      h: () => (date.getHours() % 12 || 12).toString(),
-      mm: () => pad(date.getMinutes()),
-      m: () => date.getMinutes().toString(),
-      ss: () => pad(date.getSeconds()),
-      s: () => date.getSeconds().toString(),
-      a: () => (date.getHours() < 12 ? "am" : "pm"),
-      A: () => (date.getHours() < 12 ? "AM" : "PM"),
-      WW: () => pad(this.getWeekNumber(date)),
-    };
-
-    return format.replace(/(\w+)/g, (match) => {
-      const formatter = formatters[match];
-      return formatter ? formatter() : match;
-    });
-  }
-
-  private getWeekNumber(date: Date): number {
-    const d = new Date(
-      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
-    );
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  }
+  // Removed transferOrCopyFile, generateTargetPath, formatDate, getWeekNumber
+  // These are now handled by FileTransferService
 }
