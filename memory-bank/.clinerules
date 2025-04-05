@@ -1,0 +1,19 @@
+<!-- Version: 0.1 | Last Updated: 2025-04-05 | Updated By: Cline -->
+
+# Cline Rules & Project Intelligence
+
+*   **User Preferences:**
+    *   Language for interaction: Cantonese (香港語)
+    *   Language for technical content (code, docs, commits): English
+*   **Project Patterns:**
+    *   Memory Bank system is used for context persistence.
+    *   Strict 500 LoC limit per source file.
+*   **Workflow:**
+    *   Read ALL Memory Bank files at the start of each task.
+    *   Update Memory Bank after task completion.
+    *   Use Git for version control.
+    *   Use Windows Batch/filesystem-mcp for file/system ops, gh CLI for GitHub.
+*   **Known Challenges:**
+    *   [Document any recurring challenges or tricky areas]
+*   **Tool Usage:**
+    *   Prefer `filesystem-mcp` for batch file operations.
