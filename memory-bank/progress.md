@@ -1,4 +1,4 @@
-<!-- Version: 1.3 | Last Updated: 2025-04-06 | Updated By: Cline -->
+<!-- Version: 1.4 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Project Progress
 
@@ -29,8 +29,10 @@
     - **Workers:** Re-evaluate worker usage for pHash generation.
     - **Benchmarking:** Introduce benchmarking.
     - Refactor pipeline stages (`Gathering`, `Deduplication`) for efficient SQLite usage (streaming/batching).
-  - **Testing (Phase 4 - Post-Refactoring):**
-    - Develop a comprehensive test suite covering the refactored code.
+  - **Testing (Phase 4 - In Progress):**
+    - Added integration tests for `MetadataDBService`.
+      - Develop a comprehensive test suite covering the refactored code (MetadataDBService integration tests done).
+      - Add unit tests for pure functions where applicable (limited candidates found without further refactoring).
 - **Known Issues/Blockers:**
   - Persistent issues mocking `fs.existsSync` and/or `crypto.randomBytes` within `bun test` environment (relevant for future testing).
   - Test coverage is low pending completion of major refactoring (Phase 4).
