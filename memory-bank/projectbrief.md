@@ -2,7 +2,7 @@
 
 # Project Brief
 
-*   **Project Name:** SotiMediaOrganizer (SMO) / `@sotilab/smo`
+*   **Project Name:** MediaCurator (MediaCurator) / `@sotilab/smo`
 *   **Core Goal:** To provide a powerful CLI tool for intelligently organizing and deduplicating digital photo and video collections based on metadata and content analysis.
 *   **Key Requirements:**
     *   Organize media files into a user-defined directory structure based on metadata (date, geo, camera) and file info.

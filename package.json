@@ -1,14 +1,14 @@
 {
-  "name": "@sotilab/smo",
+  "name": "@sotilab/mediacurator",
   "version": "1.3.0",
-  "description": "A powerful CLI tool to organize photos and videos based on their creation date and metadata, with support for duplicate detection and customizable directory structure.",
+  "description": "MediaCurator: An intelligent CLI tool to curate, organize, and deduplicate your digital photo and video collection.",
   "publishConfig": {
     "access": "public"
   },
   "main": "index.ts",
   "type": "module",
   "bin": {
-    "smo": "./dist/index.js"
+    "mediacurator": "./dist/index.js"
   },
   "scripts": {
     "start": "bun run index.ts",
@@ -67,12 +67,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/shtse8/SotiMediaOrganizer.git"
+    "url": "https://github.com/shtse8/MediaCurator.git"
   },
   "keywords": [
     "photo",
     "video",
     "organizer",
+    "curator",
+    "curation",
+    "deduplication",
     "cli",
     "exif",
     "metadata",

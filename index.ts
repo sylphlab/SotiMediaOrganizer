@@ -13,7 +13,7 @@ import os from "os";
 import { Context } from "./src/contexts/Context";
 
 function exitHandler() {
-  console.log(chalk.red("\nSotiMediaOrganizer was interrupted"));
+  console.log(chalk.red("\nMediaCurator was interrupted"));
   process.stdout.write("\u001B[?25h"); // Show cursor
   process.exit();
 }
@@ -25,8 +25,8 @@ async function main() {
   const program = new Command();
 
   program
-    .name("media-organizer")
-    .description("Organize photos and videos based on their metadata")
+    .name("mediacurator")
+    .description("Intelligently curate, organize, and deduplicate your digital photo and video collection.")
     .version("1.0.0")
     .argument("<source>", "Source directories to process")
     .argument("<destination>", "Destination directory for organized media")

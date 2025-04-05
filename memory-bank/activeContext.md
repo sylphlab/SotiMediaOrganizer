@@ -2,7 +2,7 @@
 
 # Active Context
 
-*   **Current Focus:** Understanding the SotiMediaOrganizer project by analyzing existing files and populating the Memory Bank.
+*   **Current Focus:** Understanding the MediaCurator project by analyzing existing files and populating the Memory Bank.
 *   **Recent Changes:** 
     *   Analyzed `README.md`, `package.json`, `index.ts`, `MediaOrganizer.ts`, `src/MediaProcessor.ts`, `MediaComparator.ts`, `src/contexts/Context.ts`.
     *   Analyzed core job files: `AdaptiveExtractionJob.ts`, `MetadataExtractionJob.ts`, `FileStatsJob.ts`.
