@@ -3,15 +3,15 @@ import {
   type DeduplicationResult,
   type Stats,
   type GatherFileInfoResult,
-  type DuplicateSet,
+  // type DuplicateSet, // Removed as it's no longer used directly here
 } from "./src/types";
 import {
   mkdir,
   copyFile,
   rename,
   unlink,
-  writeFile,
-  readdir,
+  // writeFile, // Removed as it's moved to DebugReporter
+  readdir, // Keep readdir for discoverFiles and debug dir clearing
 } from "fs/promises";
 import { join, basename, dirname, extname, parse } from "path";
 import { existsSync } from "fs";
@@ -24,16 +24,18 @@ import { Spinner } from "@topcli/spinner";
 import { MediaComparator } from "./MediaComparator";
 import { MediaProcessor } from "./src/MediaProcessor";
 import { ALL_SUPPORTED_EXTENSIONS, getFileTypeByExt } from "./src/utils";
-import { injectable } from "inversify";
+import { injectable, inject } from "inversify"; // Add inject
 import { Semaphore } from "async-mutex";
+import { DebugReporter } from "./src/reporting/DebugReporter"; // Import DebugReporter
 
 @injectable()
 export class MediaOrganizer {
   constructor(
     private processor: MediaProcessor,
     private comparator: MediaComparator,
+    @inject(DebugReporter) private debugReporter: DebugReporter, // Inject DebugReporter
   ) {
-    console.log("MediaOrganizer created", !!processor, !!comparator);
+    // console.log("MediaOrganizer created", !!processor, !!comparator); // Optional: remove log
   }
 
   async discoverFiles(
@@ -272,231 +274,7 @@ export class MediaOrganizer {
 
     return { uniqueFiles, duplicateSets };
   }
-  private async generateReports(
-    duplicateSets: DuplicateSet[],
-    debugDir: string,
-  ): Promise<string[]> {
-    const reports = [];
-    const batchSize = 1000;
-
-    for (let i = 0; i < duplicateSets.length; i += batchSize) {
-      const batch = duplicateSets.slice(i, i + batchSize);
-
-      const totalSets = batch.length;
-      let totalRepresentatives = 0;
-      let totalDuplicates = 0;
-
-      batch.forEach((set) => {
-        totalRepresentatives += set.representatives.size;
-        totalDuplicates += set.duplicates.size;
-      });
-
-      const formatFileSize = (size: number) =>
-        `${(size / (1024 * 1024)).toFixed(2)} MB`;
-      const formatDate = (date?: Date) => {
-        if (!date) return "Unknown";
-        // if invalid date, return "Invalid Date"
-        if (isNaN(date.getTime())) {
-          console.log("Invalid Date", date);
-          return "Invalid Date";
-        }
-        return date.toDateString();
-      };
-      const formatDuration = (duration: number) => {
-        const seconds = Math.floor(duration % 60);
-        const minutes = Math.floor((duration / 60) % 60);
-        const hours = Math.floor((duration / (60 * 60)) % 24);
-        return `${hours ? `${hours}:` : ""}${minutes ? `${minutes}:` : ""}${seconds}s`;
-      };
-
-      const generateFileDetails = (fileInfo: FileInfo, score: number) => {
-        const resolution =
-          fileInfo.metadata.width && fileInfo.metadata.height
-            ? `${fileInfo.metadata.width}x${fileInfo.metadata.height}`
-            : "Unknown";
-        return `
-                <p><strong style="font-size: 16px; color: #ff5722;">Score:</strong> <span style="font-size: 16px; color: #ff5722;">${score.toFixed(2)}</span></p>
-                <p><strong>Size:</strong> ${formatFileSize(fileInfo.fileStats.size)}</p>
-                ${fileInfo.metadata.width && fileInfo.metadata.height ? `<p><strong>Resolution:</strong> ${resolution}</p>` : ""}
-                ${fileInfo.media.duration ? `<p><strong>Duration:</strong> ${formatDuration(fileInfo.media.duration)}</p>` : ""}
-                ${fileInfo.metadata.imageDate ? `<p><strong>Date:</strong> ${formatDate(fileInfo.metadata.imageDate)}</p>` : ""}
-                ${fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude ? `<p><strong>Geo-location:</strong> ${fileInfo.metadata.gpsLatitude.toFixed(2)}, ${fileInfo.metadata.gpsLongitude.toFixed(2)}</p>` : ""}
-                ${fileInfo.metadata.cameraModel ? `<p><strong>Camera:</strong> ${fileInfo.metadata.cameraModel}</p>` : ""}
-            `;
-      };
-
-      const convertToRelativePath = (sourcePath: string): string => {
-        const relativePath = path.relative(debugDir, sourcePath);
-        return relativePath.replace(/\\/g, "/"); // Convert backslashes to forward slashes for web compatibility
-      };
-
-      const isVideoFile = (path: string): boolean => {
-        return /\.(mp4|mov|avi|wmv|flv|mkv)$/i.test(path);
-      };
-
-      const generateMediaElement = (
-        relativePath: string,
-        isRepresentative: boolean,
-      ): string => {
-        const className = isRepresentative ? "representative" : "duplicate";
-        if (isVideoFile(relativePath)) {
-          const placeholder =
-            "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
-          return `
-                    <video class="${className}" src="${placeholder}" data-src="${relativePath}" controls muted playsinline preload="none">
-                        Your browser does not support the video tag.
-                    </video>`;
-        } else {
-          return `<img src="${relativePath}" alt="${relativePath}" loading="lazy" class="${className}"/>`;
-        }
-      };
-
-      const generateSetSection = async (
-        setIndex: number,
-        representatives: Set<string>,
-        duplicates: Set<string>,
-      ) => {
-        const allMedia = await Promise.all([
-          ...Array.from(representatives).map(async (sourcePath) => {
-            const info = await this.processor.processFile(sourcePath);
-            const score = this.comparator.calculateEntryScore(info!);
-            const relativePath = convertToRelativePath(sourcePath);
-            return { isRepresentative: true, relativePath, info, score };
-          }),
-          ...Array.from(duplicates).map(async (sourcePath) => {
-            const info = await this.processor.processFile(sourcePath);
-            const score = this.comparator.calculateEntryScore(info!);
-            const relativePath = convertToRelativePath(sourcePath);
-            return { isRepresentative: false, relativePath, info, score };
-          }),
-        ]);
-
-        allMedia.sort((a, b) => b.score - a.score);
-
-        const mediaTags = allMedia
-          .map(
-            ({ isRepresentative, relativePath, info, score }) => `
-                    <div class="media-container">
-                        <a href="${relativePath}" target="_blank" title="Click to view full size">
-                            ${generateMediaElement(relativePath, isRepresentative)}
-                        </a>
-                        ${generateFileDetails(info!, score)}
-                    </div>`,
-          )
-          .join("\n");
-
-        return `
-                <div class="set">
-                    <h2>Duplicate Set ${i + setIndex + 1}</h2>
-                    <div class="media-row">
-                        ${mediaTags}
-                    </div>
-                </div>`;
-      };
-
-      const setsHtml = await Promise.all(
-        Array.from(batch).map((set, index) =>
-          generateSetSection(index, set.representatives, set.duplicates),
-        ),
-      );
-
-      const reportContent = `
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-                <meta charset="UTF-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>Deduplication Debug Report</title>
-                <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f9f9f9; color: #333; }
-                    h1 { color: #444; font-size: 24px; margin-bottom: 20px; text-align: center; }
-                    h2 { color: #555; font-size: 20px; margin-top: 30px; }
-                    .summary { text-align: center; margin-bottom: 30px; }
-                    .summary p { font-size: 18px; margin: 5px 0; }
-                    .set { background-color: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); margin-bottom: 20px; }
-                    .media-row { display: flex; flex-wrap: wrap; justify-content: space-around; }
-                    .media-container { text-align: center; margin-bottom: 20px; max-width: 220px; }
-                    img, video { max-width: 200px; max-height: 200px; border-width: 3px; border-style: solid; border-radius: 8px; }
-                    img.representative, video.representative { border-color: #007bff; } /* Blue border for representatives */
-                    img.duplicate, video.duplicate { border-color: #ccc; } /* Light grey border for duplicates */
-                    p { font-size: 14px; margin: 5px 0; }
-                </style>
-                <script>
-                    document.addEventListener("DOMContentLoaded", function() {
-                        let lazyVideos = [].slice.call(document.querySelectorAll("video[data-src]"));
-                        if ("IntersectionObserver" in window) {
-                            let lazyVideoObserver = new IntersectionObserver(function(entries, observer) {
-                                entries.forEach(function(video) {
-                                    if (video.isIntersecting) {
-                                        let lazyVideo = video.target;
-                                        lazyVideo.src = lazyVideo.dataset.src;
-                                        lazyVideoObserver.unobserve(lazyVideo);
-                                    }
-                                });
-                            });
-
-                            lazyVideos.forEach(function(lazyVideo) {
-                                lazyVideoObserver.observe(lazyVideo);
-                            });
-                        }
-                    });
-                </script>
-            </head>
-            <body>
-                <h1>Deduplication Debug Report</h1>
-                <div class="summary">
-                    <p><strong>Total Duplicate Sets:</strong> ${totalSets}</p>
-                    <p><strong>Total Representatives:</strong> ${totalRepresentatives}</p>
-                    <p><strong>Total Duplicates:</strong> ${totalDuplicates}</p>
-                </div>
-                ${setsHtml.join("\n")}
-            </body>
-            </html>
-        `;
-
-      const reportFileName = `debug-report-${reports.length + 1}.html`;
-      const reportPath = join(debugDir, reportFileName);
-      await writeFile(reportPath, reportContent, "utf8");
-      reports.push(reportFileName);
-    }
-
-    return reports;
-  }
-
-  private async generateIndex(reportFiles: string[], debugDir: string) {
-    const indexContent = `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-          <meta charset="UTF-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Deduplication Report Index</title>
-          <style>
-              body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background-color: #f9f9f9; color: #333; }
-              h1 { color: #444; font-size: 24px; margin-bottom: 20px; text-align: center; }
-              ul { list-style-type: none; padding: 0; }
-              li { margin-bottom: 15px; }
-              a { color: #007bff; text-decoration: none; font-size: 18px; font-weight: bold; }
-              a:hover { text-decoration: underline; }
-              .report-link { padding: 10px; background-color: #e0f7fa; border-radius: 5px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); display: block; text-align: center; }
-              .report-link:hover { background-color: #b2ebf2; }
-          </style>
-      </head>
-      <body>
-          <h1>Deduplication Report Index</h1>
-          <ul>
-              ${reportFiles.map((file, index) => `<li><a class="report-link" href="${file}" target="_blank">Report ${index + 1}</a></li>`).join("\n")}
-          </ul>
-      </body>
-      </html>
-  `;
-
-    const indexPath = join(debugDir, "index.html");
-    await writeFile(indexPath, indexContent, "utf8");
-    console.log(
-      chalk.yellow(`Deduplication report index has been saved to ${indexPath}`),
-    );
-  }
+  // Removed generateReports and generateIndex methods - moved to DebugReporter
 
   async transferFiles(
     gatherFileInfoResult: GatherFileInfoResult,
@@ -519,12 +297,12 @@ export class MediaOrganizer {
       }
 
       if (deduplicationResult.duplicateSets.length > 0) {
-        // Generate HTML content for all sets
-        const reportFiles = await this.generateReports(
+        // Generate HTML content for all sets using DebugReporter
+        await this.debugReporter.generateHtmlReports(
           deduplicationResult.duplicateSets,
           debugDir,
         );
-        await this.generateIndex(reportFiles, debugDir);
+        // Logging for index generation moved to DebugReporter or handled differently if needed
 
         console.log(
           chalk.yellow(

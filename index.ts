@@ -26,7 +26,9 @@ async function main() {
 
   program
     .name("mediacurator")
-    .description("Intelligently curate, organize, and deduplicate your digital photo and video collection.")
+    .description(
+      "Intelligently curate, organize, and deduplicate your digital photo and video collection.",
+    )
     .version("1.0.0")
     .argument("<source>", "Source directories to process")
     .argument("<destination>", "Destination directory for organized media")

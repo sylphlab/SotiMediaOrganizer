@@ -27,6 +27,7 @@
   "dependencies": {
     "@msgpack/msgpack": "^3.0.0-beta2",
     "@types/fluent-ffmpeg": "^2.1.25",
+    "@types/node": "^22.14.0",
     "deep-eql": "^5.0.2",
     "exiftool-vendored": "^24.6.0",
     "fluent-ffmpeg": "^2.1.3",
