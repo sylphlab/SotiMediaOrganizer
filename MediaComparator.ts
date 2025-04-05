@@ -8,21 +8,23 @@ import {
   FileProcessor,
   WorkerData,
   // MaybePromise, // Removed unused import
+  WasmExports,
+  FileProcessorConfig, // Added config type
 } from "./src/types";
-import { MediaProcessor } from "./src/MediaProcessor";
+// import { MediaProcessor } from "./src/MediaProcessor"; // Removed old import
+import { LmdbCache } from "./src/caching/LmdbCache"; // Added cache import
+import { ExifTool } from "exiftool-vendored"; // Added exiftool import
+import { processSingleFile } from "./src/fileProcessor"; // Added file processor function import
 import { VPNode, VPTree } from "./VPTree";
 import { filterAsync, mapAsync } from "./src/utils";
+import { ok, err, AppResult, AnyAppError, UnknownError, AppError } from "./src/errors"; // Added AppError
+import { hammingDistance, calculateImageSimilarity, calculateImageVideoSimilarity, calculateSequenceSimilarityDTW, calculateEntryScore, getAdaptiveThreshold, getQuality, sortEntriesByScore, selectRepresentativeCaptures, selectRepresentativesFromScored } from "./src/comparatorUtils"; // Import the new functions
 import { inject, injectable } from "inversify";
 import { Types, type WorkerPool } from "./src/contexts/types";
 import { readFile } from "fs/promises";
 import { join } from "path";
 
-// Define the expected exports from the WASM module
-interface WasmExports {
-  hammingDistanceSIMD(a: Uint8Array, b: Uint8Array): number;
-  // Add other exports if needed, ensure memory is exported if using complex types
-  memory: WebAssembly.Memory;
-}
+// WasmExports interface moved to src/types.ts
 
 @injectable()
 export class MediaComparator {
@@ -31,7 +33,10 @@ export class MediaComparator {
   private wasmInitializationPromise: Promise<void> | null = null;
 
   constructor(
-    private mediaProcessor: MediaProcessor,
+    // private mediaProcessor: MediaProcessor, // Removed injection
+    @inject(LmdbCache) private cache: LmdbCache, // Added injection
+    @inject(Types.FileProcessorConfig) private fileProcessorConfig: FileProcessorConfig, // Use token
+    @inject(ExifTool) private exifTool: ExifTool, // Added injection
     private similarityConfig: SimilarityConfig,
     private options: ProgramOptions,
     @inject(Types.WorkerPool) private workerPool: WorkerPool,
@@ -89,76 +94,13 @@ export class MediaComparator {
     }
   }
 
-  private hammingDistance(
-    hash1: SharedArrayBuffer,
-    hash2: SharedArrayBuffer,
-  ): number {
-    // Use WASM implementation if available and loaded successfully
-    // Note: We don't await the initialization promise here for performance.
-    // If WASM isn't ready on the first few calls, it falls back to JS.
-    // Subsequent calls will use WASM once it's loaded.
-    if (this.wasmExports?.hammingDistanceSIMD) {
-      try {
-        // Pass Uint8Array views to the WASM function
-        const view1 = new Uint8Array(hash1);
-        const view2 = new Uint8Array(hash2);
-        // Ensure the WASM function is called correctly.
-        // AssemblyScript StaticArray<u8> maps to Uint8Array in JS.
-        return this.wasmExports.hammingDistanceSIMD(view1, view2);
-      } catch (wasmError) {
-        console.error(
-          "WASM hammingDistanceSIMD call failed, falling back to JS:",
-          wasmError,
-        );
-        // Fall through to JS implementation if WASM call fails
-      }
-    }
-
-    // Fallback to TypeScript implementation
-    const view1_ts = new BigUint64Array(hash1);
-    const view2_ts = new BigUint64Array(hash2);
-    let distance_ts = 0n;
-
-    // Process 64-bit chunks
-    for (let i = 0; i < view1_ts.length; i++) {
-      distance_ts += this.popcount64(view1_ts[i] ^ view2_ts[i]);
-    }
-
-    // Handle remaining bytes
-    const remainingBytes_ts = hash1.byteLength % 8;
-    if (remainingBytes_ts > 0) {
-      const uint8View1_ts = new Uint8Array(hash1);
-      const uint8View2_ts = new Uint8Array(hash2);
-      const startIndex_ts = hash1.byteLength - remainingBytes_ts;
-
-      for (let i = startIndex_ts; i < hash1.byteLength; i++) {
-        distance_ts += BigInt(
-          this.popcount8(uint8View1_ts[i] ^ uint8View2_ts[i]),
-        );
-      }
-    }
-
-    return Number(distance_ts);
-  }
-
-  private popcount64(n: bigint): bigint {
-    n = n - ((n >> 1n) & 0x5555555555555555n);
-    n = (n & 0x3333333333333333n) + ((n >> 2n) & 0x3333333333333333n);
-    n = (n + (n >> 4n)) & 0x0f0f0f0f0f0f0f0fn;
-    return (n * 0x0101010101010101n) >> 56n;
-  }
-
-  private popcount8(n: number): number {
-    n = n - ((n >> 1) & 0x55);
-    n = (n & 0x33) + ((n >> 2) & 0x33);
-    return (n + (n >> 4)) & 0x0f;
-  }
+  // hammingDistance, popcount64, popcount8 moved to comparatorUtils.ts
 
   async deduplicateFiles(
     files: string[],
     selector: FileProcessor,
     progressCallback?: (progress: string) => void,
-  ): Promise<DeduplicationResult> {
+  ): Promise<AppResult<DeduplicationResult>> { // Update return type
     // Ensure WASM is loaded before proceeding with distance calculations if needed
     if (this.wasmInitializationPromise) {
       await this.wasmInitializationPromise;
@@ -166,10 +108,26 @@ export class MediaComparator {
 
     progressCallback?.("Building VPTree");
     const vpTree = await VPTree.build(files, async (a, b) => {
-      const [fileInfoA, fileInfoB] = await Promise.all([
-        selector(a),
+      // processSingleFile (selector) now returns AppResult<FileInfo>
+      const [resultA, resultB] = await Promise.all([
+        selector(a), // selector is processSingleFile
         selector(b),
       ]);
+
+      // Check for errors
+      // Check for errors
+      if (resultA.isErr()) {
+          console.error(`Error processing file ${a} for distance calculation: ${resultA.error.message}`);
+          return Infinity; // Return max distance on error
+      }
+      if (resultB.isErr()) {
+          console.error(`Error processing file ${b} for distance calculation: ${resultB.error.message}`);
+          return Infinity; // Return max distance on error
+      }
+
+      // Unwrap successful results
+      const fileInfoA = resultA.value;
+      const fileInfoB = resultB.value;
       // calculateSimilarity will now potentially use WASM hammingDistance
       return 1 - this.calculateSimilarity(fileInfoA.media, fileInfoB.media);
     });
@@ -177,6 +135,7 @@ export class MediaComparator {
     progressCallback?.("Running DBSCAN");
     const clusters = await this.parallelDBSCAN(files, vpTree, progressCallback);
 
+    // processResults now returns AppResult, so we can return it directly
     return this.processResults(clusters, selector);
   }
 
@@ -196,10 +155,13 @@ export class MediaComparator {
       promises.push(
         this.workerPool
           .performDBSCAN(
-            <WorkerData>{
-              root: vpTree.getRoot(), // Pass VPTree root node
-              fileInfoCache: this.mediaProcessor.exportCache(), // Pass current cache
-              options: this.options, // Pass program options
+            // Construct the new DBSCANWorkerData
+            <any>{ // Use 'any' temporarily as DBSCANWorkerData is defined in worker.ts
+              root: vpTree.getRoot(),
+              options: this.options, // Pass necessary options
+              config: this.fileProcessorConfig, // Pass combined config
+              similarityConfig: this.similarityConfig, // Pass similarity config
+              wasmExports: this.wasmExports, // Pass WASM exports
             },
             batch,
           )
@@ -274,7 +236,15 @@ export class MediaComparator {
       visited.add(point);
 
       // Find neighbors using VPTree and validate with adaptive threshold
-      const neighbors = await this.getValidNeighbors(point, vpTree, eps);
+      const neighborsResult = await this.getValidNeighbors(point, vpTree, eps);
+
+      if (neighborsResult.isErr()) {
+          // Handle error from getValidNeighbors - e.g., log and treat as no neighbors
+          console.error(`Error getting neighbors for ${point}: ${neighborsResult.error.message}`);
+          // Treat as noise if neighbors couldn't be determined
+          continue;
+      }
+      const neighbors = neighborsResult.value; // Unwrap the actual neighbors array
 
       // If not enough neighbors, it's noise (or a single-element cluster for now)
       if (neighbors.length < minPts) {
@@ -285,7 +255,8 @@ export class MediaComparator {
 
       // Expand cluster
       const currentCluster = new Set<string>();
-      const queue = [...neighbors]; // Initialize queue with neighbors
+      // Ensure neighbors is an array before spreading
+      const queue = Array.isArray(neighbors) ? [...neighbors] : []; // Initialize queue with neighbors
 
       while (queue.length > 0) {
         const currentPoint = queue.shift()!; // Get next point from queue
@@ -296,11 +267,18 @@ export class MediaComparator {
           currentCluster.add(currentPoint);
 
           // Find neighbors of the current point
-          const currentNeighbors = await this.getValidNeighbors(
+          const currentNeighborsResult = await this.getValidNeighbors(
             currentPoint,
             vpTree,
             eps,
           );
+
+          if (currentNeighborsResult.isErr()) {
+              // Handle error - log and assume no further expansion from this point
+              console.error(`Error getting neighbors for ${currentPoint} during cluster expansion: ${currentNeighborsResult.error.message}`);
+              continue; // Skip adding neighbors from this point
+          }
+          const currentNeighbors = currentNeighborsResult.value; // Unwrap
 
           // If it's a core point, add its neighbors to the queue
           if (currentNeighbors.length >= minPts) {
@@ -347,7 +325,7 @@ export class MediaComparator {
     point: string,
     vpTree: VPTree<string>,
     eps: number,
-  ): Promise<string[]> {
+  ): Promise<AppResult<string[]>> { // Update return type
     // Search VPTree for potential neighbors within epsilon distance
     const potentialNeighbors = await vpTree.search(point, {
       maxDistance: eps,
@@ -355,38 +333,59 @@ export class MediaComparator {
     });
 
     // Fetch FileInfo for the query point once
-    const media1 = (await this.mediaProcessor.processFile(point)).media;
+    // Fetch FileInfo using the new functional approach
+    const fileInfo1Result = await processSingleFile(point, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+    if (fileInfo1Result.isErr()) {
+        console.error(`Error processing file ${point} in getValidNeighbors: ${fileInfo1Result.error.message}`);
+        // Cannot proceed without file info, return error or empty array? Returning error.
+        return err(new AppError(`Failed to get FileInfo for ${point} in getValidNeighbors`, { originalError: fileInfo1Result.error }));
+    }
+    const fileInfo1 = fileInfo1Result.value; // Unwrap
+    const media1 = fileInfo1.media;
 
     // Filter potential neighbors based on the adaptive similarity threshold
     const validNeighbors = await filterAsync(
       potentialNeighbors,
-      async (neighbor) => {
+      async (neighbor): Promise<AppResult<boolean>> => { // Callback returns AppResult
         // Don't compare a point to itself in the context of finding neighbors
-        if (neighbor.point === point) return false;
+        if (neighbor.point === point) return ok(false);
 
         // Calculate actual similarity (1 - distance)
         const similarity = 1 - neighbor.distance;
 
-        // Fetch FileInfo for the neighbor
-        const media2 = (await this.mediaProcessor.processFile(neighbor.point))
-          .media;
+        // Fetch FileInfo for the neighbor using the new functional approach
+        // TODO: processSingleFile should also return AppResult - handle this later
+        const fileInfo2Result = await processSingleFile(neighbor.point, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+         if (fileInfo2Result.isErr()) {
+            console.error(`Error processing neighbor file ${neighbor.point} in getValidNeighbors: ${fileInfo2Result.error.message}`);
+            // Treat as non-valid neighbor if processing fails
+            return ok(false);
+        }
+        const fileInfo2 = fileInfo2Result.value; // Unwrap
+        const media2 = fileInfo2.media;
 
         // Get the specific threshold for this pair of media types
-        const threshold = this.getAdaptiveThreshold(media1, media2);
+        const threshold = getAdaptiveThreshold(media1, media2, this.similarityConfig); // Use imported function
 
         // Keep neighbor if similarity meets or exceeds the adaptive threshold
-        return similarity >= threshold;
+        return ok(similarity >= threshold);
       },
     );
 
+    // Handle the result of filterAsync
+    if (validNeighbors.isErr()) {
+        return err(validNeighbors.error); // Propagate error
+    }
+
     // Return only the points (file paths) of the valid neighbors
-    return validNeighbors.map((n) => n.point);
+    // Unwrap the value before mapping
+    return ok(validNeighbors.value.map((n) => n.point));
   }
 
   private async processResults(
     clusters: Set<string>[],
     selector: FileProcessor,
-  ): Promise<DeduplicationResult> {
+  ): Promise<AppResult<DeduplicationResult>> { // Update return type
     const uniqueFiles = new Set<string>();
     const duplicateSets: Array<{
       bestFile: string;
@@ -400,10 +399,20 @@ export class MediaComparator {
       } else if (cluster.size > 1) {
         // Ensure cluster has more than one item
         const clusterArray = Array.from(cluster);
-        const representatives = await this.selectRepresentatives(
+        const representativesResult = await this.selectRepresentatives(
           clusterArray,
           selector,
         );
+
+        if (representativesResult.isErr()) {
+            // Decide how to handle error - log and skip cluster? Propagate?
+            console.error(`Error selecting representatives for cluster: ${representativesResult.error.message}`, clusterArray);
+            // Option: Skip this cluster
+            continue;
+            // Option: Propagate error (would require changing processResults signature further)
+            // return err(representativesResult.error);
+        }
+        const representatives = representativesResult.value;
         // Ensure representatives is not empty before proceeding
         if (representatives.length > 0) {
           const representativeSet = new Set(representatives);
@@ -430,17 +439,30 @@ export class MediaComparator {
       }
     }
 
-    return { uniqueFiles, duplicateSets };
+    return ok({ uniqueFiles, duplicateSets }); // Wrap result in ok()
   }
 
   createVPTreeByRoot(root: VPNode<string>): VPTree<string> {
     // Recreate the distance function for the new VPTree instance
     const distanceFn = async (a: string, b: string): Promise<number> => {
-      const [fileInfoA, fileInfoB] = await Promise.all([
-        this.mediaProcessor.processFile(a),
-        this.mediaProcessor.processFile(b),
+      // Use different variable names to avoid redeclaration
+      const [resA, resB] = await Promise.all([
+        processSingleFile(a, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool), // Use processSingleFile directly
+        processSingleFile(b, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool),
       ]);
-      return 1 - this.calculateSimilarity(fileInfoA.media, fileInfoB.media);
+      // Check for errors (similar to the VPTree build distance function)
+      if (resA.isErr()) {
+          console.error(`Error processing file ${a} for distance calculation (recreated tree): ${resA.error.message}`);
+          return Infinity;
+      }
+      if (resB.isErr()) {
+          console.error(`Error processing file ${b} for distance calculation (recreated tree): ${resB.error.message}`);
+          return Infinity;
+      }
+      // Unwrap successful results
+      const infoA = resA.value;
+      const infoB = resB.value;
+      return 1 - this.calculateSimilarity(infoA.media, infoB.media);
     };
     return new VPTree<string>(root, distanceFn);
   }
@@ -448,196 +470,112 @@ export class MediaComparator {
   private async selectRepresentatives(
     cluster: string[],
     selector: FileProcessor,
-  ): Promise<string[]> {
-    if (cluster.length <= 1) return cluster;
+  ): Promise<AppResult<string[]>> { // Update return type
+    if (cluster.length <= 1) return ok(cluster); // Wrap base case in ok()
 
-    const sortedEntries = await this.scoreEntries(cluster, selector);
-    const bestEntry = sortedEntries[0];
-    const bestFileInfo = await selector(bestEntry);
+    // Fetch FileInfo for all entries concurrently
+    const entriesWithInfoResult = await mapAsync(cluster, async (entry): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
+        const fileInfoResult = await selector(entry); // selector returns AppResult<FileInfo>
+        if (fileInfoResult.isErr()) {
+            // Propagate error if file processing fails
+            return err(new AppError(`Failed processing ${entry} in selectRepresentatives`, { originalError: fileInfoResult.error }));
+        }
+        return ok({ entry, fileInfo: fileInfoResult.value }); // Return Ok result
+    });
 
-    // If the best entry is an image, only return that image.
-    if (bestFileInfo.media.duration === 0) {
-      return [bestEntry];
-    } else {
-      // If the best entry is a video, handle potential high-quality image captures within the cluster.
-      return this.handleMultiFrameBest(sortedEntries, selector);
+    if (entriesWithInfoResult.isErr()) {
+        return err(entriesWithInfoResult.error); // Propagate error
     }
-  }
+    const entriesWithInfo: { entry: string; fileInfo: FileInfo }[] = entriesWithInfoResult.value; // Unwrap with explicit type
 
-  private getQuality(fileInfo: FileInfo): number {
-    // Use optional chaining and provide default 0 if width/height are missing
-    return (fileInfo.metadata.width ?? 0) * (fileInfo.metadata.height ?? 0);
-  }
+    // Score and sort using the utility function
+    const sortedScoredEntries = sortEntriesByScore(entriesWithInfo); // Use imported function
 
-  private async handleMultiFrameBest(
-    sortedEntries: string[],
-    selector: FileProcessor,
-  ): Promise<string[]> {
-    const bestEntry = sortedEntries[0]; // This is guaranteed to be a video based on caller logic
-    const bestFileInfo = await selector(bestEntry);
-    const representatives: string[] = [bestEntry]; // Start with the best video
+    // Select representatives using the utility function
+    // Need to map sortedScoredEntries back to { entry, fileInfo } format expected by selectRepresentativesFromScored
+    const sortedEntriesWithInfo = sortedScoredEntries.map(scored => {
+        // entriesWithInfo is now guaranteed to be an array here
+        const original = entriesWithInfo.find(e => e.entry === scored.entry);
+        // Add a check for safety instead of non-null assertion
+        if (!original) {
+             console.error(`Could not find original entry info for ${scored.entry} during representative selection.`);
+             // Decide how to handle - skip this entry? return error?
+             // For now, filter it out later if fileInfo is needed and missing.
+             return { entry: scored.entry, fileInfo: null }; // Indicate missing info
+        }
+        return { entry: scored.entry, fileInfo: original.fileInfo };
+    }).filter(e => e.fileInfo !== null) as { entry: string; fileInfo: FileInfo }[]; // Filter out entries where original wasn't found and cast back
 
-    // Find potential high-quality image captures within the same cluster
-    const potentialCaptures = await filterAsync(
-      sortedEntries.slice(1), // Exclude the best video itself
-      async (entry) => {
-        const fileInfo = await selector(entry);
-        // Check if it's an image, has comparable or better quality, and has date info if the video does
-        return (
-          fileInfo.media.duration === 0 &&
-          this.getQuality(fileInfo) >= this.getQuality(bestFileInfo) &&
-          (!bestFileInfo.metadata.imageDate || !!fileInfo.metadata.imageDate)
+
+    // selectRepresentativesFromScored likely doesn't return AppResult yet, wrap if needed
+    // Assuming it returns string[] for now
+    try {
+        const representatives = selectRepresentativesFromScored(
+            sortedEntriesWithInfo,
+            this.similarityConfig,
+            this.wasmExports
         );
-      },
-    );
-
-    // If high-quality image captures exist, deduplicate them among themselves
-    if (potentialCaptures.length > 0) {
-      // Need a temporary comparator instance or pass necessary config/methods if running this outside main flow
-      // For simplicity here, assume we can call deduplicateFiles recursively (might need adjustment)
-      // This recursive call needs careful handling to avoid infinite loops if logic isn't strict.
-      // A safer approach might be to just compare these images pairwise.
-      // Let's simplify: just compare pairwise for now.
-      const uniqueCaptures = new Set<string>();
-      const processedCaptures = new Set<string>();
-
-      for (const capture1 of potentialCaptures) {
-        if (processedCaptures.has(capture1)) continue;
-
-        let isDuplicate = false;
-        for (const capture2 of uniqueCaptures) {
-          const info1 = await selector(capture1);
-          const info2 = await selector(capture2);
-          const similarity = this.calculateImageSimilarity(
-            info1.media.frames[0],
-            info2.media.frames[0],
-          );
-          if (similarity >= this.similarityConfig.imageSimilarityThreshold) {
-            isDuplicate = true;
-            // Keep the one with the higher score (already sorted by score)
-            processedCaptures.add(capture1);
-            break;
-          }
-        }
-
-        if (!isDuplicate) {
-          uniqueCaptures.add(capture1);
-          processedCaptures.add(capture1);
-        }
-      }
-
-      representatives.push(...uniqueCaptures);
+        return ok(representatives);
+    } catch (error) {
+        return err(new UnknownError(error)); // Wrap potential errors
     }
-
-    return representatives;
   }
+
+  // getQuality moved to comparatorUtils.ts
+
+  // handleMultiFrameBest logic moved into selectRepresentativesFromScored in comparatorUtils.ts
 
   private async scoreEntries(
     entries: string[],
     selector: FileProcessor,
-  ): Promise<string[]> {
-    // Map entries to { entry, score } objects
-    const scoredEntries = await mapAsync(entries, async (entry) => ({
-      entry,
-      score: this.calculateEntryScore(await selector(entry)),
-    }));
+  ): Promise<AppResult<string[]>> { // Update return type
+    // Fetch FileInfo for all entries concurrently
+    const entriesWithInfoResult = await mapAsync(entries, async (entry): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
+        const fileInfoResult = await selector(entry); // selector returns AppResult<FileInfo>
+         if (fileInfoResult.isErr()) {
+            // Propagate error if file processing fails
+            return err(new AppError(`Failed processing ${entry} in scoreEntries`, { originalError: fileInfoResult.error }));
+        }
+        return ok({ entry, fileInfo: fileInfoResult.value }); // Return Ok result
+    });
 
-    // Sort by score descending
-    scoredEntries.sort((a, b) => b.score - a.score);
+     if (entriesWithInfoResult.isErr()) {
+        return err(entriesWithInfoResult.error); // Propagate error
+    }
+    const entriesWithInfo: { entry: string; fileInfo: FileInfo }[] = entriesWithInfoResult.value; // Unwrap with explicit type
+
+    // Score and sort using the utility function
+    const sortedScoredEntries = sortEntriesByScore(entriesWithInfo); // Use imported function
 
     // Return just the sorted entry paths
-    return scoredEntries.map((scored) => scored.entry);
+    // Assuming sortEntriesByScore doesn't throw and returns the expected type
+    return ok(sortedScoredEntries.map((scored) => scored.entry));
   }
 
   // Public for potential use in DebugReporter
-  calculateEntryScore(fileInfo: FileInfo): number {
-    let score = 0;
-
-    // Prioritize videos slightly
-    if (fileInfo.media.duration > 0) {
-      score += 10000;
-    }
-
-    // Add score based on duration (log scale)
-    score += Math.log(fileInfo.media.duration + 1) * 100;
-
-    // Add score for metadata completeness
-    if (fileInfo.metadata.imageDate) score += 2000;
-    if (fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude)
-      score += 300;
-    if (fileInfo.metadata.cameraModel) score += 200;
-
-    // Add score based on resolution (sqrt scale)
-    if (fileInfo.metadata.width && fileInfo.metadata.height) {
-      score += Math.sqrt(fileInfo.metadata.width * fileInfo.metadata.height);
-    }
-
-    // Add score based on file size (log scale)
-    score += Math.log(fileInfo.fileStats.size + 1) * 5; // Add 1 to avoid log(0)
-
-    return score;
-  }
+  // calculateEntryScore moved to comparatorUtils.ts
 
   calculateSimilarity(media1: MediaInfo, media2: MediaInfo): number {
     const isImage1 = media1.duration === 0;
     const isImage2 = media2.duration === 0;
 
     if (isImage1 && isImage2) {
-      return this.calculateImageSimilarity(media1.frames[0], media2.frames[0]);
+      return calculateImageSimilarity(media1.frames[0], media2.frames[0], this.wasmExports); // Use imported function
     } else if (isImage1 || isImage2) {
-      return this.calculateImageVideoSimilarity(
+      return calculateImageVideoSimilarity( // Use imported function
         isImage1 ? media1 : media2,
         isImage1 ? media2 : media1,
+        this.similarityConfig,
+        this.wasmExports,
       );
     } else {
       return this.calculateVideoSimilarity(media1, media2);
     }
   }
 
-  private calculateImageSimilarity(
-    frame1: FrameInfo,
-    frame2: FrameInfo,
-  ): number {
-    if (!frame1?.hash || !frame2?.hash) return 0; // Guard against missing hashes
-    const distance = this.hammingDistance(frame1.hash, frame2.hash);
-    const maxDistance = frame1.hash.byteLength * 8;
-    if (maxDistance === 0) return 1; // Avoid division by zero if hash length is 0
-    return 1 - distance / maxDistance;
-  }
+  // calculateImageSimilarity moved to comparatorUtils.ts
 
-  private calculateImageVideoSimilarity(
-    image: MediaInfo,
-    video: MediaInfo,
-  ): number {
-    if (
-      image.frames.length === 0 ||
-      video.frames.length === 0 ||
-      !image.frames[0]?.hash
-    ) {
-      return 0; // Return 0 similarity if either has no frames or image hash is missing
-    }
-
-    const imageFrame = image.frames[0];
-    let bestSimilarity = 0;
-
-    for (const videoFrame of video.frames) {
-      if (!videoFrame?.hash) continue; // Skip frames with missing hashes
-      const similarity = this.calculateImageSimilarity(imageFrame, videoFrame);
-
-      if (similarity > bestSimilarity) {
-        bestSimilarity = similarity;
-
-        // Early exit if we find a similarity above the threshold
-        if (
-          bestSimilarity >= this.similarityConfig.imageVideoSimilarityThreshold
-        ) {
-          return bestSimilarity;
-        }
-      }
-    }
-
-    return bestSimilarity;
-  }
+  // calculateImageVideoSimilarity moved to comparatorUtils.ts
 
   private calculateVideoSimilarity(
     media1: MediaInfo,
@@ -677,9 +615,10 @@ export class MediaComparator {
       // Ensure subsequences are not empty before calculating similarity
       if (longerSubseq.length === 0 || shorterSubseq.length === 0) continue;
 
-      const windowSimilarity = this.calculateSequenceSimilarityDTW(
+      const windowSimilarity = calculateSequenceSimilarityDTW( // Use imported function
         longerSubseq,
         shorterSubseq,
+        this.wasmExports,
       );
       bestSimilarity = Math.max(bestSimilarity, windowSimilarity);
 
@@ -705,40 +644,7 @@ export class MediaComparator {
     );
   }
 
-  private calculateSequenceSimilarityDTW(
-    seq1: FrameInfo[],
-    seq2: FrameInfo[],
-  ): number {
-    const m = seq1.length;
-    const n = seq2.length;
-    if (m === 0 || n === 0) return 0; // Return 0 if either sequence is empty
-
-    const dtw: number[] = new Array(n + 1).fill(Infinity);
-    dtw[0] = 0;
-
-    for (let i = 1; i <= m; i++) {
-      let prev = dtw[0];
-      dtw[0] = Infinity; // Reset start of row
-      for (let j = 1; j <= n; j++) {
-        const temp = dtw[j];
-        // Cost is 1 - similarity (distance)
-        const cost =
-          1 - this.calculateImageSimilarity(seq1[i - 1], seq2[j - 1]);
-        // Ensure cost is non-negative
-        const nonNegativeCost = Math.max(0, cost);
-        dtw[j] = nonNegativeCost + Math.min(prev, dtw[j], dtw[j - 1]);
-        prev = temp;
-      }
-    }
-
-    const maxLen = Math.max(m, n);
-    if (maxLen === 0) return 1; // Perfect similarity if both sequences are empty? Or 0? Let's say 1.
-
-    // Normalized distance: DTW cost / max path length (heuristic)
-    const normalizedDistance = dtw[n] / maxLen;
-    // Return similarity: 1 - normalized distance
-    return Math.max(0, 1 - normalizedDistance); // Ensure similarity is not negative
-  }
+  // calculateSequenceSimilarityDTW moved to comparatorUtils.ts
 
   private getAdaptiveThreshold(media1: MediaInfo, media2: MediaInfo): number {
     const isImage1 = media1.duration === 0;

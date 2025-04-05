@@ -1,4 +1,5 @@
 import { VPNode } from "../VPTree";
+import { AppResult } from "./errors"; // Import AppResult
 
 export enum FileType {
   Video,
@@ -101,6 +102,14 @@ export class JobConfig {
   similarity: SimilarityConfig;
 }
 
+// Combine necessary configs for processSingleFile function
+export interface FileProcessorConfig {
+    fileStats: FileStatsConfig;
+    adaptiveExtraction: AdaptiveExtractionConfig;
+    // Metadata has no specific config other than FileStatsConfig for hash key
+}
+
+
 export class MediaInfo {
   frames: FrameInfo[];
   duration: number;
@@ -137,4 +146,12 @@ export interface WorkerData {
 
 export type MaybePromise<T> = T | Promise<T>;
 
-export type FileProcessor = (file: string) => Promise<FileInfo>;
+export type FileProcessor = (file: string) => Promise<AppResult<FileInfo>>; // Updated return type
+
+
+// Define the expected exports from the WASM module
+export interface WasmExports {
+  hammingDistanceSIMD(a: Uint8Array, b: Uint8Array): number;
+  // Add other exports if needed, ensure memory is exported if using complex types
+  memory: WebAssembly.Memory;
+}

@@ -8,9 +8,21 @@ import {
   type DeduplicationResult,
   type GatherFileInfoResult,
 } from "./src/types";
-import { MediaOrganizer } from "./MediaOrganizer";
+// import { MediaOrganizer } from "./MediaOrganizer"; // Removed old class import
 import os from "os";
 import { Context } from "./src/contexts/Context";
+// Removed duplicate import for discoverFilesFn
+import { gatherFileInfoFn } from "./src/gatherer";
+import { deduplicateFilesFn } from "./src/deduplicator"; // Import the new function
+import { LmdbCache } from "./src/caching/LmdbCache"; // Import dependencies
+import { FileProcessorConfig } from "./src/types";
+import { ExifTool } from "exiftool-vendored";
+import { WorkerPool, Types } from "./src/contexts/types";
+import { MediaComparator } from "./MediaComparator";
+import { transferFilesFn } from "./src/transfer"; // Import the new function
+import { DebugReporter } from "./src/reporting/DebugReporter"; // Import dependencies
+import { FileTransferService } from "./src/services/FileTransferService";
+import { discoverFilesFn } from "./src/discovery"; // Import the new function
 
 function exitHandler() {
   console.log(chalk.red("\nMediaCurator was interrupted"));
@@ -167,39 +179,59 @@ async function main() {
 
   await Context.ensureInitialized(options);
 
-  const organizer = await Context.injector.getAsync(MediaOrganizer)!;
+  // const organizer = await Context.injector.getAsync(MediaOrganizer)!; // Removed instance retrieval
   try {
+    // Get dependencies needed for functional calls
+    const cache = Context.injector.get(LmdbCache);
+    const fileProcessorConfig = Context.injector.get<FileProcessorConfig>(Types.FileProcessorConfig);
+    const exifTool = Context.injector.get(ExifTool);
+    const workerPool = await Context.injector.getAsync<WorkerPool>(Types.WorkerPool);
+    const comparator = Context.injector.get(MediaComparator);
+    const debugReporter = Context.injector.get(DebugReporter); // Get dependencies
+    const fileTransferService = Context.injector.get(FileTransferService);
     // Stage 1: File Discovery
     console.log(chalk.blue("Stage 1: Discovering files..."));
-    const discoveredFiles = await organizer.discoverFiles(
-      [source],
-      options.concurrency,
-    );
+    // Use the standalone discovery function
+    const discoveredFiles = await discoverFilesFn([source], options.concurrency);
 
     // Stage 2: Gathering Information
     console.log(chalk.blue("\nStage 2: Gathering file information..."));
-    const gatherFileInfoResult = await organizer.gatherFileInfo(
-      discoveredFiles,
-      options.concurrency,
+    // Use the standalone gatherer function
+    const gatherFileInfoResult = await gatherFileInfoFn(
+        discoveredFiles,
+        options.concurrency,
+        fileProcessorConfig,
+        cache,
+        exifTool,
+        workerPool
     );
 
     // Stage 3: Deduplication
     console.log(chalk.blue("\nStage 3: Deduplicating files..."));
-    const deduplicationResult = await organizer.deduplicateFiles(
-      gatherFileInfoResult.validFiles,
+    // Use the standalone deduplicator function
+    const deduplicationResult = await deduplicateFilesFn(
+        gatherFileInfoResult.validFiles,
+        comparator, // Pass comparator instance
+        fileProcessorConfig,
+        cache,
+        exifTool,
+        workerPool
     );
 
     // Stage 4: File Transfer
     console.log(chalk.blue("\nStage 4: Transferring files..."));
-    await organizer.transferFiles(
-      gatherFileInfoResult,
-      deduplicationResult,
-      destination,
-      options.duplicate,
-      options.error,
-      options.debug,
-      options.format,
-      options.move,
+    // Use the standalone transfer function
+    await transferFilesFn(
+        gatherFileInfoResult,
+        deduplicationResult,
+        destination,
+        options.duplicate,
+        options.error,
+        options.debug,
+        options.format,
+        options.move,
+        debugReporter, // Pass dependencies
+        fileTransferService
     );
 
     console.log(chalk.green("\nMedia organization completed"));

@@ -1,16 +1,26 @@
 import { injectable } from "inversify"; // Removed unused 'inject'
 import { writeFile } from "fs/promises";
 import { join, relative } from "path";
-import { FileInfo, DuplicateSet } from "../types";
-import { MediaProcessor } from "../MediaProcessor";
+import { FileInfo, DuplicateSet, FileProcessorConfig } from "../types"; // Added FileProcessorConfig
+// import { MediaProcessor } from "../MediaProcessor"; // Removed old import
 import { MediaComparator } from "../../MediaComparator";
-// import path from "path"; // Removed unused default import, named imports are sufficient
+import { LmdbCache } from "../caching/LmdbCache"; // Added cache import
+import { ExifTool } from "exiftool-vendored"; // Added exiftool import
+import { WorkerPool, Types } from "../contexts/types"; // Added workerpool import
+import { processSingleFile } from "../fileProcessor"; // Added file processor function import
+import { inject } from "inversify"; // Added inject
+import { calculateEntryScore } from "../comparatorUtils"; // Import the utility function
 
 @injectable()
 export class DebugReporter {
   constructor(
-    private processor: MediaProcessor,
+    // private processor: MediaProcessor, // Removed injection
     private comparator: MediaComparator,
+    // Inject dependencies needed for processSingleFile
+    @inject(LmdbCache) private cache: LmdbCache,
+    @inject(Types.FileProcessorConfig) private fileProcessorConfig: FileProcessorConfig,
+    @inject(ExifTool) private exifTool: ExifTool,
+    @inject(Types.WorkerPool) private workerPool: WorkerPool,
   ) {}
 
   async generateHtmlReports(
@@ -128,14 +138,16 @@ export class DebugReporter {
   ) {
     const allMedia = await Promise.all([
       ...Array.from(representatives).map(async (sourcePath) => {
-        const info = await this.processor.processFile(sourcePath);
-        const score = this.comparator.calculateEntryScore(info!);
+        // Use processSingleFile instead of processor.processFile
+        const info = await processSingleFile(sourcePath, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+        const score = calculateEntryScore(info!); // Use imported function
         const relativePath = this.convertToRelativePath(sourcePath, debugDir);
         return { isRepresentative: true, relativePath, info, score };
       }),
       ...Array.from(duplicates).map(async (sourcePath) => {
-        const info = await this.processor.processFile(sourcePath);
-        const score = this.comparator.calculateEntryScore(info!);
+        // Use processSingleFile instead of processor.processFile
+        const info = await processSingleFile(sourcePath, this.fileProcessorConfig, this.cache, this.exifTool, this.workerPool);
+        const score = calculateEntryScore(info!); // Use imported function
         const relativePath = this.convertToRelativePath(sourcePath, debugDir);
         return { isRepresentative: false, relativePath, info, score };
       }),

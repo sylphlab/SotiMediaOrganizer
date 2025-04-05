@@ -1,21 +1,24 @@
 import { Container } from "inversify";
 import { ExifTool } from "exiftool-vendored";
+import { createExifTool } from "../external/ExifToolService"; // Import createExifTool
 import {
   AdaptiveExtractionConfig,
   FeatureExtractionConfig,
   SimilarityConfig,
   FileStatsConfig,
   ProgramOptions,
+  FileProcessorConfig, // Import the interface type
 } from "../types";
 import { MediaComparator } from "../../MediaComparator";
-import { MediaOrganizer } from "../../MediaOrganizer";
-import { MediaProcessor } from "../MediaProcessor";
-import { AdaptiveExtractionJob } from "../jobs/AdaptiveExtractionJob";
-import { MetadataExtractionJob } from "../jobs/MetadataExtractionJob";
-import { FileStatsJob } from "../jobs/FileStatsJob";
-import { DatabaseContext } from "./DatabaseService";
+// import { MediaOrganizer } from "../../MediaOrganizer"; // Removed old class import
+// import { MediaProcessor } from "../MediaProcessor"; // Removed old class import
+// import { AdaptiveExtractionJob } from "../jobs/AdaptiveExtractionJob"; // Removed old class import
+// import { MetadataExtractionJob } from "../jobs/MetadataExtractionJob"; // Removed old class import
+// import { FileStatsJob } from "../jobs/FileStatsJob"; // Removed old class import
+// import { DatabaseContext } from "./DatabaseService"; // Removed
+import { LmdbCache } from "../caching/LmdbCache"; // Added LmdbCache import
 import { SharpService } from "./SharpService";
-import { FFmpegService } from "./FFmpegService";
+// import { FFmpegService } from "./FFmpegService"; // Removed
 import workerpool from "workerpool";
 import type { CustomWorker } from "../worker/worker";
 import { Types, WorkerPool } from "./types";
@@ -48,17 +51,18 @@ export class Context {
     // services
     container.bind(SharpService).toSelf().inSingletonScope();
     container.bind(MediaComparator).toSelf().inSingletonScope();
-    container.bind(MediaOrganizer).toSelf().inSingletonScope();
-    container.bind(MediaProcessor).toSelf().inSingletonScope();
-    container.bind(DatabaseContext).toSelf().inSingletonScope();
-    container.bind(FFmpegService).toSelf().inSingletonScope();
+    // container.bind(MediaOrganizer).toSelf().inSingletonScope(); // Removed binding for old class
+    // container.bind(MediaProcessor).toSelf().inSingletonScope(); // Removed binding for old class
+    // container.bind(DatabaseContext).toSelf().inSingletonScope(); // Removed DatabaseContext binding
+    container.bind(LmdbCache).toSelf().inSingletonScope(); // Added LmdbCache binding
+    // container.bind(FFmpegService).toSelf().inSingletonScope(); // Removed FFmpegService binding
 
     container.bind(FileTransferService).toSelf().inSingletonScope(); // Bind FileTransferService
     container.bind(DebugReporter).toSelf().inSingletonScope(); // Bind DebugReporter
     // jobs
-    container.bind(AdaptiveExtractionJob).toSelf().inSingletonScope();
-    container.bind(MetadataExtractionJob).toSelf().inSingletonScope();
-    container.bind(FileStatsJob).toSelf().inSingletonScope();
+    // container.bind(AdaptiveExtractionJob).toSelf().inSingletonScope(); // Removed binding for old class
+    // container.bind(MetadataExtractionJob).toSelf().inSingletonScope(); // Removed binding for old class
+    // container.bind(FileStatsJob).toSelf().inSingletonScope(); // Removed binding for old class
 
     container.bind(ProgramOptions).toConstantValue(options);
     container.bind(FileStatsConfig).toConstantValue({
@@ -87,10 +91,20 @@ export class Context {
       .bind(ExifTool)
       .toDynamicValue(
         () =>
-          new ExifTool({
-            maxProcs: options?.concurrency || 1,
-          }),
+          // Use the factory function from the service
+          createExifTool(options?.concurrency || 1),
       )
+      .inSingletonScope();
+
+    // Assemble and bind the combined FileProcessorConfig
+    container
+      .bind<FileProcessorConfig>(Types.FileProcessorConfig)
+      .toDynamicValue((context) => {
+        return {
+          fileStats: context.container.get(FileStatsConfig),
+          adaptiveExtraction: context.container.get(AdaptiveExtractionConfig),
+        };
+      })
       .inSingletonScope();
 
     container

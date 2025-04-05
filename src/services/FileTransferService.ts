@@ -1,6 +1,6 @@
 import { injectable } from "inversify"; // Removed unused 'inject'
 import { mkdir, copyFile, rename, unlink } from "fs/promises";
-import { join, basename, dirname, extname, parse } from "path";
+import { join, basename, dirname, extname, parse, normalize } from "path"; // Added normalize
 import { existsSync } from "fs";
 import crypto from "crypto";
 import chalk from "chalk";
@@ -208,9 +208,7 @@ export class FileTransferService {
       fileInfo.metadata.imageDate || fileInfo.fileStats.createdAt;
     const { name, ext } = parse(sourcePath);
 
-    function generateRandomId(): string {
-      return crypto.randomBytes(4).toString("hex");
-    }
+    // Moved generateRandomId to be a private method of the class
 
     const data: { [key: string]: string } = {
       "I.YYYY": this.formatDate(fileInfo.metadata.imageDate, "YYYY"),
@@ -282,8 +280,8 @@ export class FileTransferService {
       NAME: name,
       "NAME.L": name.toLowerCase(),
       "NAME.U": name.toUpperCase(),
-      EXT: ext.slice(1).toLowerCase(),
-      RND: generateRandomId(),
+      EXT: ext.slice(1).toLowerCase(), // Put EXT back in data
+      RND: this.generateRandomId(), // Call as a method
       GEO:
         fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude
           ? `${fileInfo.metadata.gpsLatitude.toFixed(2)}_${fileInfo.metadata.gpsLongitude.toFixed(2)}`
@@ -302,11 +300,33 @@ export class FileTransferService {
           : "NoDate",
     };
 
-    let formattedPath = format.replace(/\{([^{}]+)\}/g, (match, key) => {
-      // Replace invalid filename characters, except for the path separator itself
-      const replacement = (data[key] || "").replace(/[<>:"|?*]/g, "_");
-      return replacement;
+    // Build a regex that specifically matches the known format keys from the 'data' object
+    const knownKeys = Object.keys(data).map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape regex special chars in keys
+    // Sort keys by length descending to match longer keys first (e.g., NAME.L before NAME) - might not be strictly necessary here but good practice
+    knownKeys.sort((a, b) => b.length - a.length);
+    // Regex to match {KEY}
+    const formatRegex = new RegExp(`\\{(${knownKeys.join('|')})\\}`, 'g');
+
+    const originalExt = parse(sourcePath).ext; // Get original extension with dot (e.g., ".jpg")
+
+    let formattedPath = format.replace(formatRegex, (match, key) => {
+        let replacement = "";
+        if (key === "EXT") {
+            // Use the original extension *with* the dot if the key is EXT
+            replacement = originalExt;
+        } else {
+            replacement = (data[key] || ""); // Get value from data object for other keys
+        }
+        // Sanitize the replacement value (important for NAME, CAM etc.)
+        // Don't sanitize the extension itself here.
+        if (key !== "EXT") {
+             replacement = replacement.replace(/[<>:"|?*]/g, "_");
+        }
+        return replacement;
     });
+
+    // Removed the redundant originalExt definition and the separate replace call for EXT
+
 
     // Remove leading/trailing slashes and ensure single slashes
     formattedPath = formattedPath
@@ -318,38 +338,51 @@ export class FileTransferService {
       formattedPath = "NoDate"; // Default folder if format string results in empty path
     }
 
-    // Separate directory and filename based on whether the last part looks like a filename
-    const parts = formattedPath.split("/");
-    const lastPart = parts[parts.length - 1];
-    let directory, filename;
+    // Determine if the format string likely intended to specify a filename
+    const formatSpecifiesFilename = /\{NAME/.test(format) || /\{EXT\}/.test(format); // Simple check
 
-    if (lastPart.includes(".") && lastPart.split(".").pop() === data["EXT"]) {
-      directory = parts.slice(0, -1).join("/");
-      filename = lastPart;
+    let directory: string;
+    let finalFilenameBase: string;
+    let finalFilenameExt: string;
+
+    if (formatSpecifiesFilename) {
+        // Assume formattedPath contains the intended directory and base filename (potentially without ext)
+        const parsedFormatted = parse(formattedPath.replace(/\\/g, '/'));
+        directory = parsedFormatted.dir;
+        finalFilenameBase = parsedFormatted.name; // Name part from format
+        // Use extension from format if present, otherwise use original
+        finalFilenameExt = parsedFormatted.ext || originalExt;
     } else {
-      // If the format string doesn't specify a filename with extension, use original
-      directory = formattedPath;
-      filename = `${name}${ext}`;
+        // Format string only specified directory structure
+        directory = formattedPath; // The whole thing is the directory
+        finalFilenameBase = name; // Use original base name
+        finalFilenameExt = ext; // Use original extension
     }
 
-    // Sanitize filename part as well
-    filename = filename.replace(/[<>:"/\\|?*]/g, "_");
+    // Combine base and extension
+    let finalFilename = `${finalFilenameBase}${finalFilenameExt}`;
 
-    let fullPath = join(targetDir, directory, filename);
+    // Sanitize filename part as well
+    finalFilename = finalFilename.replace(/[<>:"/\\|?*]/g, "_");
+
+    let fullPath = join(targetDir, directory, finalFilename); // Already correct here, but included for context
 
     // Handle potential filename conflicts
     let counter = 1;
-    const originalFilename = filename;
-    const parsedFilename = parse(originalFilename);
+    // Parse the *sanitized* filename to get parts for conflict resolution
+    const parsedSanitizedFilename = parse(finalFilename);
+    const baseNameForConflict = parsedSanitizedFilename.name;
+    const extensionForConflict = parsedSanitizedFilename.ext;
 
-    while (existsSync(fullPath)) {
+    // Normalize the path *before* checking existence in the loop
+    while (existsSync(normalize(fullPath))) {
       // Option 1: Append counter
       // filename = `${parsedFilename.name}_${counter++}${parsedFilename.ext}`;
 
       // Option 2: Append random ID (as was done before, but maybe only on conflict)
-      filename = `${parsedFilename.name}_${generateRandomId()}${parsedFilename.ext}`;
+      finalFilename = `${baseNameForConflict}_${this.generateRandomId()}${extensionForConflict}`; // Call as a method
 
-      fullPath = join(targetDir, directory, filename);
+      fullPath = join(targetDir, directory, finalFilename); // Already correct here, but included for context
       // Safety break to prevent infinite loops in weird edge cases
       if (counter > 100) {
         console.error(
@@ -398,10 +431,18 @@ export class FileTransferService {
       WW: () => pad(this.getWeekNumber(date)),
     };
 
-    // Allow format specifiers like {D.YYYY} or just YYYY
-    return format.replace(/\{?([^{}]+)\}?/g, (match, key) => {
-      const formatter = formatters[key];
-      return formatter ? formatter() : match; // Return original match if key not found
+    // Build a regex that specifically matches the known format keys
+    const knownKeys = Object.keys(formatters).map(key => key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); // Escape regex special chars in keys
+    // Sort keys by length descending to match longer keys first (e.g., DDDD before DD)
+    knownKeys.sort((a, b) => b.length - a.length);
+    const formatRegex = new RegExp(`(${knownKeys.join('|')})`, 'g');
+
+    // Replace only the known keys
+    return format.replace(formatRegex, (match) => {
+        // The matched key is the first capturing group (the whole match in this case)
+        const formatter = formatters[match];
+        // If a formatter exists for the key, call it, otherwise return the original match (shouldn't happen with this regex)
+        return formatter ? formatter() : match;
     });
   }
 
@@ -421,4 +462,10 @@ export class FileTransferService {
     // Return week number
     return weekNo;
   }
+
+
+  private generateRandomId(): string {
+    return crypto.randomBytes(4).toString("hex");
+  }
 }
+

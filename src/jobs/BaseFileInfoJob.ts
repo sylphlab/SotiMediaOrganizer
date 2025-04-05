@@ -1,132 +1,53 @@
-import { Mutex } from "async-mutex";
-import { DatabaseContext } from "../contexts/DatabaseService";
-import type { Database } from "lmdb";
-import eql from "deep-eql";
-import { bufferToSharedArrayBuffer, sharedArrayBufferToBuffer } from "../utils";
-import { MemoryCache } from "./MemoryCache";
-import { inject, injectable, postConstruct } from "inversify";
+// Removed Mutex, DatabaseContext, Database, eql, buffer/sharedBuffer utils, MemoryCache, postConstruct
+import { LmdbCache, CacheResult, ConfigCheckResult } from "../caching/LmdbCache"; // Import LmdbCache
+import { inject, injectable } from "inversify";
 
 @injectable()
 export abstract class BaseFileInfoJob<TResult, TConfig = void> {
-  private readonly locks = new MemoryCache(() => new Mutex());
+  // Removed locks, db, configDb, dbContext properties
 
-  private db: Database;
-  private configDb: Database;
-
-  @inject(DatabaseContext)
-  private readonly dbContext: DatabaseContext;
+  @inject(LmdbCache) // Inject LmdbCache instead
+  protected readonly cache: LmdbCache; // Changed from private to protected
 
   protected abstract readonly jobName: string;
 
   protected readonly config: TConfig = null;
 
-  @postConstruct()
-  private async init() {
-    this.db = this.dbContext.rootDatabase.openDB({ name: this.jobName });
-    this.configDb = this.dbContext.rootDatabase.openDB({
-      name: `${this.jobName}_config`,
-    });
-  }
+  // Removed @postConstruct init method
 
   async process(filePath: string): Promise<TResult> {
     const cacheKey = await this.getHashKey(filePath);
 
-    return this.locks.get(cacheKey).runExclusive(async () => {
-      const cachedConfig = (await this.configDb.get(cacheKey)) as TConfig;
-      if (this.isConfigValid(filePath, cachedConfig)) {
-        const cachedResult = (await this.db!.get(cacheKey)) as TResult;
-        if (cachedResult) {
-          return this.convertFromStorageFormat(cachedResult);
-        }
-      }
+    // Use LmdbCache for checking config and getting/setting data
+    const configCheck: ConfigCheckResult = await this.cache.checkConfig(this.jobName, cacheKey, this.config);
 
-      const result = await this.processFile(filePath);
-      await Promise.all([
-        this.db.put(cacheKey, this.convertToStorageFormat(result)),
-        this.configDb!.put(cacheKey, this.config),
-      ]);
-      return result;
-    });
+    if (configCheck.isValid) {
+        const cacheResult: CacheResult<TResult> = await this.cache.getCache(this.jobName, cacheKey);
+        if (cacheResult.hit) {
+            // console.log(`Cache HIT for ${this.jobName}:${cacheKey}`); // Optional debug log
+            return cacheResult.data!;
+        }
+        // console.log(`Cache config valid but data MISS for ${this.jobName}:${cacheKey}`); // Optional debug log
+    } else {
+        // console.log(`Cache config INVALID for ${this.jobName}:${cacheKey}`); // Optional debug log
+    }
+
+    // Cache miss or invalid config, process the file
+    const result = await this.processFile(filePath);
+
+    // Store the new result and config in the cache
+    await this.cache.setCache(this.jobName, cacheKey, result, this.config);
+
+    return result;
   }
 
   protected abstract processFile(filePath: string): Promise<TResult>;
 
-  protected isConfigValid(
-    filePath: string,
-    cachedConfig?: TConfig | undefined,
-  ): boolean {
-    if (!cachedConfig && !this.config) {
-      return true;
-    }
-    if (!cachedConfig || !this.config) {
-      return false;
-    }
-    return this.isEquivalentConfig(this.config, cachedConfig);
-  }
-
-  protected isEquivalentConfig(config1: TConfig, config2: TConfig): boolean {
-    return eql(config1, config2);
-  }
+  // Removed isConfigValid and isEquivalentConfig methods (using LmdbCache's deepEqual)
 
   protected async getHashKey(filePath: string): Promise<string> {
     return filePath;
   }
 
-  protected convertToStorageFormat(result: TResult): unknown {
-    if (result instanceof SharedArrayBuffer) {
-      return {
-        type: "SharedArrayBuffer",
-        data: sharedArrayBufferToBuffer(result),
-      };
-    } else if (result instanceof Date) {
-      return result;
-    } else if (Array.isArray(result)) {
-      return result.map((item) => this.convertToStorageFormat(item));
-    } else if (this.isPlainObject(result)) {
-      const converted: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(
-        result as Record<string, unknown>,
-      )) {
-        converted[key] = this.convertToStorageFormat(value as TResult);
-      }
-      return converted;
-    }
-    return result;
-  }
-
-  protected convertFromStorageFormat(stored: unknown): TResult {
-    if (stored && typeof stored === "object") {
-      const storedObj = stored as Record<string, unknown>;
-      if (storedObj.type === "SharedArrayBuffer") {
-        return bufferToSharedArrayBuffer(storedObj.data as Buffer) as TResult;
-      } else if (storedObj instanceof Date) {
-        return storedObj as TResult;
-      } else if (Array.isArray(stored)) {
-        return (stored as unknown[]).map((item) =>
-          this.convertFromStorageFormat(item),
-        ) as unknown as TResult;
-      } else if (this.isPlainObject(storedObj)) {
-        const converted: Record<string, TResult> = {};
-        for (const [key, value] of Object.entries(storedObj)) {
-          converted[key] = this.convertFromStorageFormat(value);
-        }
-        return converted as TResult;
-      }
-    }
-    return stored as TResult;
-  }
-
-  private isPlainObject(obj: unknown): obj is Record<string, unknown> {
-    if (typeof obj !== "object" || obj === null) return false;
-
-    const proto = Object.getPrototypeOf(obj);
-    if (proto === null) return true;
-
-    let baseProto = proto;
-    while (Object.getPrototypeOf(baseProto) !== null) {
-      baseProto = Object.getPrototypeOf(baseProto);
-    }
-
-    return proto === baseProto;
-  }
+  // Removed convertToStorageFormat, convertFromStorageFormat, isPlainObject methods (handled by LmdbCache)
 }
