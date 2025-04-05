@@ -1,8 +1,8 @@
-<!-- Version: 0.1 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 0.2 | Last Updated: 2025-04-05 | Updated By: Cline -->
 
 # Product Context
 
-*   **Problem Solved:** [What problem does this project address?]
-*   **Target Users:** [Who will use this product?]
-*   **Core Functionality:** [How should the product work from a user perspective?]
-*   **User Experience Goals:** [What are the key UX principles?]
+*   **Problem Solved:** Addresses the challenge of managing large, cluttered digital photo and video libraries by providing automated organization and deduplication.
+*   **Target Users:** Individuals with growing digital media collections, from casual users to photographers/videographers needing efficient organization.
+*   **Core Functionality:** A command-line tool (`smo`) that takes source directories and a destination path. It processes media files, extracts metadata, calculates perceptual hashes, compares files for similarity using VP Trees and DTW, and organizes unique files into the destination directory based on a customizable format string. Duplicates can be optionally moved to a separate directory.
+*   **User Experience Goals:** Provide a powerful, flexible, and efficient command-line experience. Offer clear feedback during processing and comprehensive configuration options.
