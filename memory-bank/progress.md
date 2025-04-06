@@ -1,4 +1,4 @@
-<!-- Version: 1.7 | Last Updated: 2025-04-06 | Updated By: Cline -->
+<!-- Version: 1.8 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Project Progress
 
@@ -24,10 +24,11 @@
   - **Phase 4:** Added basic integration test structure for `MetadataDBService`.
   - **Phase 4:** Updated `README.md` with latest architecture and features.
   - **Phase 4:** Added/Updated integration/unit tests for `LmdbCache`, `discovery`, `gatherer`, `deduplicator`, `transfer`, `CliReporter`.
-  - **Phase 4:** Memory Bank files updated (Task 4.2).
+  - **Phase 4 (Task 4.1):** Added/Updated unit tests for `src/utils.ts` (covering buffer/hex conversions, async helpers, DCT helpers, quickSelect, EXIF parsing).
+  - **Phase 4 (Task 4.2):** Memory Bank files updated (Completed).
 - **What's Next / To Be Built:**
   - **Testing (Phase 4 - Task 4.1):**
-    - **Continue Task 4.1:** Add more test cases (edge cases, error handling) to existing test files.
+    - **Continue Task 4.1:** Add more test cases (edge cases, error handling) to existing test files (e.g., `comparatorUtils.test.ts`, integration tests).
     - Implement unit tests for remaining pure functions.
     - Investigate end-to-end testing strategy.
   - **Documentation (Phase 4):**

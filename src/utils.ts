@@ -301,14 +301,14 @@ function parseExifDate(
   // exiftool-vendored types already handle Date, ExifDateTime, ExifDate
   if (value instanceof Date) return value;
   // Duck typing: Check if it has a toDate method
-  if (value && typeof (value as any).toDate === 'function') {
+  if (value && typeof (value as { toDate?: unknown }).toDate === 'function') { // Use more specific type assertion
       // Attempt to call toDate and ensure it returns a Date
       try {
-          const date = (value as any).toDate();
+          const date = (value as { toDate: () => unknown }).toDate(); // Assert toDate exists
           if (date instanceof Date) {
               return date;
           }
-      } catch (e) {
+      } catch { // Remove unused variable 'e'
           // Ignore errors from toDate call, will return undefined below
       }
   }

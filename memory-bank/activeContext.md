@@ -1,4 +1,4 @@
-<!-- Version: 3.2 | Last Updated: 2025-04-06 | Updated By: Cline -->
+<!-- Version: 3.3 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Active Context
 
@@ -25,13 +25,6 @@
   - **Phase 3:** Refined `CliReporter` progress bar formatting.
   - **Phase 4 (Task 4.3):** Updated `README.md` to reflect current architecture and features.
   - **Phase 4 (Task 4.1):** Added/Updated integration/unit tests for `LmdbCache`, `discovery`, `gatherer`, `deduplicator`, `transfer`, `CliReporter`.
+  - **Phase 4 (Task 4.1):** Added/Updated unit tests for `src/utils.ts` (covering buffer/hex conversions, async helpers, DCT helpers, quickSelect, EXIF parsing).
   - **Phase 4 (Task 4.2):** Updated Memory Bank files (Completed).
-- **Next Steps:** Phase 4 (Testing & Documentation):
-    - **Task 4.1:** Continue implementing tests (add more test cases, cover edge cases, improve coverage).
-    - **Task 4.x:** Add more detailed documentation (e.g., architecture diagrams, advanced usage).
-- **Open Questions/Decisions:**
-    - Specific LSH function/parameters and DB indexing strategy for optimal performance? **Decision:** Current LSH (4x16bit bands) implemented; further tuning deferred.
-    - How to address persistent mocking issues in `bun test`? **Decision:** Focus on integration tests and higher-level mocking. Skip `better-sqlite3` tests under Bun for now.
-    - Need for further Phase 2 optimizations (LSH loop DB fetch, worker refinement, benchmarking)? **Decision:** Postpone until after initial testing/documentation pass.
-    - Need for further Phase 3 UI refinements? **Decision:** Postpone until after initial testing/documentation pass.
-    - Need for end-to-end testing framework/strategy? **Decision:** Deferred.
+- **Next Steps:** Phase 4 (Testing & Documentation):\n    - **Task 4.1:** Continue implementing tests (add more test cases, cover edge cases, improve coverage for other modules like `comparatorUtils.ts`, integration tests).\n    - **Task 4.x:** Add more detailed documentation (e.g., architecture diagrams, advanced usage).\n- **Open Questions/Decisions:**\n    - Specific LSH function/parameters and DB indexing strategy for optimal performance? **Decision:** Current LSH (4x16bit bands) implemented; further tuning deferred.\n    - How to address persistent mocking issues in `bun test`? **Decision:** Focus on integration tests and higher-level mocking. Skip `better-sqlite3` tests under Bun for now.\n    - Need for further Phase 2 optimizations (LSH loop DB fetch, worker refinement, benchmarking)? **Decision:** Postpone until after initial testing/documentation pass.\n    - Need for further Phase 3 UI refinements? **Decision:** Postpone until after initial testing/documentation pass.\n    - Need for end-to-end testing framework/strategy? **Decision:** Deferred.\n

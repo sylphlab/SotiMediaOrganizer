@@ -478,8 +478,8 @@ describe("Comparator Utilities", () => {
     const videoMediaNoMatch: MediaInfo = { duration: 5, frames: [videoFrame2] }; // Only very different frame
     const emptyVideoMedia: MediaInfo = { duration: 5, frames: [] };
     const emptyImageMedia: MediaInfo = { duration: 0, frames: [] };
-    const imageMediaNoHash: MediaInfo = { duration: 0, frames: [{ hash: undefined as any, timestamp: 0 }] };
-    const videoMediaSomeNoHash: MediaInfo = { duration: 10, frames: [videoFrame1, { hash: undefined as any, timestamp: 1 }, videoFrame3] };
+    const imageMediaNoHash: MediaInfo = { duration: 0, frames: [{ hash: undefined, timestamp: 0 }] };
+    const videoMediaSomeNoHash: MediaInfo = { duration: 10, frames: [videoFrame1, { hash: undefined, timestamp: 1 }, videoFrame3] };
 
 
     it("should return 0 if image has no frames or hash", () => {
@@ -513,7 +513,7 @@ describe("Comparator Utilities", () => {
     const frameC: FrameInfo = { hash: hashC, timestamp: 2 };
     const frameD: FrameInfo = { hash: hashD, timestamp: 3 };
     const frameA_slight: FrameInfo = { hash: hashA_slight, timestamp: 0.1 };
-    const frame_noHash: FrameInfo = { hash: undefined as any, timestamp: 4 };
+    const frame_noHash: FrameInfo = { hash: undefined, timestamp: 4 };
 
     const seq1: FrameInfo[] = [frameA, frameB, frameC];
     const seq2_identical: FrameInfo[] = [frameA, frameB, frameC];
