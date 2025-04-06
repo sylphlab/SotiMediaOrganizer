@@ -1,8 +1,8 @@
-<!-- Version: 0.3 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 0.4 | Last Updated: 2025-06-04 | Updated By: Cline -->
 
 # Project Brief
 
-- **Project Name:** MediaCurator (MediaCurator) / `@sylphlab/MediaCurator`
+- **Project Name:** MediaCurator / `@sylphlab/media-curator`
 - **Core Goal:** To provide a powerful, efficient, and scalable tool for intelligently organizing and deduplicating large digital photo and video collections based on metadata and content analysis.
 - **Key Requirements:**
   - Organize media files into a user-defined directory structure based on metadata (date, geo, camera) and file info.

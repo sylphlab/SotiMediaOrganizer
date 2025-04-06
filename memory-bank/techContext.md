@@ -1,4 +1,4 @@
-<!-- Version: 0.3 | Last Updated: 2025-04-06 | Updated By: Cline -->
+<!-- Version: 0.4 | Last Updated: 2025-06-04 | Updated By: Cline -->
 
 # Technical Context
 
@@ -13,5 +13,5 @@
 - **Databases:** SQLite (via `better-sqlite3`) for primary metadata, LMDB for caching.
 - **External Services/APIs:** Relies on external tools FFmpeg and ExifTool (via `exiftool-vendored`). Requires libvips (via `sharp`).
 - **Development Environment:** Node.js (>=14), Bun (>=0.5), TypeScript (>=5). Uses Prettier for formatting and ESLint for linting. Husky for pre-commit hooks.
-- **Build/Deployment:** Built using `bun build`. Compiles TypeScript to JavaScript (`dist/`) and AssemblyScript to WASM (`dist/index.wasm`). Published as an npm package (`@sylphlab/MediaCurator`) intended for global installation (`bun install --global`).
+- **Build/Deployment:** Built using `bun build`. Compiles TypeScript to JavaScript (`dist/`) and AssemblyScript to WASM (`dist/index.wasm`). Published as an npm package (`@sylphlab/media-curator`) intended for global installation (`bun install --global`).
 - **Technical Constraints:** Performance is critical, requiring optimization techniques like WASM and concurrency. Cross-platform compatibility (Windows/Ubuntu mentioned) is a goal. Format support depends on underlying libraries (FFmpeg, libvips) which might need custom compilation for specialized formats.

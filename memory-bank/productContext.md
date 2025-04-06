@@ -1,4 +1,4 @@
-<!-- Version: 0.2 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 0.3 | Last Updated: 2025-06-04 | Updated By: Cline -->
 
 # Product Context
 
