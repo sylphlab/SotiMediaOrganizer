@@ -2,7 +2,7 @@
 
 # Active Context
 
-- **Current Focus:** Phase 4 (Testing & Documentation). Continuing Task 4.1: Implementing more tests.
+- **Current Focus:** Phase 4 (Testing & Documentation). Switching focus to Task 4.x: Add more detailed documentation, as Task 4.1 (Testing) is blocked by `bun test` mocking compatibility issues.
 - **Recent Changes:**
   - Planned Phase 1 refactoring (Architect Mode), saved plan to `phase1_refactoring_plan.md`.
   - Added `neverthrow` dependency.

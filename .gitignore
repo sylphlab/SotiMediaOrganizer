@@ -1,3 +1,8 @@
 node_modules
 *.mdb
 dist
+build
+coverage
+.env
+.DS_Store
+*.log

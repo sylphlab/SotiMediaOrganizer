@@ -6,13 +6,13 @@ import {
 import { rmSync, existsSync } from "fs";
 import { join } from "path";
 // Removed unused ok, err from '../../src/errors'
-import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from "@jest/globals"; // Import Jest globals
+import { vi, describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest"; // Import vi
 
 const TEST_DB_DIR = ".test-cache-db";
 const TEST_DB_PATH = join(TEST_DB_DIR, "test-cache.lmdb"); // Use .lmdb extension
 
 describe("LmdbCache Integration Tests", () => {
-  jest.setTimeout(30000); // Use jest.setTimeout
+  vi.setConfig({ testTimeout: 30000 }); // Use vi.setConfig for timeout
 
   let cache: LmdbCache;
 

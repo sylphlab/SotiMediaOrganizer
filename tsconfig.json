@@ -1,15 +1,18 @@
 {
   "compilerOptions": {
-    "target": "esnext",
+    "target": "esnext", // Keep as esnext (newer than ES2022)
     "lib": ["esnext", "dom"],
     "typeRoots": ["./node_modules/@types"],
-    "module": "esnext",
+    "module": "esnext", // Keep as esnext for modern module handling
     "moduleResolution": "node",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "allowSyntheticDefaultImports": true,
-    "skipLibCheck": true,
-    "strictPropertyInitialization": false
+    "strict": true, // Enable all strict type-checking options
+    "allowSyntheticDefaultImports": true, // Generally useful
+    "esModuleInterop": true, // Recommended for compatibility
+    "forceConsistentCasingInFileNames": true, // Best practice
+    "outDir": "./dist", // Specify output directory
+    "declaration": true, // Generate corresponding '.d.ts' file.
+    "sourceMap": true // Generate corresponding '.map' file.
   },
-  "exclude": ["node_modules"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "index.ts"], // Specify files to include
+  "exclude": ["node_modules", "dist", "build", "assembly"] // Specify files/dirs to exclude
 }

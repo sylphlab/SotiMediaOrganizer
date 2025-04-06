@@ -5,26 +5,26 @@ import * as path from "path";
 import * as utils from "../src/utils";
 import { FileType } from "../src/types";
 import { ok, err, FileSystemError } from "../src/errors";
-import { jest, describe, it, expect, beforeEach, afterEach } from "@jest/globals"; // Import jest from @jest/globals
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest"; // Import vi from vitest
 import { Dirent } from "fs";
 
 // Mock dependencies
 // Mock fs/promises using vi.mock and expose the mock function
 // Mock fs/promises using vi.mock (mock function defined inside)
-jest.mock("fs/promises", () => ({
-    readdir: jest.fn(async () => [] as Dirent[]),
+vi.mock("fs/promises", () => ({
+    readdir: vi.fn(async () => [] as Dirent[]),
 }));
 
 // Mock reporting/CliReporter using vi.mock and expose mocks
 // Mock reporting/CliReporter using vi.mock (mock functions defined inside)
-jest.mock("../src/reporting/CliReporter", () => {
+vi.mock("../src/reporting/CliReporter", () => {
     const CliReporterMock = class {
-        startSpinner = jest.fn(() => {});
-        updateSpinnerText = jest.fn(() => {});
-        stopSpinnerSuccess = jest.fn(() => {});
-        logError = jest.fn(() => {});
-        logInfo = jest.fn(() => {});
-        logSuccess = jest.fn(() => {});
+        startSpinner = vi.fn(() => {});
+        updateSpinnerText = vi.fn(() => {});
+        stopSpinnerSuccess = vi.fn(() => {});
+        logError = vi.fn(() => {});
+        logInfo = vi.fn(() => {});
+        logSuccess = vi.fn(() => {});
         constructor() {}
     };
     return { CliReporter: CliReporterMock };
@@ -59,25 +59,26 @@ describe("discoverFilesFn", () => {
     beforeEach(async () => { // Make beforeEach async
         // Reset most mocks, but handle async mock separately
         // Reset all mocks
-        jest.resetAllMocks(); // Use resetAllMocks
+        vi.resetAllMocks(); // Use resetAllMocks to clear state but keep mocks
 
-        // Access mocked modules directly (jest.mock hoists)
-        fsPromisesMock = fsPromises as jest.Mocked<typeof fsPromises>;
-        // Need to import the mocked class to instantiate it
-        const { CliReporter: MockedCliReporter } = await import("../src/reporting/CliReporter");
-        reporterInstance = new MockedCliReporter(false) as jest.Mocked<CliReporter>; // Cast instance
+        // Import the mocked modules
+        const fsPromisesMocked = await vi.importMock<typeof import('fs/promises')>('fs/promises');
+        const { CliReporter: MockedCliReporter } = await vi.importMock<typeof import("../src/reporting/CliReporter")>("../src/reporting/CliReporter");
+        // Assign to variables accessible in tests
+        fsPromisesMock = fsPromisesMocked; // Assign to the variable declared outside
+        reporterInstance = new MockedCliReporter(false);
 
         // Apply default implementations for this test run
-        (fsPromisesMock.readdir as jest.Mock).mockImplementation(async () => []); // Use mockImplementation
+        vi.mocked(fsPromisesMock.readdir).mockResolvedValue([]); // Use vi.mocked
 
         // Spy on and set default implementation for utils.getFileTypeByExt
-        jest.spyOn(utils, 'getFileTypeByExt').mockReturnValue(ok(FileType.Image));
+        vi.spyOn(utils, 'getFileTypeByExt').mockReturnValue(ok(FileType.Image));
     });
 
     it("should return an empty map for empty source directories", async () => {
-        const result = await discoverFilesFn([], 1, mockReporter);
+        const result = await discoverFilesFn([], 1, reporterInstance); // Use reporterInstance
         expect(result.size).toBe(0);
-        expect(fsPromisesMock.readdir).not.toHaveBeenCalled();
+        expect(vi.mocked(fsPromisesMock.readdir)).not.toHaveBeenCalled(); // Use vi.mocked
         expect(reporterInstance.startSpinner).toHaveBeenCalledTimes(1);
         expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledTimes(1);
     });
@@ -90,16 +91,16 @@ describe("discoverFilesFn", () => {
             createDirent("c.txt", false), // Unsupported
             createDirent("d.MP4", false), // Supported (case-insensitive check)
         ];
-        (fsPromisesMock.readdir as jest.Mock).mockImplementation(async () => mockEntries); // Use mockImplementation
+        vi.mocked(fsPromisesMock.readdir).mockResolvedValue(mockEntries); // Use vi.mocked
 
-        const result = await discoverFilesFn(sourceDirs, 1, mockReporter);
+        const result = await discoverFilesFn(sourceDirs, 1, reporterInstance); // Use reporterInstance
 
         expect(result.size).toBe(3); // jpg, png, mp4
         expect(result.get("jpg")).toEqual([path.join("/testDir", "a.jpg")]);
         expect(result.get("png")).toEqual([path.join("/testDir", "b.png")]);
         expect(result.get("mp4")).toEqual([path.join("/testDir", "d.MP4")]);
         expect(result.has("txt")).toBe(false);
-        expect(fsPromisesMock.readdir).toHaveBeenCalledWith("/testDir", { withFileTypes: true });
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledWith("/testDir", { withFileTypes: true }); // Use vi.mocked
         expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledWith(expect.stringContaining("Found 3 files"));
         expect(reporterInstance.logInfo).toHaveBeenCalledTimes(4); // Header + 3 formats
         expect(reporterInstance.logSuccess).toHaveBeenCalledTimes(1); // Total
@@ -118,27 +119,27 @@ describe("discoverFilesFn", () => {
         ];
         const emptySubdirEntries: Dirent[] = [];
 
-        (fsPromisesMock.readdir as jest.Mock) // Use jest.Mock
-            .mockImplementationOnce(async () => rootEntries) // Use mockImplementationOnce
-            .mockImplementationOnce(async () => subdirEntries) // Use mockImplementationOnce
-            .mockImplementationOnce(async () => emptySubdirEntries); // Use mockImplementationOnce
+        vi.mocked(fsPromisesMock.readdir) // Use vi.mocked
+            .mockResolvedValueOnce(rootEntries)
+            .mockResolvedValueOnce(subdirEntries)
+            .mockResolvedValueOnce(emptySubdirEntries);
 
         // Mock getFileTypeByExt for sorting log
         // Mock getFileTypeByExt for sorting log using the spy
-        jest.spyOn(utils, 'getFileTypeByExt')
+        vi.spyOn(utils, 'getFileTypeByExt')
             .mockReturnValueOnce(ok(FileType.Image)) // jpeg
             .mockReturnValueOnce(ok(FileType.Video)); // mov
 
         // Set concurrency to 1 for this test to simplify async flow
-        const result = await discoverFilesFn(sourceDirs, 1, mockReporter);
+        const result = await discoverFilesFn(sourceDirs, 1, reporterInstance); // Use reporterInstance
 
         expect(result.size).toBe(2);
         expect(result.get("jpeg")).toEqual([path.join("/root", "file1.jpeg")]);
         expect(result.get("mov")).toEqual([path.join("/root", "subdir", "file2.mov")]);
-        expect(fsPromisesMock.readdir).toHaveBeenCalledTimes(3);
-        expect(fsPromisesMock.readdir).toHaveBeenCalledWith("/root", { withFileTypes: true });
-        expect(fsPromisesMock.readdir).toHaveBeenCalledWith(path.join("/root", "subdir"), { withFileTypes: true });
-        expect(fsPromisesMock.readdir).toHaveBeenCalledWith(path.join("/root", "subdir", "emptySubdir"), { withFileTypes: true });
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledTimes(3); // Use vi.mocked
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledWith("/root", { withFileTypes: true }); // Use vi.mocked
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledWith(path.join("/root", "subdir"), { withFileTypes: true }); // Use vi.mocked
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledWith(path.join("/root", "subdir", "emptySubdir"), { withFileTypes: true }); // Use vi.mocked
         expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledWith(expect.stringContaining("Found 2 files"));
          // Check log sorting (Video first due to mock)
         expect(reporterInstance.logInfo).toHaveBeenNthCalledWith(2, expect.stringContaining("mov"));
@@ -148,12 +149,12 @@ describe("discoverFilesFn", () => {
     it("should handle readdir errors gracefully", async () => {
         const sourceDirs = ["/root"];
         const error = new Error("Permission denied");
-        (fsPromisesMock.readdir as jest.Mock).mockImplementation(async () => { throw error; }); // Use mockImplementation
+        vi.mocked(fsPromisesMock.readdir).mockRejectedValue(error); // Use vi.mocked
 
-        const result = await discoverFilesFn(sourceDirs, 1, mockReporter);
+        const result = await discoverFilesFn(sourceDirs, 1, reporterInstance); // Use reporterInstance
 
         expect(result.size).toBe(0); // No files found due to error
-        expect(fsPromisesMock.readdir).toHaveBeenCalledTimes(1);
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledTimes(1); // Use vi.mocked
         expect(reporterInstance.logError).toHaveBeenCalledTimes(1);
         expect(reporterInstance.logError).toHaveBeenCalledWith(expect.stringContaining("Error scanning directory /root"));
         expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledWith(expect.stringContaining("Found 0 files")); // Still finishes
@@ -167,15 +168,15 @@ describe("discoverFilesFn", () => {
         ];
         const error = new Error("Cannot read");
 
-         (fsPromisesMock.readdir as jest.Mock) // Use jest.Mock
-            .mockImplementationOnce(async () => rootEntries) // Use mockImplementationOnce
-            .mockImplementationOnce(async () => { throw error; }); // Use mockImplementationOnce
+         vi.mocked(fsPromisesMock.readdir) // Use vi.mocked
+            .mockResolvedValueOnce(rootEntries)
+            .mockRejectedValueOnce(error); // Error in badSubdir
 
-        const result = await discoverFilesFn(sourceDirs, 1, mockReporter);
+        const result = await discoverFilesFn(sourceDirs, 1, reporterInstance); // Use reporterInstance
 
         expect(result.size).toBe(1); // Only file1.jpeg found
         expect(result.get("jpeg")).toEqual([path.join("/root", "file1.jpeg")]);
-        expect(fsPromisesMock.readdir).toHaveBeenCalledTimes(2); // Use fsPromisesMock
+        expect(vi.mocked(fsPromisesMock.readdir)).toHaveBeenCalledTimes(2); // Use vi.mocked
         expect(reporterInstance.logError).toHaveBeenCalledTimes(1); // Use reporterInstance
         expect(reporterInstance.logError).toHaveBeenCalledWith(expect.stringContaining("Error scanning directory " + path.join("/root", "badSubdir"))); // Use reporterInstance
         expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledWith(expect.stringContaining("Found 1 files")); // Use reporterInstance

@@ -15,30 +15,30 @@ import { LmdbCache } from "../src/caching/LmdbCache";
 import { ExifTool } from "exiftool-vendored";
 import { WorkerPool } from "../src/contexts/types";
 import { ok, err, AppError, AppResult } from "../src/errors";
-import { jest, describe, it, expect, beforeEach, afterEach } from "@jest/globals"; // Import from @jest/globals
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest"; // Import from vitest
 
 // Use vi.mock() for module mocking
-jest.mock("../src/jobs/fileStats", () => {
+vi.mock("../src/jobs/fileStats", () => {
     // Define mock inside the factory
-    const mockProcessFileStatsFn = jest.fn();
+    const mockProcessFileStatsFn = vi.fn();
     return {
         processFileStats: mockProcessFileStatsFn,
         // Expose mock if needed (optional)
         // __mocks: { mockProcessFileStatsFn }
     };
 });
-jest.mock("../src/jobs/metadataExtraction", () => {
+vi.mock("../src/jobs/metadataExtraction", () => {
     // Define mock inside the factory
-    const mockProcessMetadataFn = jest.fn();
+    const mockProcessMetadataFn = vi.fn();
     return {
         processMetadata: mockProcessMetadataFn,
         // Expose mock if needed (optional)
         // __mocks: { mockProcessMetadataFn }
     };
 });
-jest.mock("../src/jobs/adaptiveExtraction", () => {
+vi.mock("../src/jobs/adaptiveExtraction", () => {
     // Define mock inside the factory
-    const mockProcessAdaptiveExtractionFn = jest.fn();
+    const mockProcessAdaptiveExtractionFn = vi.fn();
     return {
         processAdaptiveExtraction: mockProcessAdaptiveExtractionFn,
         // Expose mock if needed (optional)
@@ -50,9 +50,9 @@ jest.mock("../src/jobs/adaptiveExtraction", () => {
 const mockCache = {} as LmdbCache; // Simple mock, actual methods not called by processSingleFile
 const mockExifTool = {} as ExifTool; // Simple mock
 const mockWorkerPool = {
-  exec: jest.fn(),
-  terminate: jest.fn(), // Use jest.fn()
-  stats: jest.fn(), // Use jest.fn()
+  exec: vi.fn(),
+  terminate: vi.fn(), // Use vi.fn()
+  stats: vi.fn(), // Use vi.fn()
 } as unknown as WorkerPool; // Mock the interface
 
 // Helper function for hexToSharedArrayBuffer (moved outside describe)
@@ -104,30 +104,32 @@ const mockError = new AppError("Test Error");
 describe("processSingleFile", () => {
   // Access mocks through vi.importMock or directly if exposed via __mocks
   // We'll use vi.importMock for better type safety and clarity
-  let mockedProcessFileStats: jest.Mock; // Use jest.Mock type
-  let mockedProcessMetadata: jest.Mock; // Use jest.Mock type
-  let mockedProcessAdaptiveExtraction: jest.Mock; // Use jest.Mock type
+  let mockedProcessFileStats: ReturnType<typeof vi.fn>;
+  let mockedProcessMetadata: ReturnType<typeof vi.fn>;
+  let mockedProcessAdaptiveExtraction: ReturnType<typeof vi.fn>;
 
   // Define variables for console spy outside hooks
-  let consoleErrorSpy: jest.Mock; // Use jest.Mock type
+  let consoleErrorSpy: vi.Mock; // Use vi.Mock type
   let originalConsoleError: typeof console.error;
 
   beforeEach(async () => { // Make beforeEach async
     // Reset mocks using vi.clearAllMocks()
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     // Re-import mocks to get fresh instances for the test
-    // With jest.mock at the top, the imported functions are already mocks
-    // We need to cast them correctly or access the mock property if needed
-    // Re-importing is not standard Jest practice here, access the already mocked import
-    mockedProcessFileStats = processFileStats as jest.Mock;
-    mockedProcessMetadata = processMetadata as jest.Mock;
-    mockedProcessAdaptiveExtraction = processAdaptiveExtraction as jest.Mock;
+    const fileStatsMock = await vi.importMock<any>("../src/jobs/fileStats");
+    mockedProcessFileStats = fileStatsMock.processFileStats;
+
+    const metadataMock = await vi.importMock<any>("../src/jobs/metadataExtraction");
+    mockedProcessMetadata = metadataMock.processMetadata;
+
+    const adaptiveExtractionMock = await vi.importMock<any>("../src/jobs/adaptiveExtraction");
+    mockedProcessAdaptiveExtraction = adaptiveExtractionMock.processAdaptiveExtraction;
 
 
     // Reset console spy if used
     // Assign spy in beforeEach
-    consoleErrorSpy = jest.fn(() => {}); // Use jest.fn()
+    consoleErrorSpy = vi.fn(() => {}); // Use vi.fn()
     originalConsoleError = console.error; // Store original
     console.error = consoleErrorSpy;
   });

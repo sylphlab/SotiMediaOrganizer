@@ -47,4 +47,5 @@
 - **Deduplicator Unit Tests:** Tests in `tests/deduplicator.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
 - **Discovery Unit Tests:** Tests in `tests/discovery.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
 - **Gatherer Unit Tests:** Tests in `tests/gatherer.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
-  - **Transfer Unit Tests:** Tests in `tests/transfer.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
+- **Transfer Unit Tests:** Tests in `tests/transfer.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
+  - **Transfer Integration Tests:** Tests in `tests/transfer.integration.test.ts` are also skipped due to `jest.resetAllMocks` compatibility issues in `bun test`.

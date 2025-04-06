@@ -15,7 +15,7 @@ import {
   Metadata,
 } from "../src/types";
 import { ok, err, AppError, DatabaseError, AppResult } from "../src/errors";
-import { jest, describe, it, expect, beforeEach, afterEach } from "@jest/globals";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 // Mock dependencies
 // jest.mock("../MediaComparator"); // Mock the class constructor and methods
@@ -29,50 +29,50 @@ import { jest, describe, it, expect, beforeEach, afterEach } from "@jest/globals
 
 // Use vi.mock() for module mocking
 // Define mocks inside factories to avoid hoisting issues
-jest.mock("../MediaComparator", () => ({
+vi.mock("../MediaComparator", () => ({
   MediaComparator: class {
-    calculateSimilarity = jest.fn((info1: MediaInfo, info2: MediaInfo) => 0.95);
-    processResults = jest.fn(async () => ok({ uniqueFiles: new Set<string>(), duplicateSets: [] as DuplicateSet[] }));
+    calculateSimilarity = vi.fn((info1: MediaInfo, info2: MediaInfo) => 0.95);
+    processResults = vi.fn(async () => ok({ uniqueFiles: new Set<string>(), duplicateSets: [] as DuplicateSet[] }));
     constructor() {}
   },
 }));
-jest.mock("../src/services/MetadataDBService", () => ({
+vi.mock("../src/services/MetadataDBService", () => ({
   MetadataDBService: class {
-    getMultipleFileInfo = jest.fn<() => Promise<AppResult<Map<string, Partial<FileInfo>>>>>(async () => ok(new Map<string, Partial<FileInfo>>())); // Explicit type
-    getMediaInfoForFiles = jest.fn<(paths: string[]) => Promise<AppResult<Map<string, { pHash: string | null; mediaDuration: number | null }>>>>(async (paths: string[]) => ok(new Map<string, { pHash: string | null; mediaDuration: number | null }>())); // Explicit type
-    findSimilarCandidates = jest.fn<(targetFile: string, lshKeys: (string | null)[]) => Promise<AppResult<string[]>>>(async (targetFile: string, lshKeys: (string | null)[]) => ok([] as string[])); // Explicit type
-    getFileInfo = jest.fn<(filePath: string) => Promise<AppResult<Partial<FileInfo> | null>>>(); // Explicit type, assuming null if not found
+    getMultipleFileInfo = vi.fn(async () => ok(new Map<string, Partial<FileInfo>>()));
+    getMediaInfoForFiles = vi.fn(async (paths: string[]) => ok(new Map<string, { pHash: string | null; mediaDuration: number | null }>()));
+    findSimilarCandidates = vi.fn(async (targetFile: string, lshKeys: (string | null)[]) => ok([] as string[]));
+    getFileInfo = vi.fn<(filePath: string) => AppResult<Partial<FileInfo>>>(); // Define signature here
     constructor() {}
     close() {}
-    upsertFileInfo = jest.fn<() => AppResult<void>>(() => ok(undefined)); // Explicit type, assuming void return
+    upsertFileInfo = vi.fn(() => ok(undefined));
   },
 }));
-jest.mock("../src/reporting/CliReporter", () => ({
+vi.mock("../src/reporting/CliReporter", () => ({
   CliReporter: class {
-    startSpinner = jest.fn();
-    updateSpinnerText = jest.fn();
-    stopSpinnerSuccess = jest.fn();
-    stopSpinnerFailure = jest.fn();
-    logWarning = jest.fn();
-    logError = jest.fn();
+    startSpinner = vi.fn();
+    updateSpinnerText = vi.fn();
+    stopSpinnerSuccess = vi.fn();
+    stopSpinnerFailure = vi.fn();
+    logWarning = vi.fn();
+    logError = vi.fn();
     constructor() {}
-    logInfo = jest.fn();
-    logSuccess = jest.fn();
+    logInfo = vi.fn();
+    logSuccess = vi.fn();
   },
 }));
-jest.mock("../src/comparatorUtils", async () => { // Remove importOriginal parameter
-    const original = await jest.requireActual<typeof comparatorUtils>("../src/comparatorUtils"); // Use jest.requireActual
+vi.mock("../src/comparatorUtils", async (importOriginal) => {
+    const original = await importOriginal<typeof comparatorUtils>();
     return {
         ...original,
-        mergeAndDeduplicateClusters: jest.fn((clusters: Set<string>[]) => clusters),
-        getAdaptiveThreshold: jest.fn(() => 0.9),
+        mergeAndDeduplicateClusters: vi.fn((clusters: Set<string>[]) => clusters),
+        getAdaptiveThreshold: vi.fn(() => 0.9),
     };
 });
-jest.mock("../src/utils", async () => { // Remove importOriginal parameter
-    const original = await jest.requireActual<typeof utils>("../src/utils"); // Use jest.requireActual
+vi.mock("../src/utils", async (importOriginal) => {
+    const original = await importOriginal<typeof utils>();
     return {
         ...original,
-        bufferToSharedArrayBuffer: jest.fn(() => new SharedArrayBuffer(8)),
+        bufferToSharedArrayBuffer: vi.fn(() => new SharedArrayBuffer(8)),
     };
 });
 
@@ -122,21 +122,21 @@ describe("deduplicateFilesFn", () => {
   // Need to await dynamic imports for utils and comparatorUtils inside an async context (e.g., beforeAll or test)
   // Let's define them inside beforeEach for simplicity for now.
   // Declare variables for mocked functions/methods
-  let mockedCalculateSimilarity: jest.Mocked<MediaComparator['calculateSimilarity']>;
-  let mockedProcessResults: jest.Mocked<MediaComparator['processResults']>;
-  let mockedGetMultipleFileInfo: jest.Mocked<MetadataDBService['getMultipleFileInfo']>;
-  let mockedGetMediaInfoForFiles: jest.Mocked<MetadataDBService['getMediaInfoForFiles']>;
-  let mockedFindSimilarCandidates: jest.Mocked<MetadataDBService['findSimilarCandidates']>;
-  let mockedGetFileInfo: jest.Mocked<MetadataDBService['getFileInfo']>;
-  let mockedStartSpinner: jest.Mocked<CliReporter['startSpinner']>;
-  let mockedUpdateSpinnerText: jest.Mocked<CliReporter['updateSpinnerText']>;
-  let mockedStopSpinnerSuccess: jest.Mocked<CliReporter['stopSpinnerSuccess']>;
-  let mockedStopSpinnerFailure: jest.Mocked<CliReporter['stopSpinnerFailure']>;
-  let mockedLogWarning: jest.Mocked<CliReporter['logWarning']>;
-  let mockedLogError: jest.Mocked<CliReporter['logError']>;
-  let mockedMergeClusters: jest.Mocked<typeof comparatorUtils.mergeAndDeduplicateClusters>;
-  let mockedGetAdaptiveThreshold: jest.Mocked<typeof comparatorUtils.getAdaptiveThreshold>;
-  let mockedBufferToSAB: jest.Mocked<typeof utils.bufferToSharedArrayBuffer>;
+  let mockedCalculateSimilarity: ReturnType<typeof vi.mocked<MediaComparator['calculateSimilarity']>>;
+  let mockedProcessResults: ReturnType<typeof vi.mocked<MediaComparator['processResults']>>;
+  let mockedGetMultipleFileInfo: ReturnType<typeof vi.mocked<MetadataDBService['getMultipleFileInfo']>>;
+  let mockedGetMediaInfoForFiles: ReturnType<typeof vi.mocked<MetadataDBService['getMediaInfoForFiles']>>;
+  let mockedFindSimilarCandidates: ReturnType<typeof vi.mocked<MetadataDBService['findSimilarCandidates']>>;
+  let mockedGetFileInfo: ReturnType<typeof vi.mocked<MetadataDBService['getFileInfo']>>;
+  let mockedStartSpinner: ReturnType<typeof vi.mocked<CliReporter['startSpinner']>>;
+  let mockedUpdateSpinnerText: ReturnType<typeof vi.mocked<CliReporter['updateSpinnerText']>>;
+  let mockedStopSpinnerSuccess: ReturnType<typeof vi.mocked<CliReporter['stopSpinnerSuccess']>>;
+  let mockedStopSpinnerFailure: ReturnType<typeof vi.mocked<CliReporter['stopSpinnerFailure']>>;
+  let mockedLogWarning: ReturnType<typeof vi.mocked<CliReporter['logWarning']>>;
+  let mockedLogError: ReturnType<typeof vi.mocked<CliReporter['logError']>>;
+  let mockedMergeClusters: ReturnType<typeof vi.mocked<typeof comparatorUtils.mergeAndDeduplicateClusters>>;
+  let mockedGetAdaptiveThreshold: ReturnType<typeof vi.mocked<typeof comparatorUtils.getAdaptiveThreshold>>;
+  let mockedBufferToSAB: ReturnType<typeof vi.mocked<typeof utils.bufferToSharedArrayBuffer>>;
 
   beforeEach(async () => {
     // Import actual functions here to use with vi.mocked
@@ -145,21 +145,21 @@ describe("deduplicateFilesFn", () => {
     const actualUtils = await import("../src/utils") as typeof utils;
 
     // Assign mocked variables
-    mockedCalculateSimilarity = jest.mocked(mockComparator.calculateSimilarity);
-    mockedProcessResults = jest.mocked(mockComparator.processResults);
-    mockedGetMultipleFileInfo = jest.mocked(mockDbService.getMultipleFileInfo);
-    mockedGetMediaInfoForFiles = jest.mocked(mockDbService.getMediaInfoForFiles);
-    mockedFindSimilarCandidates = jest.mocked(mockDbService.findSimilarCandidates);
-    mockedGetFileInfo = jest.mocked(mockDbService.getFileInfo);
-    mockedStartSpinner = jest.mocked(mockReporter.startSpinner);
-    mockedUpdateSpinnerText = jest.mocked(mockReporter.updateSpinnerText);
-    mockedStopSpinnerSuccess = jest.mocked(mockReporter.stopSpinnerSuccess);
-    mockedStopSpinnerFailure = jest.mocked(mockReporter.stopSpinnerFailure);
-    mockedLogWarning = jest.mocked(mockReporter.logWarning);
-    mockedLogError = jest.mocked(mockReporter.logError);
-    mockedMergeClusters = jest.mocked(actualComparatorUtils.mergeAndDeduplicateClusters);
-    mockedGetAdaptiveThreshold = jest.mocked(actualComparatorUtils.getAdaptiveThreshold);
-    mockedBufferToSAB = jest.mocked(actualUtils.bufferToSharedArrayBuffer);
+    mockedCalculateSimilarity = vi.mocked(mockComparator.calculateSimilarity);
+    mockedProcessResults = vi.mocked(mockComparator.processResults);
+    mockedGetMultipleFileInfo = vi.mocked(mockDbService.getMultipleFileInfo);
+    mockedGetMediaInfoForFiles = vi.mocked(mockDbService.getMediaInfoForFiles);
+    mockedFindSimilarCandidates = vi.mocked(mockDbService.findSimilarCandidates);
+    mockedGetFileInfo = vi.mocked(mockDbService.getFileInfo);
+    mockedStartSpinner = vi.mocked(mockReporter.startSpinner);
+    mockedUpdateSpinnerText = vi.mocked(mockReporter.updateSpinnerText);
+    mockedStopSpinnerSuccess = vi.mocked(mockReporter.stopSpinnerSuccess);
+    mockedStopSpinnerFailure = vi.mocked(mockReporter.stopSpinnerFailure);
+    mockedLogWarning = vi.mocked(mockReporter.logWarning);
+    mockedLogError = vi.mocked(mockReporter.logError);
+    mockedMergeClusters = vi.mocked(actualComparatorUtils.mergeAndDeduplicateClusters);
+    mockedGetAdaptiveThreshold = vi.mocked(actualComparatorUtils.getAdaptiveThreshold);
+    mockedBufferToSAB = vi.mocked(actualUtils.bufferToSharedArrayBuffer);
 
     // Reset all mocks
     mockedCalculateSimilarity.mockClear();
@@ -181,9 +181,9 @@ describe("deduplicateFilesFn", () => {
     // Reset default implementations
     mockedCalculateSimilarity.mockReturnValue(0.95);
     mockedProcessResults.mockResolvedValue(ok({ uniqueFiles: new Set<string>(), duplicateSets: [] }));
-    mockedGetMultipleFileInfo.mockImplementation(async () => ok(new Map())); // Use mockImplementation
-    mockedGetMediaInfoForFiles.mockImplementation(async () => ok(new Map())); // Use mockImplementation
-    mockedFindSimilarCandidates.mockImplementation(async () => ok([])); // Use mockImplementation
+    mockedGetMultipleFileInfo.mockResolvedValue(ok(new Map()));
+    mockedGetMediaInfoForFiles.mockResolvedValue(ok(new Map()));
+    mockedFindSimilarCandidates.mockResolvedValue(ok([]));
     mockedGetFileInfo.mockReturnValue(ok(mockFileInfoA as Partial<FileInfo>));
     mockedMergeClusters.mockImplementation((clusters: Set<string>[]) => clusters);
     mockedGetAdaptiveThreshold.mockReturnValue(0.9);
@@ -226,7 +226,7 @@ describe("deduplicateFilesFn", () => {
     const hashAB = hashABResult.value;
     const hashC = hashCResult.value;
 
-    mockedGetMultipleFileInfo.mockImplementation(async () => ok(new Map<string, Partial<FileInfo>>([ // Use mockImplementation
+    mockedGetMultipleFileInfo.mockResolvedValue(ok(new Map<string, Partial<FileInfo>>([
       ["a.jpg", { media: { duration: 0, frames: [{ hash: hashAB, timestamp: 0 }] } }],
       ["b.jpg", { media: { duration: 0, frames: [{ hash: hashAB, timestamp: 0 }] } }],
       ["c.png", { media: { duration: 0, frames: [{ hash: hashC, timestamp: 0 }] } }],
@@ -275,7 +275,7 @@ describe("deduplicateFilesFn", () => {
     const hashB = hashBResult.value;
 
     // Mock DB responses
-    mockedGetMultipleFileInfo.mockImplementation(async () => ok(new Map<string, Partial<FileInfo>>([ // Use mockImplementation
+    mockedGetMultipleFileInfo.mockResolvedValue(ok(new Map<string, Partial<FileInfo>>([
       ["simA1.jpg", { media: { duration: 0, frames: [{ hash: hashA1, timestamp: 0 }] } }],
       ["simA2.jpg", { media: { duration: 0, frames: [{ hash: hashA2, timestamp: 0 }] } }],
       ["uniqueB.png", { media: { duration: 0, frames: [{ hash: hashB, timestamp: 0 }] } }],

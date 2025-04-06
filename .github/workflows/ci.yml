@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*.*.*' ] # Trigger on version tags
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  validate:
+    name: Validate Code & Run Tests
+    runs-on: ubuntu-latest # Use Ubuntu runner
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2 # Use official setup-bun action
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile # Use frozen lockfile for reproducibility
+
+      - name: Check formatting
+        run: bun run check-format
+
+      - name: Lint code
+        run: bun run lint
+
+      - name: Run tests with coverage
+        run: bun run test:cov # This will fail if coverage < 100% due to vitest.config.ts
+
+      # Optional: Upload coverage report (e.g., to Codecov)
+      # - name: Upload coverage reports to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }} # Store token in GitHub secrets
+      #     files: ./coverage/lcov.info # Path to lcov report
+
+  publish:
+    name: Publish to npm
+    needs: validate # Run only if validate job succeeds
+    if: startsWith(github.ref, 'refs/tags/v') # Run only on tag push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build project
+        run: bun run build # Assumes build script handles everything
+
+      - name: Setup Node.js for npm publish
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*' # Use LTS Node.js version
+          registry-url: 'https://registry.npmjs.org' # Point to npm registry
+
+      - name: Publish to npm
+        run: npm publish --access public # Publish the package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }} # Store token in GitHub secrets
+
+      # Optional: Build and push Docker image if applicable
+      # - name: Build and push Docker image
+      #   uses: docker/build-push-action@v5
+      #   with:
+      #     context: .
+      #     push: true
+      #     tags: your-dockerhub-username/mediacurator:${{ github.ref_name }} # Example tag
+
+  release:
+    name: Create GitHub Release
+    needs: publish # Run only if publish job succeeds
+    if: startsWith(github.ref, 'refs/tags/v') # Run only on tag push
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write # Needed to create releases
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for release notes generation
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true # Auto-generate release notes from Conventional Commits
+          # Optional: Upload build artifacts to the release
+          # files: |
+          #   dist/*
