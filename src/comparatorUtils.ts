@@ -611,6 +611,7 @@ export async function runDbscanCore(
       if (clusterResult.isErr()) {
         console.error(
           `Error expanding cluster for ${point}: ${clusterResult.error.message}`,
+          clusterResult.error, // Restore passing the error object itself
         );
         visited.add(point); // Ensure point is marked visited even if expansion fails
         continue;

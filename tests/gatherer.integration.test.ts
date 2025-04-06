@@ -244,7 +244,9 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     mockProcessSingleFile.mockImplementation(async (filePath) => {
       if (filePath === errorFilePath) {
         return err(
-          new FileSystemError("Mock processing error", { context: { path: filePath } }), // Use context
+          new FileSystemError("Mock processing error", {
+            context: { path: filePath },
+          }), // Use context
         );
       }
       return ok({ ...sampleFileInfo, path: filePath });

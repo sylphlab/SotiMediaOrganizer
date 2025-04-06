@@ -9,7 +9,10 @@ export class AppError extends Error {
   public readonly context?: Record<string, unknown>; // Context for additional details, excluding 'cause'
   public readonly cause?: unknown; // Standard error cause property
 
-  constructor(message: string, options?: { cause?: unknown; context?: Record<string, unknown> }) {
+  constructor(
+    message: string,
+    options?: { cause?: unknown; context?: Record<string, unknown> },
+  ) {
     // Pass cause to the super constructor if provided
     super(message, options?.cause ? { cause: options.cause } : undefined);
     this.name = this.constructor.name; // Set the name to the specific error class
@@ -27,7 +30,10 @@ export class FileSystemError extends AppError {
   // Modify constructors of subclasses to pass options correctly
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { path?: string; operation?: string } },
+    options?: {
+      cause?: unknown;
+      context?: { path?: string; operation?: string };
+    },
   ) {
     super(message, options);
   }
@@ -36,7 +42,15 @@ export class FileSystemError extends AppError {
 export class ExternalToolError extends AppError {
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { tool?: string; command?: string; exitCode?: number | null; stderr?: string } },
+    options?: {
+      cause?: unknown;
+      context?: {
+        tool?: string;
+        command?: string;
+        exitCode?: number | null;
+        stderr?: string;
+      };
+    },
   ) {
     super(message, options);
   }
@@ -45,7 +59,10 @@ export class ExternalToolError extends AppError {
 export class DatabaseError extends AppError {
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { operation?: string; key?: string } },
+    options?: {
+      cause?: unknown;
+      context?: { operation?: string; key?: string };
+    },
   ) {
     super(message, options);
   }
@@ -54,7 +71,10 @@ export class DatabaseError extends AppError {
 export class HashingError extends AppError {
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { algorithm?: string; filePath?: string } },
+    options?: {
+      cause?: unknown;
+      context?: { algorithm?: string; filePath?: string };
+    },
   ) {
     super(message, options);
   }
@@ -63,24 +83,29 @@ export class HashingError extends AppError {
 export class ConfigurationError extends AppError {
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { setting?: string; value?: unknown } },
+    options?: {
+      cause?: unknown;
+      context?: { setting?: string; value?: unknown };
+    },
   ) {
     super(message, options);
   }
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, options?: { cause?: unknown; context?: { validationDetails?: unknown } }) {
+  constructor(
+    message: string,
+    options?: { cause?: unknown; context?: { validationDetails?: unknown } },
+  ) {
     super(message, options);
   }
 }
 
 export class UnknownError extends AppError {
-  constructor(cause: unknown) { // Accept cause directly
+  constructor(cause: unknown) {
+    // Accept cause directly
     const message =
-      cause instanceof Error
-        ? cause.message
-        : "An unknown error occurred";
+      cause instanceof Error ? cause.message : "An unknown error occurred";
     // Pass cause to super constructor
     super(message, { cause });
   }
