@@ -108,7 +108,8 @@ export function safeTry<T>(
 ): AppResult<T> {
   try {
     return ok(fn());
-  } catch (caughtError) { // Renamed variable
+  } catch (caughtError) {
+    // Renamed variable
     let appError: AnyAppError;
     if (typeof errorContext === "function") {
       appError = errorContext(caughtError); // Use renamed variable
@@ -130,7 +131,8 @@ export async function safeTryAsync<T>(
   try {
     const value = await promise;
     return ok(value);
-  } catch (caughtError) { // Rename the caught error variable
+  } catch (caughtError) {
+    // Rename the caught error variable
     let appError: AnyAppError;
     if (typeof errorContext === "function") {
       appError = errorContext(caughtError); // Use the renamed variable
@@ -139,7 +141,11 @@ export async function safeTryAsync<T>(
         ? `${errorContext}: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}` // Use the renamed variable
         : `Async operation failed: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}`; // Use the renamed variable
       // Attempt to create a more specific error if possible, otherwise use base AppError
-      if (caughtError instanceof Error && caughtError.message.includes("ENOENT")) { // Use the renamed variable
+      if (
+        caughtError instanceof Error &&
+        caughtError.message.includes("ENOENT")
+      ) {
+        // Use the renamed variable
         // Example: File not found
         appError = new FileSystemError(message, {
           originalError: caughtError, // Use the renamed variable

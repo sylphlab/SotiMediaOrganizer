@@ -350,8 +350,8 @@ export function selectRepresentativeCaptures(
     if (processedCaptures.has(capture1)) continue;
     // Skip captures that don't have a hash for comparison
     if (!info1.media.frames[0]?.hash) {
-        processedCaptures.add(capture1); // Mark as processed (cannot be compared or selected)
-        continue;
+      processedCaptures.add(capture1); // Mark as processed (cannot be compared or selected)
+      continue;
     }
 
     let isDuplicate = false;
@@ -426,7 +426,6 @@ export function selectRepresentativesFromScored(
     return [bestEntry, ...uniqueImageCaptures];
   }
 }
-
 
 /**
  * Selects unique, high-quality image captures from a list of potential captures,

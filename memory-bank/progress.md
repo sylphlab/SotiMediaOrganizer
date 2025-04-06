@@ -32,7 +32,7 @@
     - Implement unit tests for remaining pure functions.
     - Investigate end-to-end testing strategy.
   - **Documentation (Phase 4):**
-    - *Potentially* add more detailed usage examples or architecture diagrams to README or separate docs.
+    - _Potentially_ add more detailed usage examples or architecture diagrams to README or separate docs.
   - **Postponed:**
     - Further Phase 2 Optimizations (LSH loop DB fetch, worker refinement, benchmarking).
     - Further Phase 3 UI Refinements (`CliReporter` logging/dynamic UI, verbosity levels).

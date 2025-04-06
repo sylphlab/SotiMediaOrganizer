@@ -130,13 +130,19 @@ export async function transferFilesFn(
   // Check if there are any files to transfer at all
   const hasUniqueFiles = deduplicationResult.uniqueFiles.size > 0;
   // Check if any set actually contains duplicates to be moved/copied
-  const hasDuplicateFiles = duplicateDir ? deduplicationResult.duplicateSets.some(set => set.duplicates.size > 0) : false;
+  const hasDuplicateFiles = duplicateDir
+    ? deduplicationResult.duplicateSets.some((set) => set.duplicates.size > 0)
+    : false;
   // Check if error files need moving/copying
-  const hasErrorFiles = errorDir ? gatherFileInfoResult.errorFiles.length > 0 : false;
+  const hasErrorFiles = errorDir
+    ? gatherFileInfoResult.errorFiles.length > 0
+    : false;
   const needsTransfer = hasUniqueFiles || hasDuplicateFiles || hasErrorFiles;
 
   if (!needsTransfer) {
-    reporter.stopSpinnerSuccess("File transfer completed (No files needed transferring).");
+    reporter.stopSpinnerSuccess(
+      "File transfer completed (No files needed transferring).",
+    );
     return; // Nothing to transfer
   }
 

@@ -36,14 +36,16 @@ export class CliReporter {
 
   updateSpinnerText(text: string): void {
     if (!this.spinner) return; // Restore original check
-    if (this.spinner) { // Keep original check for safety, though covered by above
+    if (this.spinner) {
+      // Keep original check for safety, though covered by above
       this.spinner.text = text;
     }
   }
 
   stopSpinnerSuccess(text?: string): void {
     if (!this.spinner) return; // Restore original check
-    if (this.spinner) { // Keep original check
+    if (this.spinner) {
+      // Keep original check
       this.spinner.succeed(text); // succeed() method should exist
       this.spinner = null;
     }
@@ -51,9 +53,10 @@ export class CliReporter {
 
   stopSpinnerFailure(text?: string): void {
     if (!this.spinner) return; // Restore original check
-    if (this.spinner) { // Keep original check
+    if (this.spinner) {
+      // Keep original check
       // Fallback to succeed() with a failure indicator as stop/fail/error don't seem to exist
-      this.spinner.succeed(text ? `❌ ${text}` : '❌');
+      this.spinner.succeed(text ? `❌ ${text}` : "❌");
       this.spinner = null;
     }
   }

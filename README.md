@@ -1,4 +1,5 @@
 # MediaCurator (@sotilab/smo)
+
 <!-- Version: 1.0 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 **MediaCurator** is your ultimate tool for intelligently curating, organizing,
@@ -41,6 +42,7 @@ smo <source...> <destination> [options]
 ### Command Options
 
 - **Required Arguments:**
+
   - `<source...>`: One or more source directories/files to process.
   - `<destination>`: Destination directory for organized media.
 
@@ -82,6 +84,7 @@ smo /media/photos /media/downloads/new_vids /library/organized \\\
 ```
 
 This command will:
+
 - Process files from `/media/photos` and `/media/downloads/new_vids`.
 - Organize unique files into `/library/organized`.
 - Move duplicates to `/library/duplicates` and errors to `/library/errors`.
@@ -98,11 +101,13 @@ Customize your file organization with these powerful placeholders:
 #### Date Placeholders
 
 Use these prefixes for different date sources:
+
 - `I.` : Image metadata date (e.g., EXIF Original Date)
 - `F.` : File system creation date
 - `D.` : Mixed date (prefers image metadata date `I.`, falls back to file creation date `F.`)
 
 Available formats for each prefix:
+
 - `{*.YYYY}` : Year (4 digits)
 - `{*.YY}` : Year (2 digits)
 - `{*.MMMM}` : Month (full name, e.g., January)
@@ -160,8 +165,8 @@ Available formats for each prefix:
 MediaCurator employs a robust, database-centric approach using Locality-Sensitive Hashing (LSH) for efficient and scalable deduplication:
 
 1.  **Metadata &amp; pHash Generation**: For each file, extract metadata, calculate a content hash (for caching via LMDB), and generate a perceptual hash (pHash). Store essential info (path, pHash, duration, resolution, LSH keys) in the SQLite database (`MetadataDBService`). Adaptive frame extraction is used for videos.
-2.  **Exact Duplicate Detection**: Query the SQLite database for files sharing the *exact same pHash*. These form initial "exact match" clusters.
-3.  **Similarity Candidate Search (LSH)**: For files not part of exact duplicate sets, use their pre-calculated LSH keys to efficiently query the SQLite database. This retrieves a small set of *potential* similar candidates, drastically reducing the number of comparisons needed compared to checking all pairs.
+2.  **Exact Duplicate Detection**: Query the SQLite database for files sharing the _exact same pHash_. These form initial "exact match" clusters.
+3.  **Similarity Candidate Search (LSH)**: For files not part of exact duplicate sets, use their pre-calculated LSH keys to efficiently query the SQLite database. This retrieves a small set of _potential_ similar candidates, drastically reducing the number of comparisons needed compared to checking all pairs.
 4.  **Similarity Verification**: Fetch the necessary `MediaInfo` (pHash, duration, etc.) from the database only for the target file and its LSH candidates. Calculate the precise perceptual similarity (e.g., Hamming distance for pHashes) between the target and each candidate.
 5.  **Similarity Clustering**: Group the target file with candidates that meet the configured similarity thresholds (different thresholds can be set for image-image, image-video, video-video comparisons).
 6.  **Cluster Merging**: Combine the exact duplicate clusters (from Step 2) and the similarity clusters (from Step 5) into final duplicate sets.
@@ -175,31 +180,31 @@ This LSH-based approach significantly improves scalability for large collections
 
 MediaCurator handles a wide range of comparison scenarios:
 
-| Scenario                                                                  | Support Level       | Details                                                                                                                                                                               |
-| ------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Video is a subset of another video                                        | **Supported**       | Perceptual hashing comparison of frame sequences detects subset relationships. (DTW removed in refactoring).                                                                            |
-| Different rotations of the same image                                     | **Supported**       | Perceptual hashing (pHash) is generally robust to rotation.                                                                                                                          |
-| Video duplicates images                                                   | **Supported**       | Compares frames from both videos and images using pHash.                                                                                                                              |
-| One video transcoded in different qualities                               | **Supported**       | pHash and adaptive thresholds handle varying quality levels.                                                                                                                          |
-| Captured moments from video                                               | **Supported**       | Detects when an image is a frame from a video.                                                                                                                                        |
-| Thumbnails generated by software                                          | **Supported**       | Smart file selection differentiates genuine captures from low-quality thumbnails.                                                                                                     |
-| Animated images (GIFs) vs. one-frame videos                               | **Supported**       | Treats videos and images equally based on content hash.                                                                                                                               |
-| Duplicate detection in different resolutions                              | **Supported**       | pHash is robust to resolution differences.                                                                                                                                            |
-| Cropped images or videos                                                  | **Supported**       | pHash is robust to minor cropping.                                                                                                                                                    |
-| Color-adjusted images or videos                                           | **Supported**       | pHash is generally resilient to minor color adjustments.                                                                                                                              |
-| Horizontally flipped images or videos                                     | **Supported**       | Current pHash implementation can detect horizontally flipped duplicates.                                                                                                              |
-| Time-shifted duplicate videos                                             | **Supported**       | Similarity comparison logic handles time shifts.                                                                                                                                      |
-| Duplicate detection across different file formats                         | **Supported**       | Focuses on content (pHash) rather than file format.                                                                                                                                   |
-| Detecting duplicates with added watermarks                                | **Partial Support** | Small watermarks might be ignored, large ones might interfere.                                                                                                                        |
-| Detecting duplicates with added text overlays                             | **Partial Support** | Similar to watermarks.                                                                                                                                                                |
-| Detecting reuploaded, re-compressed social media versions                 | **Supported**       | pHash is robust against typical re-compression artifacts.                                                                                                                             |
-| Detecting duplicates with different aspect ratios                         | **Future Planned**  | Significant aspect ratio changes might interfere currently.                                                                                                                           |
-| Detecting duplicates with significant editing (e.g., Photoshopped images) | **Future Planned**  | Heavily edited images may not be detected.                                                                                                                                            |
-| Detecting duplicates across different video framerates                    | **Supported**       | Adaptive frame extraction helps normalize comparisons.                                                                                                                                |
-| Handling of RAW image formats and their JPEG counterparts                 | **Partial Support** | Basic support exists; enhanced RAW+JPEG handling planned.                                                                                                                             |
-| Detecting slow-motion or sped-up video duplicates                         | **Future Planned**  | Current methods may not reliably detect significant speed changes.                                                                                                                    |
+| Scenario                                                                  | Support Level       | Details                                                                                                      |
+| ------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Video is a subset of another video                                        | **Supported**       | Perceptual hashing comparison of frame sequences detects subset relationships. (DTW removed in refactoring). |
+| Different rotations of the same image                                     | **Supported**       | Perceptual hashing (pHash) is generally robust to rotation.                                                  |
+| Video duplicates images                                                   | **Supported**       | Compares frames from both videos and images using pHash.                                                     |
+| One video transcoded in different qualities                               | **Supported**       | pHash and adaptive thresholds handle varying quality levels.                                                 |
+| Captured moments from video                                               | **Supported**       | Detects when an image is a frame from a video.                                                               |
+| Thumbnails generated by software                                          | **Supported**       | Smart file selection differentiates genuine captures from low-quality thumbnails.                            |
+| Animated images (GIFs) vs. one-frame videos                               | **Supported**       | Treats videos and images equally based on content hash.                                                      |
+| Duplicate detection in different resolutions                              | **Supported**       | pHash is robust to resolution differences.                                                                   |
+| Cropped images or videos                                                  | **Supported**       | pHash is robust to minor cropping.                                                                           |
+| Color-adjusted images or videos                                           | **Supported**       | pHash is generally resilient to minor color adjustments.                                                     |
+| Horizontally flipped images or videos                                     | **Supported**       | Current pHash implementation can detect horizontally flipped duplicates.                                     |
+| Time-shifted duplicate videos                                             | **Supported**       | Similarity comparison logic handles time shifts.                                                             |
+| Duplicate detection across different file formats                         | **Supported**       | Focuses on content (pHash) rather than file format.                                                          |
+| Detecting duplicates with added watermarks                                | **Partial Support** | Small watermarks might be ignored, large ones might interfere.                                               |
+| Detecting duplicates with added text overlays                             | **Partial Support** | Similar to watermarks.                                                                                       |
+| Detecting reuploaded, re-compressed social media versions                 | **Supported**       | pHash is robust against typical re-compression artifacts.                                                    |
+| Detecting duplicates with different aspect ratios                         | **Future Planned**  | Significant aspect ratio changes might interfere currently.                                                  |
+| Detecting duplicates with significant editing (e.g., Photoshopped images) | **Future Planned**  | Heavily edited images may not be detected.                                                                   |
+| Detecting duplicates across different video framerates                    | **Supported**       | Adaptive frame extraction helps normalize comparisons.                                                       |
+| Handling of RAW image formats and their JPEG counterparts                 | **Partial Support** | Basic support exists; enhanced RAW+JPEG handling planned.                                                    |
+| Detecting slow-motion or sped-up video duplicates                         | **Future Planned**  | Current methods may not reliably detect significant speed changes.                                           |
 
-*(Note: Scenario support table reviewed and updated based on current LSH implementation and removal of DTW).*
+_(Note: Scenario support table reviewed and updated based on current LSH implementation and removal of DTW)._
 
 ### Leveraging FFmpeg and libvips for Comprehensive Format Support
 
