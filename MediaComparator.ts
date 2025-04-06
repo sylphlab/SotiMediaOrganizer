@@ -20,13 +20,16 @@ import { filterAsync, mapAsync } from "./src/utils";
 import { ok, err, AppResult, AppError } from "./src/errors"; // Removed unused AnyAppError, UnknownError
 import {
   calculateImageSimilarity,
-  calculateImageVideoSimilarity,
-  calculateSequenceSimilarityDTW,
-  getAdaptiveThreshold,
-  sortEntriesByScore,
-  selectRepresentativesFromScored,
-  mergeAndDeduplicateClusters,
-  runDbscanCore,
+  calculateImageVideoSimilarity, // Keep this import
+  calculateSequenceSimilarityDTW, // Keep this import
+  getAdaptiveThreshold, // Keep this import
+  sortEntriesByScore, // Keep this import
+  selectRepresentativesFromScored, // Keep this import
+  mergeAndDeduplicateClusters, // Keep this import
+  runDbscanCore, // Keep this import
+  // Import the newly moved functions
+  calculateVideoSimilarity,
+  getFramesInTimeRange,
 } from "./src/comparatorUtils"; // Import runDbscanCore, Removed expandCluster
 // Removed inversify imports
 import { type WorkerPool } from "./src/contexts/types"; // Removed unused Types import
@@ -538,7 +541,8 @@ export class MediaComparator {
         this.wasmExports,
       );
     } else {
-      return this.calculateVideoSimilarity(media1, media2);
+      // Call the imported function
+      return calculateVideoSimilarity(media1, media2, this.similarityConfig, this.wasmExports);
     }
   }
 
@@ -546,73 +550,8 @@ export class MediaComparator {
 
   // calculateImageVideoSimilarity moved to comparatorUtils.ts
 
-  private calculateVideoSimilarity(
-    media1: MediaInfo,
-    media2: MediaInfo,
-  ): number {
-    if (media1.frames.length === 0 || media2.frames.length === 0) {
-      return 0; // Return 0 similarity if either video has no frames
-    }
-
-    const [shorterMedia, longerMedia] =
-      media1.duration <= media2.duration ? [media1, media2] : [media2, media1];
-
-    // Ensure durations are positive before proceeding
-    if (shorterMedia.duration <= 0 || longerMedia.duration <= 0) return 0;
-
-    const windowDuration = shorterMedia.duration;
-    const stepSize =
-      this.similarityConfig.stepSize > 0 ? this.similarityConfig.stepSize : 1; // Ensure stepSize is positive
-
-    let bestSimilarity = 0;
-
-    for (
-      let startTime = 0;
-      // Ensure loop condition prevents infinite loops if windowDuration is 0 or negative
-      startTime <= longerMedia.duration - windowDuration && windowDuration > 0;
-      startTime += stepSize
-    ) {
-      const endTime = startTime + windowDuration;
-
-      const longerSubseq = this.getFramesInTimeRange(
-        longerMedia,
-        startTime,
-        endTime,
-      );
-      const shorterSubseq = shorterMedia.frames;
-
-      // Ensure subsequences are not empty before calculating similarity
-      if (longerSubseq.length === 0 || shorterSubseq.length === 0) continue;
-
-      const windowSimilarity = calculateSequenceSimilarityDTW(
-        // Use imported function
-        longerSubseq,
-        shorterSubseq,
-        this.wasmExports,
-      );
-      bestSimilarity = Math.max(bestSimilarity, windowSimilarity);
-
-      // Early termination if we find a similarity over the threshold
-      if (bestSimilarity >= this.similarityConfig.videoSimilarityThreshold)
-        break;
-    }
-
-    return bestSimilarity;
-  }
-
-  private getFramesInTimeRange(
-    media: MediaInfo,
-    startTime: number,
-    endTime: number,
-  ): FrameInfo[] {
-    // Filter out frames with missing hashes as well
-    return media.frames.filter(
-      (frame) =>
-        frame?.hash &&
-        frame.timestamp >= startTime &&
-        frame.timestamp <= endTime,
-    );
-  }
+  // calculateVideoSimilarity moved to comparatorUtils.ts
+  // getFramesInTimeRange moved to comparatorUtils.ts
 
   // calculateSequenceSimilarityDTW moved to comparatorUtils.ts
 

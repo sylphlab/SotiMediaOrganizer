@@ -220,8 +220,6 @@ export function calculateSequenceSimilarityDTW(
   return Math.max(0, 1 - normalizedDistance); // Ensure similarity is not negative
 }
 
-// Removed duplicate import
-
 /**
  * Calculates a quality/completeness score for a FileInfo object.
  * Used to select the best representative from a cluster of duplicates.
@@ -285,8 +283,6 @@ export function getAdaptiveThreshold(
     return similarityConfig.imageVideoSimilarityThreshold;
   return similarityConfig.videoSimilarityThreshold;
 }
-
-// Removed duplicate import
 
 /**
  * Calculates a simple quality metric based on resolution.
@@ -426,19 +422,6 @@ export function selectRepresentativesFromScored(
     return [bestEntry, ...uniqueImageCaptures];
   }
 }
-
-/**
- * Selects unique, high-quality image captures from a list of potential captures,
- * comparing them against a reference video's quality and against each other for similarity.
- * Assumes potentialCaptures are pre-sorted by score (descending) if score-based tie-breaking is desired.
- * @param potentialCaptures Array of objects containing image file paths and their FileInfo.
- * @param bestVideoInfo FileInfo of the highest-scoring video in the cluster.
- * @param similarityConfig Configuration containing the image similarity threshold.
- * @param wasmExports Optional WASM exports for hamming distance calculation.
- * @returns An array of file paths for the unique, high-quality image captures.
-}
-
-// Removed extra closing brace
 
 /**
  * Merges overlapping clusters from potentially parallel DBSCAN results.
@@ -623,4 +606,92 @@ export async function runDbscanCore(
     }
   }
   return clusters;
+}
+
+// --- Moved Functions ---
+
+/**
+ * Filters frames within a specified time range.
+ * @param media MediaInfo containing the frames.
+ * @param startTime Start time of the range.
+ * @param endTime End time of the range.
+ * @returns An array of FrameInfo within the specified range.
+ */
+export function getFramesInTimeRange(
+  media: MediaInfo,
+  startTime: number,
+  endTime: number,
+): FrameInfo[] {
+  // Filter out frames with missing hashes as well
+  return media.frames.filter(
+    (frame) =>
+      frame?.hash &&
+      frame.timestamp >= startTime &&
+      frame.timestamp <= endTime,
+  );
+}
+
+/**
+ * Calculates similarity between two videos using a sliding window approach with DTW.
+ * @param media1 First video's MediaInfo.
+ * @param media2 Second video's MediaInfo.
+ * @param similarityConfig Configuration containing stepSize and videoSimilarityThreshold.
+ * @param wasmExports Optional WASM exports.
+ * @returns Similarity score (0 to 1).
+ */
+export function calculateVideoSimilarity(
+  media1: MediaInfo,
+  media2: MediaInfo,
+  similarityConfig: Pick<
+    SimilarityConfig,
+    "stepSize" | "videoSimilarityThreshold"
+  >,
+  wasmExports: WasmExports | null,
+): number {
+  if (media1.frames.length === 0 || media2.frames.length === 0) {
+    return 0; // Return 0 similarity if either video has no frames
+  }
+
+  const [shorterMedia, longerMedia] =
+    media1.duration <= media2.duration ? [media1, media2] : [media2, media1];
+
+  // Ensure durations are positive before proceeding
+  if (shorterMedia.duration <= 0 || longerMedia.duration <= 0) return 0;
+
+  const windowDuration = shorterMedia.duration;
+  const stepSize =
+    similarityConfig.stepSize > 0 ? similarityConfig.stepSize : 1; // Ensure stepSize is positive
+
+  let bestSimilarity = 0;
+
+  for (
+    let startTime = 0;
+    // Ensure loop condition prevents infinite loops if windowDuration is 0 or negative
+    startTime <= longerMedia.duration - windowDuration && windowDuration > 0;
+    startTime += stepSize
+  ) {
+    const endTime = startTime + windowDuration;
+
+    const longerSubseq = getFramesInTimeRange( // Call the moved function
+      longerMedia,
+      startTime,
+      endTime,
+    );
+    const shorterSubseq = shorterMedia.frames;
+
+    // Ensure subsequences are not empty before calculating similarity
+    if (longerSubseq.length === 0 || shorterSubseq.length === 0) continue;
+
+    const windowSimilarity = calculateSequenceSimilarityDTW( // Call the existing util function
+      longerSubseq,
+      shorterSubseq,
+      wasmExports,
+    );
+    bestSimilarity = Math.max(bestSimilarity, windowSimilarity);
+
+    // Early termination if we find a similarity over the threshold
+    if (bestSimilarity >= similarityConfig.videoSimilarityThreshold) break;
+  }
+
+  return bestSimilarity;
 }
