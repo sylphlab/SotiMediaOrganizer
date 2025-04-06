@@ -74,7 +74,7 @@ export class CliReporter {
         etaAsynchronousUpdate: true,
         format: this.formatProgressBar.bind(this), // Bind 'this' context
       },
-      cliProgress.Presets.shades_classic,
+      cliProgress.Presets.shades_classic
     );
 
     this.bars.clear(); // Clear previous bars if any
@@ -94,7 +94,7 @@ export class CliReporter {
   updateProgress(
     format: string,
     increment: number,
-    statsUpdate?: Partial<ProgressBarPayload["stats"]>,
+    statsUpdate?: Partial<ProgressBarPayload["stats"]>
   ): void {
     // Allow partial stats update
     const barData = this.bars.get(format); // Get the object containing bar and payload
@@ -171,7 +171,7 @@ export class CliReporter {
   private formatProgressBar(
     options: cliProgress.Options,
     params: cliProgress.Params,
-    payload: ProgressBarPayload,
+    payload: ProgressBarPayload
   ): string {
     // Use defined interface
     // Implementation copied and adapted from original gatherer.ts
@@ -199,7 +199,7 @@ export class CliReporter {
       // Stopped
       const duration = this.formatTime(
         // Use helper method
-        (params.stopTime - params.startTime) / 1000,
+        (params.stopTime - params.startTime) / 1000
       );
       timeInfo = `Time: ${chalk.yellow(duration.padStart(8))}`;
     }
@@ -211,7 +211,7 @@ export class CliReporter {
 
     return (
       // Ensure payload and payload.format exist before accessing padEnd
-      `${chalk.white((payload?.format ?? 'N/A').padEnd(6))} ${bar} ${chalk.green(percentage.padStart(6))}% | ` +
+      `${chalk.white((payload.format ?? "N/A").padEnd(6))} ${bar} ${chalk.green(percentage.padStart(6))}% | ` +
       `${chalk.cyan(params.value.toString().padStart(7))}/${chalk.cyan(params.total.toString().padStart(7))} | ` +
       `${timeInfo} | ` +
       `${chalk.red(stats.errorCount.toString().padStart(5))} errors`

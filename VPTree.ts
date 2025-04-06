@@ -21,12 +21,12 @@ export interface SearchResult<T> {
 export class VPTree<T> {
   constructor(
     private root: VPNode<T> | null,
-    private distance: (a: T, b: T) => MaybePromise<number>,
+    private distance: (a: T, b: T) => MaybePromise<number>
   ) {}
 
   static async build<T>(
     points: T[],
-    distance: (a: T, b: T) => MaybePromise<number>,
+    distance: (a: T, b: T) => MaybePromise<number>
   ): Promise<VPTree<T>> {
     const root = await VPTree.buildSubtree([...points], distance);
     return new VPTree(root, distance);
@@ -34,7 +34,7 @@ export class VPTree<T> {
 
   private static async buildSubtree<T>(
     points: T[],
-    distance: (a: T, b: T) => MaybePromise<number>,
+    distance: (a: T, b: T) => MaybePromise<number>
   ): Promise<VPNode<T> | null> {
     if (points.length === 0) return null;
 
@@ -48,7 +48,7 @@ export class VPTree<T> {
     }
 
     const distances = await Promise.all(
-      points.map((p) => distance(vantagePoint, p)),
+      points.map((p) => distance(vantagePoint, p))
     );
     const medianIndex = Math.floor(points.length / 2);
     const threshold = this.quickSelect(distances, medianIndex);
@@ -91,7 +91,7 @@ export class VPTree<T> {
 
   async search(
     query: T,
-    options: SearchOptions = {},
+    options: SearchOptions = {}
   ): Promise<SearchResult<T>[]> {
     const k = options.k ?? Infinity;
     const maxDistance = options.maxDistance ?? Infinity;
@@ -119,7 +119,7 @@ export class VPTree<T> {
     node: VPNode<T> | null,
     query: T,
     maxDistance: number,
-    results: SearchResult<T>[],
+    results: SearchResult<T>[]
   ): Promise<void> {
     if (node === null) return;
 
@@ -147,7 +147,7 @@ export class VPTree<T> {
 
   static fromRoot<T>(
     root: VPNode<T> | null,
-    distance: (a: T, b: T) => Promise<number>,
+    distance: (a: T, b: T) => Promise<number>
   ): VPTree<T> {
     return new VPTree(root, distance);
   }

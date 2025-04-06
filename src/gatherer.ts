@@ -32,7 +32,7 @@ export async function gatherFileInfoFn(
   exifTool: ExifTool,
   workerPool: WorkerPool,
   dbService: MetadataDBService, // Add dbService parameter
-  reporter: CliReporter, // Add reporter parameter
+  reporter: CliReporter // Add reporter parameter
 ): Promise<GatherFileInfoResult> {
   const errorFiles: string[] = [];
   const validFiles: string[] = [];
@@ -44,7 +44,7 @@ export async function gatherFileInfoFn(
     (a, b) =>
       getFileTypeByExt(a).unwrapOr(FileType.Image) -
         getFileTypeByExt(b).unwrapOr(FileType.Image) ||
-      files.get(b)!.length - files.get(a)!.length,
+      files.get(b)!.length - files.get(a)!.length
   );
   const formatTotals = new Map<string, number>();
   for (const format of sortedFormats) {
@@ -72,19 +72,19 @@ export async function gatherFileInfoFn(
               config,
               cache,
               exifTool,
-              workerPool,
+              workerPool
             );
 
             if (fileInfoResult.isOk()) {
               // Store successful result in DB
               const upsertResult = dbService.upsertFileInfo(
                 file,
-                fileInfoResult.value,
+                fileInfoResult.value
               );
               if (upsertResult.isErr()) {
                 // Log DB error using reporter
                 reporter.logWarning(
-                  `\nDB upsert failed for ${file}: ${upsertResult.error.message}`,
+                  `\nDB upsert failed for ${file}: ${upsertResult.error.message}`
                 );
                 // Optionally add to a separate list of DB error files?
               }
@@ -93,7 +93,7 @@ export async function gatherFileInfoFn(
               // Log processing error using reporter
               reporter.logError(
                 `\nError processing ${file}: ${fileInfoResult.error.message}`,
-                fileInfoResult.error, // Pass the error object
+                fileInfoResult.error // Pass the error object
               );
               stats.errorCount++;
               errorFiles.push(file);
@@ -102,7 +102,7 @@ export async function gatherFileInfoFn(
             // Catch any unexpected errors during the process using reporter
             reporter.logError(
               `\nUnexpected error during processing for ${file}: ${unexpectedError instanceof Error ? unexpectedError.message : String(unexpectedError)}`,
-              unexpectedError instanceof Error ? unexpectedError : undefined,
+              unexpectedError instanceof Error ? unexpectedError : undefined
             );
             // Log error minimally here, detailed logging within processSingleFile
             // console.error(`Error processing ${file}: ${error.message}`);
@@ -111,7 +111,7 @@ export async function gatherFileInfoFn(
           } finally {
             reporter.updateProgress(format, 1, stats); // Update progress bar via reporter
           }
-        }),
+        })
       );
     }
   }

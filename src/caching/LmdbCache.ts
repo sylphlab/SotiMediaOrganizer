@@ -41,7 +41,7 @@ export class LmdbCache {
 
   // Static factory method for asynchronous initialization
   static async create(
-    dbPath: string = ".mediadb",
+    dbPath: string = ".mediadb"
   ): Promise<AppResult<LmdbCache>> {
     try {
       const rootDb = lmdb.open({ path: dbPath, compression: true });
@@ -54,7 +54,7 @@ export class LmdbCache {
         new DatabaseError(message, {
           cause: error instanceof Error ? error : undefined,
           context: { operation: "open" },
-        }),
+        })
       );
     }
   }
@@ -69,19 +69,19 @@ export class LmdbCache {
       return err(
         new DatabaseError(
           "LMDB root database is not open or has been closed.",
-          { context: { operation: "getJobDbs" } },
-        ),
+          { context: { operation: "getJobDbs" } }
+        )
       );
     }
     if (!this.jobDbs.has(jobName)) {
       try {
         const resultsDb = this.rootDb.openDB<Buffer, string>(
           `${jobName}_results`,
-          { keyEncoding: "binary" },
+          { keyEncoding: "binary" }
         );
         const configDb = this.rootDb.openDB<Buffer, string>(
           `${jobName}_config`,
-          { keyEncoding: "binary" },
+          { keyEncoding: "binary" }
         );
         this.jobDbs.set(jobName, { resultsDb, configDb });
       } catch (error) {
@@ -91,7 +91,7 @@ export class LmdbCache {
           new DatabaseError(message, {
             cause: error instanceof Error ? error : undefined,
             context: { operation: "openSubDb" },
-          }),
+          })
         );
       }
     }
@@ -137,15 +137,15 @@ export class LmdbCache {
           {
             cause: error instanceof Error ? error : undefined,
             context: { operation: "serialize" },
-          },
-        ),
+          }
+        )
     );
     if (encodeResult.isErr()) {
       console.error(
         "Serialization error (msgpack fallback):",
         encodeResult.error,
         "Data:",
-        data,
+        data
       );
       throw encodeResult.error; // Rethrow the specific CacheError
     }
@@ -180,7 +180,7 @@ export class LmdbCache {
 
         // Fallback for potentially old data without markers (treat as msgpack)
         console.warn(
-          "Cache data missing type marker, attempting msgpack decode.",
+          "Cache data missing type marker, attempting msgpack decode."
         );
         return msgpack.decode(buffer); // This might still throw if buffer is not valid msgpack
       },
@@ -189,16 +189,16 @@ export class LmdbCache {
           "Deserialization error:",
           error,
           "Buffer:",
-          buffer.toString("hex"),
+          buffer.toString("hex")
         );
         return new DatabaseError(
           `Failed to deserialize data: ${error instanceof Error ? error.message : String(error)}`,
           {
             cause: error instanceof Error ? error : undefined,
             context: { operation: "deserialize" },
-          },
+          }
         );
-      },
+      }
     )._unsafeUnwrap(); // Unwrap here, errors during get/check will handle AppResult propagation
     // Note: Rethinking this - throwing here might be okay if get/check handle it. Let's keep throwing for now.
     // Let's revert the unwrap and throw the CacheError directly if safeTry fails.
@@ -232,7 +232,7 @@ export class LmdbCache {
 
       // Fallback for potentially old data without markers (treat as msgpack)
       console.warn(
-        "Cache data missing type marker, attempting msgpack decode.",
+        "Cache data missing type marker, attempting msgpack decode."
       );
       return msgpack.decode(buffer);
     } catch (error) {
@@ -240,7 +240,7 @@ export class LmdbCache {
         "Deserialization error:",
         error,
         "Buffer:",
-        buffer.toString("hex"),
+        buffer.toString("hex")
       );
       // Throw specific CacheError
       throw new DatabaseError(
@@ -248,7 +248,7 @@ export class LmdbCache {
         {
           cause: error instanceof Error ? error : undefined,
           context: { operation: "deserialize" },
-        },
+        }
       );
     }
   }
@@ -264,7 +264,7 @@ export class LmdbCache {
   async checkConfig<C>(
     jobName: string,
     hashKey: string,
-    currentConfig: C,
+    currentConfig: C
   ): Promise<AppResult<ConfigCheckResult>> {
     const dbsResult = this.getJobDbs(jobName);
     if (dbsResult.isErr()) {
@@ -298,7 +298,7 @@ export class LmdbCache {
               cause: error instanceof Error ? error : undefined,
               context: { operation: "config_check", key: hashKey },
             });
-      },
+      }
     );
   }
 
@@ -310,7 +310,7 @@ export class LmdbCache {
    */
   async getCache<T>(
     jobName: string,
-    hashKey: string,
+    hashKey: string
   ): Promise<AppResult<CacheResult<T>>> {
     const dbsResult = this.getJobDbs(jobName);
     if (dbsResult.isErr()) {
@@ -341,7 +341,7 @@ export class LmdbCache {
               cause: error instanceof Error ? error : undefined,
               context: { operation: "read", key: hashKey },
             });
-      },
+      }
     );
   }
 
@@ -356,7 +356,7 @@ export class LmdbCache {
     jobName: string,
     hashKey: string,
     data: T,
-    config: C,
+    config: C
   ): Promise<AppResult<void>> {
     const dbsResult = this.getJobDbs(jobName);
     if (dbsResult.isErr()) {
@@ -389,7 +389,7 @@ export class LmdbCache {
               cause: error instanceof Error ? error : undefined,
               context: { operation: "write", key: hashKey },
             });
-      },
+      }
     );
   }
 
@@ -408,7 +408,7 @@ export class LmdbCache {
           new DatabaseError(message, {
             cause: error instanceof Error ? error : undefined,
             context: { operation: "close" },
-          }),
+          })
         );
       }
     }

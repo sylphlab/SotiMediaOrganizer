@@ -108,7 +108,7 @@ describe("discoverFiles Integration Tests", () => {
     const resultMap = await discoverFilesFn(
       [sourceDir1, sourceDir2],
       2,
-      mockReporter,
+      mockReporter
     ); // Add concurrency arg
 
     // Extract all file paths from the map
@@ -132,7 +132,7 @@ describe("discoverFiles Integration Tests", () => {
     const resultMap = await discoverFilesFn(
       [file1Path, file2Path, nonMediaPath],
       2,
-      mockReporter,
+      mockReporter
     ); // Add concurrency arg
 
     // Extract all file paths from the map
@@ -157,7 +157,7 @@ describe("discoverFiles Integration Tests", () => {
     const resultMap = await discoverFilesFn(
       [sourceDir, file1Path],
       2,
-      mockReporter,
+      mockReporter
     ); // Add concurrency arg
 
     // Extract all file paths from the map
@@ -188,7 +188,7 @@ describe("discoverFiles Integration Tests", () => {
     const nonExistentDir = join(
       TEST_DISCOVERY_DIR,
       "currentTest",
-      "nonexistent",
+      "nonexistent"
     );
     const resultMap = await discoverFilesFn([nonExistentDir], 2, mockReporter); // Add concurrency arg
 

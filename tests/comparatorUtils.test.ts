@@ -30,7 +30,15 @@ import {
 import { hexToSharedArrayBuffer } from "../src/utils";
 import { AppResult, ok, err, AppError, ValidationError } from "../src/errors";
 import * as comparatorUtils from "../src/comparatorUtils";
-import { vi, describe, it, expect, beforeEach, afterEach, SpyInstance } from "vitest";
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeEach,
+  afterEach,
+  SpyInstance,
+} from "vitest";
 import { Buffer } from "buffer"; // Ensure Buffer is imported
 import { Tags } from "exiftool-vendored"; // Import Tags type
 
@@ -67,7 +75,7 @@ describe("Comparator Utilities", () => {
       expect(res1.isOk()).toBe(true);
       expect(res2.isOk()).toBe(true);
       expect(
-        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null),
+        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)
       ).toBe(0);
     });
 
@@ -77,7 +85,7 @@ describe("Comparator Utilities", () => {
       expect(res1.isOk()).toBe(true);
       expect(res2.isOk()).toBe(true);
       expect(
-        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null),
+        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)
       ).toBe(64);
     });
 
@@ -87,7 +95,7 @@ describe("Comparator Utilities", () => {
       expect(res1.isOk()).toBe(true);
       expect(res2.isOk()).toBe(true);
       expect(
-        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null),
+        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)
       ).toBe(1);
 
       const res3 = hexToSharedArrayBuffer("0000000000000000"); // 0 bits set
@@ -95,7 +103,7 @@ describe("Comparator Utilities", () => {
       expect(res3.isOk()).toBe(true);
       expect(res4.isOk()).toBe(true);
       expect(
-        hammingDistance(res3._unsafeUnwrap(), res4._unsafeUnwrap(), null),
+        hammingDistance(res3._unsafeUnwrap(), res4._unsafeUnwrap(), null)
       ).toBe(2);
     });
 
@@ -105,13 +113,13 @@ describe("Comparator Utilities", () => {
       expect(res_8b.isOk()).toBe(true);
       expect(res_7b.isOk()).toBe(true);
       expect(
-        hammingDistance(res_8b._unsafeUnwrap(), res_7b._unsafeUnwrap(), null),
+        hammingDistance(res_8b._unsafeUnwrap(), res_7b._unsafeUnwrap(), null)
       ).toBe(0);
 
       const res_9b = hexToSharedArrayBuffer("ff00ff00ff00ff00aa"); // 9 bytes
       expect(res_9b.isOk()).toBe(true);
       expect(
-        hammingDistance(res_9b._unsafeUnwrap(), res_8b._unsafeUnwrap(), null),
+        hammingDistance(res_9b._unsafeUnwrap(), res_8b._unsafeUnwrap(), null)
       ).toBe(4);
     });
 
@@ -121,7 +129,7 @@ describe("Comparator Utilities", () => {
       expect(res1.isOk()).toBe(true);
       expect(res2.isOk()).toBe(true);
       expect(
-        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null),
+        hammingDistance(res1._unsafeUnwrap(), res2._unsafeUnwrap(), null)
       ).toBe(0);
     });
   });
@@ -155,7 +163,7 @@ describe("Comparator Utilities", () => {
       const frame1: FrameInfo = { hash: res1._unsafeUnwrap(), timestamp: 0 };
       const frame2: FrameInfo = { hash: res2._unsafeUnwrap(), timestamp: 1 };
       expect(calculateImageSimilarity(frame1, frame2, null)).toBeCloseTo(
-        1 - 1 / 32,
+        1 - 1 / 32
       );
 
       const res3 = hexToSharedArrayBuffer("f0f0f0f0");
@@ -230,7 +238,7 @@ describe("Comparator Utilities", () => {
         media: { duration: 10, frames: [] },
       }); // Ensure frames is provided
       expect(calculateEntryScore(videoInfo)).toBeGreaterThan(
-        calculateEntryScore(imageInfo),
+        calculateEntryScore(imageInfo)
       );
     });
 
@@ -242,7 +250,7 @@ describe("Comparator Utilities", () => {
         media: { duration: 60, frames: [] },
       }); // Ensure frames is provided
       expect(calculateEntryScore(videoInfoLong)).toBeGreaterThan(
-        calculateEntryScore(videoInfoShort),
+        calculateEntryScore(videoInfoShort)
       );
     });
 
@@ -268,22 +276,22 @@ describe("Comparator Utilities", () => {
       });
 
       expect(calculateEntryScore(infoWithDate)).toBeGreaterThan(
-        calculateEntryScore(infoBasic),
+        calculateEntryScore(infoBasic)
       );
       expect(calculateEntryScore(infoWithGeo)).toBeGreaterThan(
-        calculateEntryScore(infoBasic),
+        calculateEntryScore(infoBasic)
       );
       expect(calculateEntryScore(infoWithCam)).toBeGreaterThan(
-        calculateEntryScore(infoBasic),
+        calculateEntryScore(infoBasic)
       );
       expect(calculateEntryScore(infoFullMeta)).toBeGreaterThan(
-        calculateEntryScore(infoWithDate),
+        calculateEntryScore(infoWithDate)
       );
       expect(calculateEntryScore(infoFullMeta)).toBeGreaterThan(
-        calculateEntryScore(infoWithGeo),
+        calculateEntryScore(infoWithGeo)
       );
       expect(calculateEntryScore(infoFullMeta)).toBeGreaterThan(
-        calculateEntryScore(infoWithCam),
+        calculateEntryScore(infoWithCam)
       );
     });
 
@@ -295,7 +303,7 @@ describe("Comparator Utilities", () => {
         metadata: { ...baseMeta, width: 4000, height: 3000 },
       });
       expect(calculateEntryScore(infoHighRes)).toBeGreaterThan(
-        calculateEntryScore(infoLowRes),
+        calculateEntryScore(infoLowRes)
       );
     });
 
@@ -307,7 +315,7 @@ describe("Comparator Utilities", () => {
         fileStats: { ...baseStats, size: 10 * 1024 * 1024 },
       }); // 10MB
       expect(calculateEntryScore(infoLarge)).toBeGreaterThan(
-        calculateEntryScore(infoSmall),
+        calculateEntryScore(infoSmall)
       );
     });
 
@@ -323,7 +331,15 @@ describe("Comparator Utilities", () => {
         fileStats: { size: 0 },
       });
       const infoZeroDurationVideo = createMockFileInfo({
-        media: { duration: 0, frames: [{ hash: hexToSharedArrayBuffer('aa')._unsafeUnwrap(), timestamp: 0 }] }, // Still has frame -> video
+        media: {
+          duration: 0,
+          frames: [
+            {
+              hash: hexToSharedArrayBuffer("aa")._unsafeUnwrap(),
+              timestamp: 0,
+            },
+          ],
+        }, // Still has frame -> video
       });
       const infoZeroDims = createMockFileInfo({
         metadata: { width: 0, height: 0 },
@@ -344,7 +360,6 @@ describe("Comparator Utilities", () => {
       expect(scoreZeroDuration).not.toBe(Number.NEGATIVE_INFINITY);
       expect(Number.isFinite(scoreZeroDuration)).toBe(true);
     });
-
   });
 
   describe("getAdaptiveThreshold", () => {
@@ -532,16 +547,16 @@ describe("Comparator Utilities", () => {
           emptyImageMedia,
           videoMedia,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBe(0);
       expect(
         comparatorUtils.calculateImageVideoSimilarity(
           imageMediaNoHash,
           videoMedia,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBe(0);
     });
 
@@ -551,8 +566,8 @@ describe("Comparator Utilities", () => {
           imageMedia,
           emptyVideoMedia,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBe(0);
     });
 
@@ -565,8 +580,8 @@ describe("Comparator Utilities", () => {
           imageMedia,
           videoMedia,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeCloseTo(1.0);
     });
 
@@ -577,8 +592,8 @@ describe("Comparator Utilities", () => {
           imageMedia,
           videoMediaSomeNoHash,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeCloseTo(1.0);
     });
 
@@ -589,18 +604,21 @@ describe("Comparator Utilities", () => {
           imageMedia,
           videoMediaNoMatch,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeCloseTo(0);
     });
 
     let imageSimilaritySpy: SpyInstance;
     beforeEach(() => {
-        // Spy on calculateImageSimilarity before each test in this suite
-        imageSimilaritySpy = vi.spyOn(comparatorUtils, "calculateImageSimilarity");
+      // Spy on calculateImageSimilarity before each test in this suite
+      imageSimilaritySpy = vi.spyOn(
+        comparatorUtils,
+        "calculateImageSimilarity"
+      );
     });
     afterEach(() => {
-        imageSimilaritySpy.mockRestore(); // Clean up the spy
+      imageSimilaritySpy.mockRestore(); // Clean up the spy
     });
 
     it("should handle early exit when similarity exceeds threshold", () => {
@@ -614,7 +632,7 @@ describe("Comparator Utilities", () => {
         imageMedia,
         videoMediaEarlyExit,
         config,
-        wasmExports,
+        wasmExports
       );
 
       expect(result).toBeCloseTo(1.0);
@@ -622,18 +640,20 @@ describe("Comparator Utilities", () => {
       // it should exit early and only call calculateImageSimilarity once.
       expect(imageSimilaritySpy).toHaveBeenCalledTimes(1);
     });
-    });
 
     it("should handle single frame video", () => {
-      const singleFrameVideo: MediaInfo = { duration: 1, frames: [videoFrame1] };
+      const singleFrameVideo: MediaInfo = {
+        duration: 1,
+        frames: [videoFrame1],
+      };
       // Similarity with videoFrame1 (1 bit diff): 1 - 1/32 = 0.96875
       expect(
         comparatorUtils.calculateImageVideoSimilarity(
           imageMedia,
           singleFrameVideo,
           config,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeCloseTo(1 - 1 / 32);
     });
 
@@ -648,11 +668,10 @@ describe("Comparator Utilities", () => {
           imageMedia,
           videoMediaThresholdMatch,
           thresholdConfig,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeCloseTo(1 - 1 / 32);
     });
-
   }); // End of calculateImageVideoSimilarity describe block
 
   // --- Add tests for calculateSequenceSimilarityDTW ---
@@ -689,23 +708,23 @@ describe("Comparator Utilities", () => {
         comparatorUtils.calculateSequenceSimilarityDTW(
           seq1,
           seq_empty,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBe(0);
       expect(
         comparatorUtils.calculateSequenceSimilarityDTW(
           seq_empty,
           seq1,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBe(0);
       // Also test both empty, should be 1 (perfect similarity of nothing)
       expect(
         comparatorUtils.calculateSequenceSimilarityDTW(
           seq_empty,
           seq_empty,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBe(1);
     });
 
@@ -714,8 +733,8 @@ describe("Comparator Utilities", () => {
         comparatorUtils.calculateSequenceSimilarityDTW(
           seq1,
           seq2_identical,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeCloseTo(1.0);
     });
 
@@ -727,8 +746,8 @@ describe("Comparator Utilities", () => {
         comparatorUtils.calculateSequenceSimilarityDTW(
           seq1,
           seq3_different,
-          wasmExports,
-        ),
+          wasmExports
+        )
       ).toBeLessThan(0.6); // Relax assertion: DTW might not yield exactly 0
     });
 
@@ -740,7 +759,7 @@ describe("Comparator Utilities", () => {
       const similarity = comparatorUtils.calculateSequenceSimilarityDTW(
         seq1,
         seq4_partial,
-        wasmExports,
+        wasmExports
       );
       expect(similarity).toBeGreaterThan(0);
       expect(similarity).toBeLessThan(1);
@@ -753,12 +772,12 @@ describe("Comparator Utilities", () => {
       const sim_shorter = comparatorUtils.calculateSequenceSimilarityDTW(
         seq1,
         seq5_shorter,
-        wasmExports,
+        wasmExports
       );
       const sim_longer = comparatorUtils.calculateSequenceSimilarityDTW(
         seq1,
         seq6_longer,
-        wasmExports,
+        wasmExports
       );
 
       // Similarity should be penalized due to length difference but still high
@@ -776,7 +795,7 @@ describe("Comparator Utilities", () => {
       const similarity = comparatorUtils.calculateSequenceSimilarityDTW(
         seq1,
         seq7_similar,
-        wasmExports,
+        wasmExports
       );
       expect(similarity).toBeGreaterThan(0.95); // Expect very high similarity
       expect(similarity).toBeLessThan(1);
@@ -789,9 +808,9 @@ describe("Comparator Utilities", () => {
       const similarity = comparatorUtils.calculateSequenceSimilarityDTW(
         seq1,
         seq8_with_missing,
-        wasmExports,
+        wasmExports
       );
-       // It compares [A, B, C] with [A, C]. Similarity should be high but less than 1.
+      // It compares [A, B, C] with [A, C]. Similarity should be high but less than 1.
       expect(similarity).toBeGreaterThan(0.5);
       expect(similarity).toBeLessThan(1);
 
@@ -799,7 +818,7 @@ describe("Comparator Utilities", () => {
       const similarity_self = comparatorUtils.calculateSequenceSimilarityDTW(
         seq8_with_missing,
         seq8_with_missing,
-        wasmExports,
+        wasmExports
       );
       // DTW cost increases due to non-matching 'noHash' frames (treated as max distance)
       // Similarity will be less than 1. Exact value depends on normalization.
@@ -808,118 +827,138 @@ describe("Comparator Utilities", () => {
     });
 
     it("should handle sequences with only one valid frame", () => {
-        const seq_single_valid = [frame_noHash, frameA, frame_noHash];
-        const seq_other_single_valid = [frame_noHash, frameA_slight, frame_noHash];
-        const seq_different_single = [frameB, frame_noHash];
+      const seq_single_valid = [frame_noHash, frameA, frame_noHash];
+      const seq_other_single_valid = [
+        frame_noHash,
+        frameA_slight,
+        frame_noHash,
+      ];
+      const seq_different_single = [frameB, frame_noHash];
 
-        // Compare [A] vs [A_slight] -> high similarity
-        const sim1 = comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_single_valid,
-            seq_other_single_valid,
-            wasmExports
-        );
-        // Similarity is reduced because 'noHash' frames contribute max distance to DTW cost.
-        // The comparison is effectively [A] vs [A_slight] but penalized by the path length including noHash frames.
-        expect(sim1).toBeLessThan(0.95); // Will be lower than direct frame similarity
-        expect(sim1).toBeGreaterThan(0); // But should be greater than 0
-        expect(sim1).toBeLessThan(1);
+      // Compare [A] vs [A_slight] -> high similarity
+      const sim1 = comparatorUtils.calculateSequenceSimilarityDTW(
+        seq_single_valid,
+        seq_other_single_valid,
+        wasmExports
+      );
+      // Similarity is reduced because 'noHash' frames contribute max distance to DTW cost.
+      // The comparison is effectively [A] vs [A_slight] but penalized by the path length including noHash frames.
+      expect(sim1).toBeLessThan(0.95); // Will be lower than direct frame similarity
+      expect(sim1).toBeGreaterThan(0); // But should be greater than 0
+      expect(sim1).toBeLessThan(1);
 
-        // Compare [A] vs [B] -> low similarity
-        const sim2 = comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_single_valid,
-            seq_different_single,
-            wasmExports
-        );
-        expect(sim2).toBeLessThan(0.5); // Relax assertion further
+      // Compare [A] vs [B] -> low similarity
+      const sim2 = comparatorUtils.calculateSequenceSimilarityDTW(
+        seq_single_valid,
+        seq_different_single,
+        wasmExports
+      );
+      expect(sim2).toBeLessThan(0.5); // Relax assertion further
 
-        // Compare [A] vs [A] -> perfect similarity
-        const sim3 = comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_single_valid,
-            seq_single_valid,
-            wasmExports
-        );
-        // Current DTW doesn't filter noHash frames, so comparing [noHash, A, noHash]
-        // with itself results in similarity < 1. Adjust expectation.
-        expect(sim3).toBeCloseTo(1/3);
+      // Compare [A] vs [A] -> perfect similarity
+      const sim3 = comparatorUtils.calculateSequenceSimilarityDTW(
+        seq_single_valid,
+        seq_single_valid,
+        wasmExports
+      );
+      // Current DTW doesn't filter noHash frames, so comparing [noHash, A, noHash]
+      // with itself results in similarity < 1. Adjust expectation.
+      expect(sim3).toBeCloseTo(1 / 3);
     });
 
     it("should return 0 if all frames in one sequence lack hashes", () => {
-        const seq_all_missing = [frame_noHash, frame_noHash];
-        expect(comparatorUtils.calculateSequenceSimilarityDTW(
-            seq1,
-            seq_all_missing,
-            wasmExports
-        )).toBe(0);
-        expect(comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_all_missing,
-            seq1,
-            wasmExports
-        )).toBe(0);
+      const seq_all_missing = [frame_noHash, frame_noHash];
+      expect(
+        comparatorUtils.calculateSequenceSimilarityDTW(
+          seq1,
+          seq_all_missing,
+          wasmExports
+        )
+      ).toBe(0);
+      expect(
+        comparatorUtils.calculateSequenceSimilarityDTW(
+          seq_all_missing,
+          seq1,
+          wasmExports
+        )
+      ).toBe(0);
     });
 
     it("should handle sequences with repeated frames", () => {
-        const seq_repeat1 = [frameA, frameA, frameB];
-        const seq_repeat2 = [frameA, frameB, frameB];
-        const seq_repeat3 = [frameA, frameA, frameA];
+      const seq_repeat1 = [frameA, frameA, frameB];
+      const seq_repeat2 = [frameA, frameB, frameB];
+      const seq_repeat3 = [frameA, frameA, frameA];
 
-        // Compare [A, A, B] vs [A, B, B] -> Should be reasonably similar
-        const sim1 = comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_repeat1,
-            seq_repeat2,
-            wasmExports
-        );
-        expect(sim1).toBeGreaterThan(0.5); // Expect moderate to high similarity
-        expect(sim1).toBeLessThanOrEqual(1); // Allow for potential floating point results == 1
+      // Compare [A, A, B] vs [A, B, B] -> Should be reasonably similar
+      const sim1 = comparatorUtils.calculateSequenceSimilarityDTW(
+        seq_repeat1,
+        seq_repeat2,
+        wasmExports
+      );
+      expect(sim1).toBeGreaterThan(0.5); // Expect moderate to high similarity
+      expect(sim1).toBeLessThanOrEqual(1); // Allow for potential floating point results == 1
 
-         // Compare [A, A, B] vs [A, A, A] -> Similarity depends on Sim(B,A)
-        const sim2 = comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_repeat1,
-            seq_repeat3,
-            wasmExports
-        );
-         // Assuming Sim(A,B) is low, similarity should be lower than sim1
-        expect(sim2).toBeLessThan(sim1);
+      // Compare [A, A, B] vs [A, A, A] -> Similarity depends on Sim(B,A)
+      const sim2 = comparatorUtils.calculateSequenceSimilarityDTW(
+        seq_repeat1,
+        seq_repeat3,
+        wasmExports
+      );
+      // Assuming Sim(A,B) is low, similarity should be lower than sim1
+      expect(sim2).toBeLessThan(sim1);
 
-
-        // Compare [A, A, A] vs [A, A, A] -> Perfect match
-        const sim3 = comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_repeat3,
-            seq_repeat3,
-            wasmExports
-        );
-        expect(sim3).toBeCloseTo(1.0);
+      // Compare [A, A, A] vs [A, A, A] -> Perfect match
+      const sim3 = comparatorUtils.calculateSequenceSimilarityDTW(
+        seq_repeat3,
+        seq_repeat3,
+        wasmExports
+      );
+      expect(sim3).toBeCloseTo(1.0);
     });
 
     it("should handle single-frame sequences", () => {
-        const seq_singleA = [frameA];
-        const seq_singleB = [frameB];
-        const seq_singleA_slight = [frameA_slight];
+      const seq_singleA = [frameA];
+      const seq_singleB = [frameB];
+      const seq_singleA_slight = [frameA_slight];
 
-        // Compare [A] vs [A] -> Perfect
-        expect(comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_singleA,
-            seq_singleA,
-            wasmExports
-        )).toBeCloseTo(1.0);
+      // Compare [A] vs [A] -> Perfect
+      expect(
+        comparatorUtils.calculateSequenceSimilarityDTW(
+          seq_singleA,
+          seq_singleA,
+          wasmExports
+        )
+      ).toBeCloseTo(1.0);
 
-        // Compare [A] vs [B] -> Low similarity (depends on calculateImageSimilarity)
-        const simAB = comparatorUtils.calculateImageSimilarity(frameA, frameB, wasmExports);
-        expect(comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_singleA,
-            seq_singleB,
-            wasmExports
-        )).toBeCloseTo(simAB); // For single frames, DTW result = direct similarity
+      // Compare [A] vs [B] -> Low similarity (depends on calculateImageSimilarity)
+      const simAB = comparatorUtils.calculateImageSimilarity(
+        frameA,
+        frameB,
+        wasmExports
+      );
+      expect(
+        comparatorUtils.calculateSequenceSimilarityDTW(
+          seq_singleA,
+          seq_singleB,
+          wasmExports
+        )
+      ).toBeCloseTo(simAB); // For single frames, DTW result = direct similarity
 
-        // Compare [A] vs [A_slight] -> High similarity
-         const simAAslight = comparatorUtils.calculateImageSimilarity(frameA, frameA_slight, wasmExports);
-         expect(comparatorUtils.calculateSequenceSimilarityDTW(
-            seq_singleA,
-            seq_singleA_slight,
-            wasmExports
-        )).toBeCloseTo(simAAslight);
-         expect(simAAslight).toBeGreaterThan(0.95); // Verify base similarity is high
+      // Compare [A] vs [A_slight] -> High similarity
+      const simAAslight = comparatorUtils.calculateImageSimilarity(
+        frameA,
+        frameA_slight,
+        wasmExports
+      );
+      expect(
+        comparatorUtils.calculateSequenceSimilarityDTW(
+          seq_singleA,
+          seq_singleA_slight,
+          wasmExports
+        )
+      ).toBeCloseTo(simAAslight);
+      expect(simAAslight).toBeGreaterThan(0.95); // Verify base similarity is high
     });
-
   }); // End of calculateSequenceSimilarityDTW describe block
 
   // --- Add tests for calculateVideoSimilarity ---
@@ -955,137 +994,245 @@ describe("Comparator Utilities", () => {
     // const media5_shorter: MediaInfo = { duration: 2, frames: seq5_shorter }; // Not redefined, remove tests using it for now if needed
     // const media6_longer: MediaInfo = { duration: 4, frames: seq6_longer }; // Not redefined, remove tests using it for now if needed
     // const media7_similar: MediaInfo = { duration: 3, frames: seq7_similar }; // Not redefined, remove tests using it for now if needed
-    const media8_with_missing: MediaInfo = { duration: 3, frames: seq8_with_missing };
+    const media8_with_missing: MediaInfo = {
+      duration: 3,
+      frames: seq8_with_missing,
+    };
     const media_empty: MediaInfo = { duration: 0, frames: seq_empty };
     const seq8_filtered: FrameInfo[] = [frameA, frameC]; // Expected result after getFramesInTimeRange filters noHash
 
     // Mock calculateSequenceSimilarityDTW using vi.fn and assignment
-    let dtwMock: import('vitest').Mock<[FrameInfo[], FrameInfo[], WasmExports | null], number>;
+    let dtwMock: import("vitest").Mock<
+      [FrameInfo[], FrameInfo[], WasmExports | null],
+      number
+    >;
     let originalDtwFn: typeof comparatorUtils.calculateSequenceSimilarityDTW;
 
     beforeEach(() => {
-        // Store original function
-        originalDtwFn = comparatorUtils.calculateSequenceSimilarityDTW;
-        // Create mock function
-        dtwMock = vi.fn();
-        // Assign mock to the exported function
-        comparatorUtils.calculateSequenceSimilarityDTW = dtwMock;
+      // Store original function
+      originalDtwFn = comparatorUtils.calculateSequenceSimilarityDTW;
+      // Create mock function
+      dtwMock = vi.fn();
+      // Assign mock to the exported function
+      comparatorUtils.calculateSequenceSimilarityDTW = dtwMock;
     });
     afterEach(() => {
-        // Restore original function
-        comparatorUtils.calculateSequenceSimilarityDTW = originalDtwFn;
-        vi.restoreAllMocks(); // Also restore any other spies/mocks if needed
+      // Restore original function
+      comparatorUtils.calculateSequenceSimilarityDTW = originalDtwFn;
+      vi.restoreAllMocks(); // Also restore any other spies/mocks if needed
     });
 
-
     it("should call calculateSequenceSimilarityDTW with correct frames", () => {
-        dtwMock.mockReturnValue(0.9); // Mock return value
-        comparatorUtils.calculateVideoSimilarity(media1, media2_identical, config, wasmExports);
-        expect(dtwMock).toHaveBeenCalledWith(seq1, seq2_identical, wasmExports);
+      dtwMock.mockReturnValue(0.9); // Mock return value
+      comparatorUtils.calculateVideoSimilarity(
+        media1,
+        media2_identical,
+        config,
+        wasmExports
+      );
+      expect(dtwMock).toHaveBeenCalledWith(seq1, seq2_identical, wasmExports);
     });
 
     // Removed redundant test: "should call calculateSequenceSimilarityDTW with correct frames"
     // Removed redundant test: "should handle identical videos (via mocked DTW)"
 
     it("should return the result from calculateSequenceSimilarityDTW", () => {
-        dtwMock.mockReturnValue(0.85);
-        const result = comparatorUtils.calculateVideoSimilarity(media1, media4_partial, config, wasmExports);
-        expect(result).toBe(0.85);
-        // Correct order: longerSubseq (seq4_partial), shorterSubseq (seq1)
-        expect(dtwMock).toHaveBeenCalledWith(seq4_partial, seq1, wasmExports); // Check arguments
+      dtwMock.mockReturnValue(0.85);
+      const result = comparatorUtils.calculateVideoSimilarity(
+        media1,
+        media4_partial,
+        config,
+        wasmExports
+      );
+      expect(result).toBe(0.85);
+      // Correct order: longerSubseq (seq4_partial), shorterSubseq (seq1)
+      expect(dtwMock).toHaveBeenCalledWith(seq4_partial, seq1, wasmExports); // Check arguments
     });
 
-     it("should return 0 if either media has no frames", () => {
-        expect(comparatorUtils.calculateVideoSimilarity(media1, media_empty, config, wasmExports)).toBe(0);
-        expect(comparatorUtils.calculateVideoSimilarity(media_empty, media1, config, wasmExports)).toBe(0);
-        expect(dtwMock).not.toHaveBeenCalled(); // DTW shouldn't be called
+    it("should return 0 if either media has no frames", () => {
+      expect(
+        comparatorUtils.calculateVideoSimilarity(
+          media1,
+          media_empty,
+          config,
+          wasmExports
+        )
+      ).toBe(0);
+      expect(
+        comparatorUtils.calculateVideoSimilarity(
+          media_empty,
+          media1,
+          config,
+          wasmExports
+        )
+      ).toBe(0);
+      expect(dtwMock).not.toHaveBeenCalled(); // DTW shouldn't be called
     });
 
     it("should return 1 if both media have no frames", () => {
-        expect(comparatorUtils.calculateVideoSimilarity(media_empty, media_empty, config, wasmExports)).toBe(1);
-        expect(dtwMock).not.toHaveBeenCalled(); // DTW shouldn't be called
+      expect(
+        comparatorUtils.calculateVideoSimilarity(
+          media_empty,
+          media_empty,
+          config,
+          wasmExports
+        )
+      ).toBe(1);
+      expect(dtwMock).not.toHaveBeenCalled(); // DTW shouldn't be called
     });
 
     // Add more specific scenarios if needed, but the core logic relies on DTW
     it("should handle identical videos (via mocked DTW)", () => {
-        dtwMock.mockReturnValue(1.0);
-        expect(comparatorUtils.calculateVideoSimilarity(media1, media2_identical, config, wasmExports)).toBe(1.0);
-        expect(dtwMock).toHaveBeenCalledWith(seq1, seq2_identical, wasmExports);
+      dtwMock.mockReturnValue(1.0);
+      expect(
+        comparatorUtils.calculateVideoSimilarity(
+          media1,
+          media2_identical,
+          config,
+          wasmExports
+        )
+      ).toBe(1.0);
+      expect(dtwMock).toHaveBeenCalledWith(seq1, seq2_identical, wasmExports);
     });
 
     it("should handle different videos (via mocked DTW)", () => {
-        dtwMock.mockClear(); // Clear mock before setting return value for this test
-        dtwMock.mockReturnValue(0.1); // Assume low similarity from DTW
-        expect(comparatorUtils.calculateVideoSimilarity(media1, media3_different, config, wasmExports)).toBe(0.1);
-        // Correct order: longerSubseq (seq3_different), shorterSubseq (seq1)
-        expect(dtwMock).toHaveBeenCalledWith(seq3_different, seq1, wasmExports); // Check arguments
+      dtwMock.mockClear(); // Clear mock before setting return value for this test
+      dtwMock.mockReturnValue(0.1); // Assume low similarity from DTW
+      expect(
+        comparatorUtils.calculateVideoSimilarity(
+          media1,
+          media3_different,
+          config,
+          wasmExports
+        )
+      ).toBe(0.1);
+      // Correct order: longerSubseq (seq3_different), shorterSubseq (seq1)
+      expect(dtwMock).toHaveBeenCalledWith(seq3_different, seq1, wasmExports); // Check arguments
     });
 
-     it("should handle videos with missing frames (via mocked DTW)", () => {
-        // Let the mocked DTW handle the filtering logic implicitly
-        dtwMock.mockReturnValue(0.95); // Assume DTW returns high similarity after filtering
-        expect(comparatorUtils.calculateVideoSimilarity(media1, media8_with_missing, config, wasmExports)).toBe(0.95);
-        // Correct order: longerSubseq (filtered seq8), shorterSubseq (seq1)
-        expect(dtwMock).toHaveBeenCalledWith(seq8_filtered, seq1, wasmExports);
+    it("should handle videos with missing frames (via mocked DTW)", () => {
+      // Let the mocked DTW handle the filtering logic implicitly
+      dtwMock.mockReturnValue(0.95); // Assume DTW returns high similarity after filtering
+      expect(
+        comparatorUtils.calculateVideoSimilarity(
+          media1,
+          media8_with_missing,
+          config,
+          wasmExports
+        )
+      ).toBe(0.95);
+      // Correct order: longerSubseq (filtered seq8), shorterSubseq (seq1)
+      expect(dtwMock).toHaveBeenCalledWith(seq8_filtered, seq1, wasmExports);
     });
-
   }); // End of calculateVideoSimilarity describe block
 
   // --- Add tests for getFramesInTimeRange ---
   describe("getFramesInTimeRange", () => {
-    const frame0: FrameInfo = { hash: hexToSharedArrayBuffer("00")._unsafeUnwrap(), timestamp: 0 };
-    const frame1: FrameInfo = { hash: hexToSharedArrayBuffer("01")._unsafeUnwrap(), timestamp: 1 };
-    const frame2: FrameInfo = { hash: hexToSharedArrayBuffer("02")._unsafeUnwrap(), timestamp: 2 };
-    const frame3: FrameInfo = { hash: hexToSharedArrayBuffer("03")._unsafeUnwrap(), timestamp: 3 };
-    const frame4: FrameInfo = { hash: hexToSharedArrayBuffer("04")._unsafeUnwrap(), timestamp: 4 };
+    const frame0: FrameInfo = {
+      hash: hexToSharedArrayBuffer("00")._unsafeUnwrap(),
+      timestamp: 0,
+    };
+    const frame1: FrameInfo = {
+      hash: hexToSharedArrayBuffer("01")._unsafeUnwrap(),
+      timestamp: 1,
+    };
+    const frame2: FrameInfo = {
+      hash: hexToSharedArrayBuffer("02")._unsafeUnwrap(),
+      timestamp: 2,
+    };
+    const frame3: FrameInfo = {
+      hash: hexToSharedArrayBuffer("03")._unsafeUnwrap(),
+      timestamp: 3,
+    };
+    const frame4: FrameInfo = {
+      hash: hexToSharedArrayBuffer("04")._unsafeUnwrap(),
+      timestamp: 4,
+    };
     const frames: FrameInfo[] = [frame0, frame1, frame2, frame3, frame4];
 
     it("should return frames within the specified range (inclusive start, exclusive end)", () => {
       // Wrap frames in MediaInfo object
       // Expect inclusive end time: [1, 2, 3]
-      expect(getFramesInTimeRange({ duration: 5, frames }, 1, 3)).toEqual([frame1, frame2, frame3]);
+      expect(getFramesInTimeRange({ duration: 5, frames }, 1, 3)).toEqual([
+        frame1,
+        frame2,
+        frame3,
+      ]);
     });
 
     it("should include the start frame if timestamp matches start time", () => {
       // Expect inclusive end time: [0, 1, 2]
-      expect(getFramesInTimeRange({ duration: 5, frames }, 0, 2)).toEqual([frame0, frame1, frame2]);
+      expect(getFramesInTimeRange({ duration: 5, frames }, 0, 2)).toEqual([
+        frame0,
+        frame1,
+        frame2,
+      ]);
     });
 
     it("should exclude the end frame if timestamp matches end time", () => {
       // Expect inclusive end time: [2, 3, 4]
-      expect(getFramesInTimeRange({ duration: 5, frames }, 2, 4)).toEqual([frame2, frame3, frame4]);
+      expect(getFramesInTimeRange({ duration: 5, frames }, 2, 4)).toEqual([
+        frame2,
+        frame3,
+        frame4,
+      ]);
     });
 
     it("should return an empty array if no frames are in the range", () => {
       expect(getFramesInTimeRange({ duration: 5, frames }, 5, 10)).toEqual([]);
       // Expect inclusive end time: [0]
-      expect(getFramesInTimeRange({ duration: 5, frames }, -5, 0)).toEqual([frame0]);
-      expect(getFramesInTimeRange({ duration: 5, frames }, 2.1, 2.9)).toEqual([]);
+      expect(getFramesInTimeRange({ duration: 5, frames }, -5, 0)).toEqual([
+        frame0,
+      ]);
+      expect(getFramesInTimeRange({ duration: 5, frames }, 2.1, 2.9)).toEqual(
+        []
+      );
     });
 
-     it("should return an empty array if start time is greater than or equal to end time", () => {
+    it("should return an empty array if start time is greater than or equal to end time", () => {
       expect(getFramesInTimeRange({ duration: 5, frames }, 3, 1)).toEqual([]);
       // Expect inclusive end time: [2]
-      expect(getFramesInTimeRange({ duration: 5, frames }, 2, 2)).toEqual([frame2]);
+      expect(getFramesInTimeRange({ duration: 5, frames }, 2, 2)).toEqual([
+        frame2,
+      ]);
     });
 
     it("should return all frames if range covers all timestamps", () => {
-      expect(getFramesInTimeRange({ duration: 5, frames }, 0, 5)).toEqual(frames);
-      expect(getFramesInTimeRange({ duration: 5, frames }, -1, 10)).toEqual(frames);
+      expect(getFramesInTimeRange({ duration: 5, frames }, 0, 5)).toEqual(
+        frames
+      );
+      expect(getFramesInTimeRange({ duration: 5, frames }, -1, 10)).toEqual(
+        frames
+      );
     });
 
     it("should handle empty input frames array", () => {
-      expect(getFramesInTimeRange({ duration: 0, frames: [] }, 0, 10)).toEqual([]);
+      expect(getFramesInTimeRange({ duration: 0, frames: [] }, 0, 10)).toEqual(
+        []
+      );
     });
 
     it("should handle frames with non-integer timestamps", () => {
-        const frame0_5: FrameInfo = { hash: hexToSharedArrayBuffer("05")._unsafeUnwrap(), timestamp: 0.5 };
-        const frame1_5: FrameInfo = { hash: hexToSharedArrayBuffer("15")._unsafeUnwrap(), timestamp: 1.5 };
-        const frame2_5: FrameInfo = { hash: hexToSharedArrayBuffer("25")._unsafeUnwrap(), timestamp: 2.5 };
-        const floatFrames = [frame0_5, frame1_5, frame2_5];
-        expect(getFramesInTimeRange({ duration: 3, frames: floatFrames }, 1, 2)).toEqual([frame1_5]);
-        // Expect inclusive end time: [0.5, 1.5, 2.5]
-        expect(getFramesInTimeRange({ duration: 3, frames: floatFrames }, 0.5, 2.5)).toEqual([frame0_5, frame1_5, frame2_5]);
+      const frame0_5: FrameInfo = {
+        hash: hexToSharedArrayBuffer("05")._unsafeUnwrap(),
+        timestamp: 0.5,
+      };
+      const frame1_5: FrameInfo = {
+        hash: hexToSharedArrayBuffer("15")._unsafeUnwrap(),
+        timestamp: 1.5,
+      };
+      const frame2_5: FrameInfo = {
+        hash: hexToSharedArrayBuffer("25")._unsafeUnwrap(),
+        timestamp: 2.5,
+      };
+      const floatFrames = [frame0_5, frame1_5, frame2_5];
+      expect(
+        getFramesInTimeRange({ duration: 3, frames: floatFrames }, 1, 2)
+      ).toEqual([frame1_5]);
+      // Expect inclusive end time: [0.5, 1.5, 2.5]
+      expect(
+        getFramesInTimeRange({ duration: 3, frames: floatFrames }, 0.5, 2.5)
+      ).toEqual([frame0_5, frame1_5, frame2_5]);
     });
   }); // End of getFramesInTimeRange describe block
 
@@ -1093,9 +1240,10 @@ describe("Comparator Utilities", () => {
   describe("selectRepresentativeCaptures", () => {
     // Mock data setup
     const wasmExports = null;
-    const similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold"> = {
-      imageSimilarityThreshold: 0.9,
-    };
+    const similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold"> =
+      {
+        imageSimilarityThreshold: 0.9,
+      };
 
     const createMockEntry = (
       entry: string,
@@ -1103,32 +1251,88 @@ describe("Comparator Utilities", () => {
       height: number | undefined,
       hashHex: string | null,
       duration = 0,
-      imageDate: Date | undefined = undefined,
+      imageDate: Date | undefined = undefined
     ): { entry: string; fileInfo: FileInfo } => {
-      const hash = hashHex ? hexToSharedArrayBuffer(hashHex)._unsafeUnwrap() : undefined;
+      const hash = hashHex
+        ? hexToSharedArrayBuffer(hashHex)._unsafeUnwrap()
+        : undefined;
       return {
         entry,
         fileInfo: {
-          fileStats: { size: (width ?? 1) * (height ?? 1) * 10, createdAt: new Date(), modifiedAt: new Date(), hash: hash ?? hexToSharedArrayBuffer("00")._unsafeUnwrap() },
+          fileStats: {
+            size: (width ?? 1) * (height ?? 1) * 10,
+            createdAt: new Date(),
+            modifiedAt: new Date(),
+            hash: hash ?? hexToSharedArrayBuffer("00")._unsafeUnwrap(),
+          },
           metadata: { width, height, imageDate },
           media: { duration, frames: hash ? [{ hash, timestamp: 0 }] : [] },
         },
       };
     };
 
-    const videoInfo = createMockEntry("video.mp4", 1920, 1080, null, 10, new Date()); // Best video info
-    const img1_high_q_unique = createMockEntry("img1.jpg", 2000, 1500, "aabbccdd", 0, new Date()); // High quality, unique hash
-    const img2_high_q_similar = createMockEntry("img2.jpg", 1950, 1080, "aabbccde", 0, new Date()); // High quality, similar hash to img1
-    const img3_low_q = createMockEntry("img3.jpg", 640, 480, "11223344", 0, new Date()); // Lower quality than video
-    const img4_high_q_no_date = createMockEntry("img4.jpg", 2000, 1600, "55667788", 0, undefined); // High quality, but no date (video has date)
-    const img5_high_q_no_hash = createMockEntry("img5.jpg", 2000, 1700, null, 0, new Date()); // High quality, but no hash
-    const img6_high_q_unique2 = createMockEntry("img6.jpg", 1920, 1080, "abcdef00", 0, new Date()); // High quality, unique hash
+    const videoInfo = createMockEntry(
+      "video.mp4",
+      1920,
+      1080,
+      null,
+      10,
+      new Date()
+    ); // Best video info
+    const img1_high_q_unique = createMockEntry(
+      "img1.jpg",
+      2000,
+      1500,
+      "aabbccdd",
+      0,
+      new Date()
+    ); // High quality, unique hash
+    const img2_high_q_similar = createMockEntry(
+      "img2.jpg",
+      1950,
+      1080,
+      "aabbccde",
+      0,
+      new Date()
+    ); // High quality, similar hash to img1
+    const img3_low_q = createMockEntry(
+      "img3.jpg",
+      640,
+      480,
+      "11223344",
+      0,
+      new Date()
+    ); // Lower quality than video
+    const img4_high_q_no_date = createMockEntry(
+      "img4.jpg",
+      2000,
+      1600,
+      "55667788",
+      0,
+      undefined
+    ); // High quality, but no date (video has date)
+    const img5_high_q_no_hash = createMockEntry(
+      "img5.jpg",
+      2000,
+      1700,
+      null,
+      0,
+      new Date()
+    ); // High quality, but no hash
+    const img6_high_q_unique2 = createMockEntry(
+      "img6.jpg",
+      1920,
+      1080,
+      "abcdef00",
+      0,
+      new Date()
+    ); // High quality, unique hash
 
     it("should select high-quality, unique images compared to video and each other", () => {
       const potentialCaptures = [
         img1_high_q_unique,
         img2_high_q_similar, // Similar to img1
-        img3_low_q,          // Lower quality
+        img3_low_q, // Lower quality
         img4_high_q_no_date, // No date
         img5_high_q_no_hash, // No hash
         img6_high_q_unique2, // Unique
@@ -1137,7 +1341,7 @@ describe("Comparator Utilities", () => {
         potentialCaptures,
         videoInfo.fileInfo,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       // Expect img1 (first unique high quality) and img6 (second unique high quality)
       // img2 is skipped (similar to img1), img3 skipped (low quality), img4 skipped (no date), img5 skipped (no hash)
@@ -1146,72 +1350,79 @@ describe("Comparator Utilities", () => {
     });
 
     it("should return empty array if no potential captures", () => {
-       const result = selectRepresentativeCaptures(
+      const result = selectRepresentativeCaptures(
         [],
         videoInfo.fileInfo,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       expect(result).toEqual([]);
     });
 
-     it("should return empty array if no captures meet quality/date criteria", () => {
-       const potentialCaptures = [img3_low_q, img4_high_q_no_date];
-       const result = selectRepresentativeCaptures(
+    it("should return empty array if no captures meet quality/date criteria", () => {
+      const potentialCaptures = [img3_low_q, img4_high_q_no_date];
+      const result = selectRepresentativeCaptures(
         potentialCaptures,
         videoInfo.fileInfo,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       expect(result).toEqual([]);
     });
 
     it("should return empty array if all high-quality captures have no hash", () => {
-       const potentialCaptures = [img5_high_q_no_hash];
-       const result = selectRepresentativeCaptures(
+      const potentialCaptures = [img5_high_q_no_hash];
+      const result = selectRepresentativeCaptures(
         potentialCaptures,
         videoInfo.fileInfo,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       expect(result).toEqual([]);
     });
 
-     it("should select the first unique capture if multiple are similar", () => {
-       const potentialCaptures = [img1_high_q_unique, img2_high_q_similar]; // img2 similar to img1
-       const result = selectRepresentativeCaptures(
+    it("should select the first unique capture if multiple are similar", () => {
+      const potentialCaptures = [img1_high_q_unique, img2_high_q_similar]; // img2 similar to img1
+      const result = selectRepresentativeCaptures(
         potentialCaptures,
         videoInfo.fileInfo,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       expect(result).toEqual(["img1.jpg"]);
     });
-
   }); // End of selectRepresentativeCaptures describe block
 
   // --- Add tests for selectRepresentativesFromScored ---
   describe("selectRepresentativesFromScored", () => {
     // Mock data setup
     const wasmExports = null;
-    const similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold"> = {
-      imageSimilarityThreshold: 0.9,
-    };
+    const similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold"> =
+      {
+        imageSimilarityThreshold: 0.9,
+      };
 
     // Use createMockEntry from previous describe block
-     const createMockEntry = (
+    const createMockEntry = (
       entry: string,
       width: number | undefined,
       height: number | undefined,
       hashHex: string | null,
       duration = 0,
-      imageDate: Date | undefined = new Date(), // Default to having a date
+      imageDate: Date | undefined = new Date() // Default to having a date
     ): { entry: string; fileInfo: FileInfo } => {
-      const hash = hashHex ? hexToSharedArrayBuffer(hashHex)._unsafeUnwrap() : undefined;
+      const hash = hashHex
+        ? hexToSharedArrayBuffer(hashHex)._unsafeUnwrap()
+        : undefined;
       return {
         entry,
         fileInfo: {
-          fileStats: { size: (width ?? 1) * (height ?? 1) * 10, createdAt: new Date(), modifiedAt: new Date(), hash: hash ?? hexToSharedArrayBuffer("00")._unsafeUnwrap() },
+          fileStats: {
+            size: (width ?? 1) * (height ?? 1) * 10,
+            createdAt: new Date(),
+            modifiedAt: new Date(),
+            hash: hash ?? hexToSharedArrayBuffer("00")._unsafeUnwrap(),
+          },
           metadata: { width, height, imageDate },
           media: { duration, frames: hash ? [{ hash, timestamp: 0 }] : [] },
         },
@@ -1225,71 +1436,88 @@ describe("Comparator Utilities", () => {
     const highImgUnique2 = createMockEntry("img3.jpg", 1920, 1080, "11223344");
     const lowImg = createMockEntry("img4.jpg", 640, 480, "55667788");
 
-    const sortedEntriesVideoBest = [bestVideo, highImgUnique1, highImgSimilar1, highImgUnique2, lowImg];
-    const sortedEntriesImageBest = [highImgUnique1, bestVideo, highImgSimilar1, highImgUnique2, lowImg];
-    const sortedEntriesOnlyImages = [highImgUnique1, highImgSimilar1, highImgUnique2, lowImg];
+    const sortedEntriesVideoBest = [
+      bestVideo,
+      highImgUnique1,
+      highImgSimilar1,
+      highImgUnique2,
+      lowImg,
+    ];
+    const sortedEntriesImageBest = [
+      highImgUnique1,
+      bestVideo,
+      highImgSimilar1,
+      highImgUnique2,
+      lowImg,
+    ];
+    const sortedEntriesOnlyImages = [
+      highImgUnique1,
+      highImgSimilar1,
+      highImgUnique2,
+      lowImg,
+    ];
     const sortedEntriesOnlyVideo = [bestVideo];
-
 
     it("should return only the best entry if it is an image", () => {
       const result = selectRepresentativesFromScored(
         sortedEntriesImageBest,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       expect(result).toEqual(["img1.jpg"]);
     });
 
     it("should return the best video plus unique high-quality captures if best is video", () => {
-       const result = selectRepresentativesFromScored(
+      const result = selectRepresentativesFromScored(
         sortedEntriesVideoBest,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       // Expect best video + unique images (img1, img3). img2 is similar to img1. lowImg is too low quality.
-      expect(result).toEqual(expect.arrayContaining(["video1.mp4", "img1.jpg", "img3.jpg"]));
+      expect(result).toEqual(
+        expect.arrayContaining(["video1.mp4", "img1.jpg", "img3.jpg"])
+      );
       expect(result.length).toBe(3);
     });
 
     it("should handle cases with only images", () => {
-       const result = selectRepresentativesFromScored(
+      const result = selectRepresentativesFromScored(
         sortedEntriesOnlyImages,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       // Best entry is img1 (image), so only return that one.
       expect(result).toEqual(["img1.jpg"]);
     });
 
     it("should handle cases with only one video", () => {
-       const result = selectRepresentativesFromScored(
+      const result = selectRepresentativesFromScored(
         sortedEntriesOnlyVideo,
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
-       // Only one entry, return it.
+      // Only one entry, return it.
       expect(result).toEqual(["video1.mp4"]);
     });
 
     it("should return empty array if input is empty", () => {
-       const result = selectRepresentativesFromScored(
+      const result = selectRepresentativesFromScored(
         [],
         similarityConfig,
-        wasmExports,
+        wasmExports
       );
       expect(result).toEqual([]);
     });
 
-     it("should return best video only if no other high quality unique images exist", () => {
-        const sortedEntriesVideoOnlyHigh = [bestVideo, lowImg];
-        const result = selectRepresentativesFromScored(
-            sortedEntriesVideoOnlyHigh,
-            similarityConfig,
-            wasmExports
-        );
-        expect(result).toEqual(["video1.mp4"]);
-     });
-
+    it("should return best video only if no other high quality unique images exist", () => {
+      const sortedEntriesVideoOnlyHigh = [bestVideo, lowImg];
+      const result = selectRepresentativesFromScored(
+        sortedEntriesVideoOnlyHigh,
+        similarityConfig,
+        wasmExports
+      );
+      expect(result).toEqual(["video1.mp4"]);
+    });
   }); // End of selectRepresentativesFromScored describe block
 
   // --- Add tests for mergeAndDeduplicateClusters ---
@@ -1322,7 +1550,7 @@ describe("Comparator Utilities", () => {
       const merged = mergeAndDeduplicateClusters(clusters);
       expect(merged.length).toBe(3);
       // Use Set equality check helper or sort arrays
-      const mergedSorted = merged.map(s => Array.from(s).sort());
+      const mergedSorted = merged.map((s) => Array.from(s).sort());
       expect(mergedSorted).toContainEqual(["A", "B", "C"]);
       expect(mergedSorted).toContainEqual(["F", "G"]);
       expect(mergedSorted).toContainEqual(["X", "Y"]);
@@ -1332,17 +1560,17 @@ describe("Comparator Utilities", () => {
       const clusters = [cluster1, cluster2, cluster3, cluster4, cluster5];
       const merged = mergeAndDeduplicateClusters(clusters);
       expect(merged.length).toBe(3); // (1,2,4 merge), 3, 5 remain separate
-       const mergedSorted = merged.map(s => Array.from(s).sort());
-       expect(mergedSorted).toContainEqual(["A", "B", "C", "D", "E", "H"]);
-       expect(mergedSorted).toContainEqual(["F", "G"]);
-       expect(mergedSorted).toContainEqual(["X", "Y"]);
+      const mergedSorted = merged.map((s) => Array.from(s).sort());
+      expect(mergedSorted).toContainEqual(["A", "B", "C", "D", "E", "H"]);
+      expect(mergedSorted).toContainEqual(["F", "G"]);
+      expect(mergedSorted).toContainEqual(["X", "Y"]);
     });
 
-     it("should handle identical input clusters", () => {
+    it("should handle identical input clusters", () => {
       const clusters = [cluster1, new Set(["A", "B", "C"]), cluster3];
       const merged = mergeAndDeduplicateClusters(clusters);
       expect(merged.length).toBe(2); // cluster1 merges with its duplicate
-      const mergedSorted = merged.map(s => Array.from(s).sort());
+      const mergedSorted = merged.map((s) => Array.from(s).sort());
       expect(mergedSorted).toContainEqual(["A", "B", "C"]);
       expect(mergedSorted).toContainEqual(["F", "G"]);
     });
@@ -1358,21 +1586,16 @@ describe("Comparator Utilities", () => {
       expect(mergeAndDeduplicateClusters([])).toEqual([]);
     });
 
-     it("should handle clusters containing single items", () => {
-        const clusterA = new Set(["A"]);
-        const clusterB = new Set(["B"]);
-        const clusterA2 = new Set(["A"]); // Duplicate single item cluster
-        const clusters = [clusterA, clusterB, clusterA2];
-        const merged = mergeAndDeduplicateClusters(clusters);
-        expect(merged.length).toBe(2); // A and A2 merge
-        const mergedSorted = merged.map(s => Array.from(s).sort());
-        expect(mergedSorted).toContainEqual(["A"]);
-        expect(mergedSorted).toContainEqual(["B"]);
+    it("should handle clusters containing single items", () => {
+      const clusterA = new Set(["A"]);
+      const clusterB = new Set(["B"]);
+      const clusterA2 = new Set(["A"]); // Duplicate single item cluster
+      const clusters = [clusterA, clusterB, clusterA2];
+      const merged = mergeAndDeduplicateClusters(clusters);
+      expect(merged.length).toBe(2); // A and A2 merge
+      const mergedSorted = merged.map((s) => Array.from(s).sort());
+      expect(mergedSorted).toContainEqual(["A"]);
+      expect(mergedSorted).toContainEqual(["B"]);
     });
-
   }); // End of mergeAndDeduplicateClusters describe block
-
-  // Removed flawed tests for expandCluster and runDbscanCore as they require
-  // significant mocking rework better suited for integration tests.
-
 }); // End of Comparator Utilities describe block

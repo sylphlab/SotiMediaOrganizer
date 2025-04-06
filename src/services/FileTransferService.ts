@@ -25,7 +25,7 @@ export class FileTransferService {
     private readonly config: FileProcessorConfig,
     private readonly cache: LmdbCache,
     private readonly exifTool: ExifTool,
-    private readonly workerPool: WorkerPool,
+    private readonly workerPool: WorkerPool
   ) {}
 
   async transferOrganizedFiles(
@@ -35,7 +35,7 @@ export class FileTransferService {
     duplicateDir: string | undefined,
     errorDir: string | undefined,
     format: string,
-    shouldMove: boolean,
+    shouldMove: boolean
   ): Promise<void> {
     const multibar = new MultiBar(
       {
@@ -46,7 +46,7 @@ export class FileTransferService {
           chalk.cyan("{bar}") +
           " {percentage}% || {value}/{total} Files",
       },
-      Presets.shades_classic,
+      Presets.shades_classic
     );
 
     // --- Transfer unique files ---
@@ -59,15 +59,15 @@ export class FileTransferService {
         this.config,
         this.cache,
         this.exifTool,
-        this.workerPool,
+        this.workerPool
       );
 
       if (fileInfoResult.isErr()) {
         console.warn(
           chalk.yellow(
-            `Skipping unique file ${filePath} due to processing error:`,
+            `Skipping unique file ${filePath} due to processing error:`
           ),
-          fileInfoResult.error,
+          fileInfoResult.error
         );
         uniqueBar.increment(); // Increment even if skipped
         continue;
@@ -77,7 +77,7 @@ export class FileTransferService {
         format,
         targetDir,
         fileInfo,
-        filePath,
+        filePath
       );
       await this.transferOrCopyFile(filePath, targetPath, !shouldMove);
       uniqueBar.increment();
@@ -86,7 +86,7 @@ export class FileTransferService {
     // --- Handle duplicate files ---
     if (duplicateDir) {
       const duplicateCount = Array.from(
-        deduplicationResult.duplicateSets.values(),
+        deduplicationResult.duplicateSets.values()
       ).reduce((sum, set) => sum + set.duplicates.size, 0);
 
       if (duplicateCount > 0) {
@@ -104,15 +104,15 @@ export class FileTransferService {
             await this.transferOrCopyFile(
               duplicatePath,
               join(duplicateSetFolder, basename(duplicatePath)),
-              !shouldMove, // Always copy/move duplicates based on flag
+              !shouldMove // Always copy/move duplicates based on flag
             );
             duplicateBar.increment();
           }
         }
         console.log(
           chalk.yellow(
-            `\nDuplicate files have been ${shouldMove ? "moved" : "copied"} to ${duplicateDir}`,
-          ),
+            `\nDuplicate files have been ${shouldMove ? "moved" : "copied"} to ${duplicateDir}`
+          )
         );
       } else {
         console.log(chalk.yellow("\nNo duplicate files to process."));
@@ -120,7 +120,7 @@ export class FileTransferService {
     } else {
       // If no duplicateDir, process representatives (best files)
       const representativeCount = Array.from(
-        deduplicationResult.duplicateSets.values(),
+        deduplicationResult.duplicateSets.values()
       ).reduce((sum, set) => sum + set.representatives.size, 0);
 
       if (representativeCount > 0) {
@@ -134,15 +134,15 @@ export class FileTransferService {
               this.config,
               this.cache,
               this.exifTool,
-              this.workerPool,
+              this.workerPool
             );
 
             if (fileInfoResult.isErr()) {
               console.warn(
                 chalk.yellow(
-                  `Skipping representative file ${representativePath} due to processing error:`,
+                  `Skipping representative file ${representativePath} due to processing error:`
                 ),
-                fileInfoResult.error,
+                fileInfoResult.error
               );
               bestFileBar.increment(); // Increment even if skipped
               continue;
@@ -152,12 +152,12 @@ export class FileTransferService {
               format,
               targetDir,
               fileInfo,
-              representativePath,
+              representativePath
             );
             await this.transferOrCopyFile(
               representativePath,
               targetPath,
-              !shouldMove,
+              !shouldMove
             );
             bestFileBar.increment();
           }
@@ -170,7 +170,7 @@ export class FileTransferService {
       const errorBar = multibar.create(
         gatherFileInfoResult.errorFiles.length,
         0,
-        { phase: "Error   " },
+        { phase: "Error   " }
       );
       for (const errorFilePath of gatherFileInfoResult.errorFiles) {
         const targetPath = join(errorDir, basename(errorFilePath));
@@ -180,8 +180,8 @@ export class FileTransferService {
       }
       console.log(
         chalk.red(
-          `\nError files have been ${shouldMove ? "moved" : "copied"} to ${errorDir}`,
-        ),
+          `\nError files have been ${shouldMove ? "moved" : "copied"} to ${errorDir}`
+        )
       );
     }
 
@@ -192,7 +192,7 @@ export class FileTransferService {
   private async transferOrCopyFile(
     sourcePath: string,
     targetPath: string,
-    isCopy: boolean,
+    isCopy: boolean
   ): Promise<void> {
     try {
       await mkdir(dirname(targetPath), { recursive: true });
@@ -219,9 +219,9 @@ export class FileTransferService {
     } catch (error) {
       console.error(
         chalk.red(
-          `\nError ${isCopy ? "copying" : "moving"} file ${sourcePath} to ${targetPath}:`,
+          `\nError ${isCopy ? "copying" : "moving"} file ${sourcePath} to ${targetPath}:`
         ),
-        error,
+        error
       );
       // Decide if we should throw or just log and continue
       // For now, log and continue
@@ -232,7 +232,7 @@ export class FileTransferService {
     format: string,
     targetDir: string,
     fileInfo: FileInfo,
-    sourcePath: string,
+    sourcePath: string
   ): string {
     const mixedDate =
       fileInfo.metadata.imageDate || fileInfo.fileStats.createdAt;
@@ -332,7 +332,7 @@ export class FileTransferService {
 
     // Build a regex that specifically matches the known format keys from the 'data' object
     const knownKeys = Object.keys(data).map((key) =>
-      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     ); // Escape regex special chars in keys
     // Sort keys by length descending to match longer keys first (e.g., NAME.L before NAME) - might not be strictly necessary here but good practice
     knownKeys.sort((a, b) => b.length - a.length);
@@ -419,11 +419,11 @@ export class FileTransferService {
       if (counter > 100) {
         console.error(
           chalk.red(
-            `Could not resolve filename conflict for ${sourcePath} after 100 attempts.`,
-          ),
+            `Could not resolve filename conflict for ${sourcePath} after 100 attempts.`
+          )
         );
         throw new Error(
-          `Filename conflict resolution failed for ${sourcePath}`,
+          `Filename conflict resolution failed for ${sourcePath}`
         );
       }
       counter++;
@@ -465,7 +465,7 @@ export class FileTransferService {
 
     // Build a regex that specifically matches the known format keys
     const knownKeys = Object.keys(formatters).map((key) =>
-      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
     ); // Escape regex special chars in keys
     // Sort keys by length descending to match longer keys first (e.g., DDDD before DD)
     knownKeys.sort((a, b) => b.length - a.length);
@@ -482,7 +482,7 @@ export class FileTransferService {
 
   private getWeekNumber(date: Date): number {
     const d = new Date(
-      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
     );
     // Set to nearest Thursday: current date + 4 - current day number
     // Make Sunday's day number 7
@@ -491,7 +491,7 @@ export class FileTransferService {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     // Calculate full weeks to nearest Thursday
     const weekNo = Math.ceil(
-      ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
+      ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
     );
     // Return week number
     return weekNo;

@@ -24,10 +24,11 @@ Please describe the tests that you ran to verify your changes. Provide instructi
 - [ ] Test B
 
 **Test Configuration**:
-*   OS:
-*   Node Version:
-*   Bun Version:
-*   MediaCurator Version (if applicable):
+
+- OS:
+- Node Version:
+- Bun Version:
+- MediaCurator Version (if applicable):
 
 ## Checklist:
 

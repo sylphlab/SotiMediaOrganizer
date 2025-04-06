@@ -60,7 +60,7 @@ function createSampleRow(
   size: number = 1024,
   duration: number | null = null, // null for images
   width: number = 800,
-  height: number = 600,
+  height: number = 600
 ): FileInfoRow {
   const lshKeys = generateLshKeysHelper(pHashHex); // Use helper defined below
   return {
@@ -127,7 +127,7 @@ async function populateDb(dbService: MetadataDBService, rows: FileInfoRow[]) {
     const result = dbService.upsertFileInfo(row.filePath, fileInfo as FileInfo);
     if (result.isErr()) {
       throw new Error(
-        `Failed to populate DB for ${row.filePath}: ${result.error.message}`,
+        `Failed to populate DB for ${row.filePath}: ${result.error.message}`
       );
     }
   }
@@ -216,14 +216,14 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       mockExifToolInstance, // Use mock exiftool
       similarityConfig, // Use the test's similarity config
       programOptions, // Use the mock program options
-      mockWorkerPoolInstance, // Use mock worker pool
+      mockWorkerPoolInstance // Use mock worker pool
     );
 
     vi.clearAllMocks(); // Use vi.clearAllMocks()
   });
 
   afterEach(async () => {
-    await dbService?.close();
+    await dbService.close();
   });
 
   it("should identify exact duplicates based on pHash", async () => {
@@ -241,7 +241,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter,
+      reporter
     );
 
     expect(result.isOk()).toBe(true);
@@ -255,13 +255,13 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     expect(dedupResult.duplicateSets[0].duplicates).toContain("exact2.jpg");
 
     expect(reporter.startSpinner).toHaveBeenCalledWith(
-      "Deduplicating files...",
+      "Deduplicating files..."
     );
     expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-      expect.stringContaining("Finding exact duplicates"),
+      expect.stringContaining("Finding exact duplicates")
     );
     expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-      expect.stringContaining("1 exact duplicate sets"),
+      expect.stringContaining("1 exact duplicate sets")
     );
     expect(reporter.stopSpinnerSuccess).toHaveBeenCalled();
   });
@@ -288,7 +288,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter,
+      reporter
     );
 
     expect(result.isOk()).toBe(true);
@@ -303,7 +303,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     expect(dedupResult.duplicateSets[0].duplicates).toContain("similar2.jpg");
 
     expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-      expect.stringContaining("Finding similar files using LSH"),
+      expect.stringContaining("Finding similar files using LSH")
     );
     expect(calculateSimilaritySpy).toHaveBeenCalled(); // Check that similarity was calculated
 
@@ -329,7 +329,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
         comparator,
         dbService,
         similarityConfig,
-        reporter,
+        reporter
       );
 
       expect(result.isOk()).toBe(true);
@@ -343,7 +343,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       expect(dedupResult.duplicateSets).toHaveLength(0); // No duplicate sets formed
 
       expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-        expect.stringContaining("Finding similar files using LSH"),
+        expect.stringContaining("Finding similar files using LSH")
       );
       expect(calculateSimilaritySpy).toHaveBeenCalled(); // Similarity should still be calculated
       expect(reporter.stopSpinnerSuccess).toHaveBeenCalled();
@@ -369,7 +369,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter,
+      reporter
     );
 
     expect(result.isOk()).toBe(true);
@@ -380,7 +380,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     expect(dedupResult.duplicateSets).toHaveLength(0);
 
     expect(reporter.logWarning).toHaveBeenCalledWith(
-      expect.stringContaining("missing pHash"),
+      expect.stringContaining("missing pHash")
     );
     expect(reporter.stopSpinnerSuccess).toHaveBeenCalled();
   });
@@ -398,7 +398,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter,
+      reporter
     );
 
     expect(result.isErr()).toBe(true);
@@ -407,7 +407,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       expect(result.error).toBe(dbError);
     }
     expect(reporter.stopSpinnerFailure).toHaveBeenCalledWith(
-      expect.stringContaining(dbError.message),
+      expect.stringContaining(dbError.message)
     );
 
     getMultipleSpy.mockRestore();

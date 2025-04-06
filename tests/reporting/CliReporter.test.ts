@@ -8,7 +8,7 @@ import {
   expect,
   beforeEach,
   afterEach,
-  SpyInstance // Import SpyInstance type
+  SpyInstance, // Import SpyInstance type
 } from "vitest"; // Import from vitest
 
 // --- Mocking Dependencies ---
@@ -19,9 +19,18 @@ import {
 describe("CliReporter Tests", () => {
   let reporter: CliReporter;
   // Use Vitest SpyInstance type
-  let consoleLogSpy: SpyInstance<Parameters<typeof console.log>, ReturnType<typeof console.log>>;
-  let consoleWarnSpy: SpyInstance<Parameters<typeof console.warn>, ReturnType<typeof console.warn>>;
-  let consoleErrorSpy: SpyInstance<Parameters<typeof console.error>, ReturnType<typeof console.error>>;
+  let consoleLogSpy: SpyInstance<
+    Parameters<typeof console.log>,
+    ReturnType<typeof console.log>
+  >;
+  let consoleWarnSpy: SpyInstance<
+    Parameters<typeof console.warn>,
+    ReturnType<typeof console.warn>
+  >;
+  let consoleErrorSpy: SpyInstance<
+    Parameters<typeof console.error>,
+    ReturnType<typeof console.error>
+  >;
 
   beforeEach(() => {
     // vi.clearAllMocks(); // Usually not needed if using mockClear in beforeEach
@@ -46,7 +55,7 @@ describe("CliReporter Tests", () => {
     const verboseReporter = new CliReporter(true);
     // Access private member for testing
     expect((verboseReporter as unknown as { verbose: boolean }).verbose).toBe(
-      true,
+      true
     );
     expect((reporter as unknown as { verbose: boolean }).verbose).toBe(false);
   });
@@ -58,7 +67,7 @@ describe("CliReporter Tests", () => {
     // Check internal state
     expect((reporter as unknown as { spinner: unknown }).spinner).toBeDefined();
     expect(
-      (reporter as unknown as { spinner?: { text: string } }).spinner?.text,
+      (reporter as unknown as { spinner?: { text: string } }).spinner?.text
     ).toBe(text);
     // Cannot check mockSpinnerInstance anymore
   });
@@ -70,7 +79,7 @@ describe("CliReporter Tests", () => {
     reporter.updateSpinnerText(updatedText);
     // Check internal state
     expect(
-      (reporter as unknown as { spinner?: { text: string } }).spinner?.text,
+      (reporter as unknown as { spinner?: { text: string } }).spinner?.text
     ).toBe(updatedText);
     // Cannot check mockSpinnerInstance.text anymore
   });
@@ -130,7 +139,7 @@ describe("CliReporter Tests", () => {
     // expect(mockMultiBarInstance.create).toHaveBeenCalledTimes(2); // Cannot check
     // Cannot check mockMultiBarInstance calls anymore
     expect(
-      (reporter as unknown as { bars: Map<string, unknown> }).bars.size,
+      (reporter as unknown as { bars: Map<string, unknown> }).bars.size
     ).toBe(2);
     // Cannot check internal bar instance easily
     // expect((reporter as any).bars.get('jpg').bar).toBe(mockProgressBarInstance);
@@ -170,7 +179,7 @@ describe("CliReporter Tests", () => {
         reporter as unknown as {
           bars: Map<string, { payload?: { stats?: { errorCount: number } } }>;
         }
-      ).bars.get("mov")?.payload?.stats?.errorCount,
+      ).bars.get("mov")?.payload?.stats?.errorCount
     ).toBe(1);
   });
 
@@ -189,17 +198,17 @@ describe("CliReporter Tests", () => {
     const totals = new Map([["avi", 20]]);
     reporter.initializeMultiBar(formats, totals);
     expect(
-      (reporter as unknown as { multibar: unknown }).multibar,
+      (reporter as unknown as { multibar: unknown }).multibar
     ).not.toBeNull();
     expect(
-      (reporter as unknown as { bars: Map<string, unknown> }).bars.size,
+      (reporter as unknown as { bars: Map<string, unknown> }).bars.size
     ).toBe(1);
 
     reporter.stopMultiBar();
     // Check internal state
     expect((reporter as unknown as { multibar: unknown }).multibar).toBeNull();
     expect(
-      (reporter as unknown as { bars: Map<string, unknown> }).bars.size,
+      (reporter as unknown as { bars: Map<string, unknown> }).bars.size
     ).toBe(0);
   });
 
@@ -209,7 +218,7 @@ describe("CliReporter Tests", () => {
     reporter.logInfo(message);
     // Chalk mock removed, check plain text or use regex
     expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining(message),
+      expect.stringContaining(message)
     );
     // Cannot easily check clearLine/redraw without more complex console mocking
   });
@@ -218,7 +227,7 @@ describe("CliReporter Tests", () => {
     const message = "Success message";
     reporter.logSuccess(message);
     expect(consoleLogSpy).toHaveBeenCalledWith(
-      expect.stringContaining(message),
+      expect.stringContaining(message)
     );
   });
 
@@ -226,7 +235,7 @@ describe("CliReporter Tests", () => {
     const message = "Warning message";
     reporter.logWarning(message);
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining(message),
+      expect.stringContaining(message)
     );
   });
 
@@ -234,7 +243,7 @@ describe("CliReporter Tests", () => {
     const message = "Error message";
     reporter.logError(message);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(message),
+      expect.stringContaining(message)
     );
     expect(consoleErrorSpy).toHaveBeenCalledTimes(1); // No stack trace when verbose=false
   });
@@ -246,7 +255,7 @@ describe("CliReporter Tests", () => {
     error.stack = "Error: Something went wrong\n    at test.js:1:1";
     verboseReporter.logError(message, error);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(message),
+      expect.stringContaining(message)
     );
     // Check that it was called a second time (for the stack trace), but don't check the exact content
     expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
@@ -259,10 +268,10 @@ describe("CliReporter Tests", () => {
     error.stack = undefined; // Simulate no stack
     verboseReporter.logError(message, error);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(message),
+      expect.stringContaining(message)
     );
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      expect.stringContaining(error.toString()),
+      expect.stringContaining(error.toString())
     ); // Should log toString()
     expect(consoleErrorSpy).toHaveBeenCalledTimes(2);
   });

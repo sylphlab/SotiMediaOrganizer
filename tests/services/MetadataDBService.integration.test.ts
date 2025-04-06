@@ -42,7 +42,7 @@ describeIf(!process.isBun)(
       // Cast the result type
       const result = dbService["db"]
         .prepare(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name='files'",
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='files'"
         )
         .get() as { name: string } | undefined;
       expect(result).toBeDefined();
@@ -54,7 +54,7 @@ describeIf(!process.isBun)(
       const pHashBuffer = Buffer.from("a1b2c3d4e5f6a7b8", "hex"); // Example 64-bit pHash
       const contentHashBuffer = Buffer.from(
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef", // Example SHA-256
-        "hex",
+        "hex"
       );
       const now = new Date();
       const fileInfo: FileInfo = {
@@ -93,11 +93,11 @@ describeIf(!process.isBun)(
       expect(retrievedInfo).not.toBeNull();
       expect(retrievedInfo.fileStats).toBeDefined();
       expect(Buffer.from(retrievedInfo.fileStats.hash).toString("hex")).toEqual(
-        contentHashBuffer.toString("hex"),
+        contentHashBuffer.toString("hex")
       );
       expect(retrievedInfo.fileStats.size).toBe(1024);
       expect(retrievedInfo.fileStats.createdAt.getTime()).toBe(
-        now.getTime() - 10000,
+        now.getTime() - 10000
       );
       expect(retrievedInfo.fileStats.modifiedAt.getTime()).toBe(now.getTime());
 
@@ -108,14 +108,14 @@ describeIf(!process.isBun)(
       expect(retrievedInfo.metadata.gpsLongitude).toBeCloseTo(0.1278);
       expect(retrievedInfo.metadata.cameraModel).toBe("TestCam");
       expect(retrievedInfo.metadata.imageDate.getTime()).toBe(
-        now.getTime() - 5000,
+        now.getTime() - 5000
       );
 
       expect(retrievedInfo.media).toBeDefined();
       expect(retrievedInfo.media.duration).toBe(0);
       expect(retrievedInfo.media.frames).toHaveLength(1);
       expect(
-        Buffer.from(retrievedInfo.media.frames[0].hash).toString("hex"),
+        Buffer.from(retrievedInfo.media.frames[0].hash).toString("hex")
       ).toEqual(pHashBuffer.toString("hex"));
     });
 
@@ -161,7 +161,7 @@ describeIf(!process.isBun)(
       expect(retrievedInfo.fileStats.size).toBe(2048);
       expect(retrievedInfo.metadata.width).toBe(800);
       expect(
-        Buffer.from(retrievedInfo.media.frames[0].hash).toString("hex"),
+        Buffer.from(retrievedInfo.media.frames[0].hash).toString("hex")
       ).toEqual("ffffffffffffffff");
     });
 
@@ -208,7 +208,7 @@ describeIf(!process.isBun)(
       expect(retrievedInfo1?.fileStats?.size).toBe(2048); // From the update test
       expect(retrievedInfo2?.metadata?.width).toBe(100);
       expect(
-        Buffer.from(retrievedInfo2.media.frames[0].hash).toString("hex"),
+        Buffer.from(retrievedInfo2.media.frames[0].hash).toString("hex")
       ).toEqual("1122334455667788");
     });
 
@@ -324,7 +324,7 @@ describeIf(!process.isBun)(
       // Act: Find candidates for image3
       const candidatesResult3 = dbService.findSimilarCandidates(
         filePath3,
-        lshKeys3,
+        lshKeys3
       );
       expect(candidatesResult3.isOk()).toBe(true);
       const candidates3 = candidatesResult3._unsafeUnwrap();
@@ -332,7 +332,7 @@ describeIf(!process.isBun)(
       // Act: Find candidates for image4
       const candidatesResult4 = dbService.findSimilarCandidates(
         filePath4,
-        lshKeys4,
+        lshKeys4
       );
       expect(candidatesResult4.isOk()).toBe(true);
       const candidates4 = candidatesResult4._unsafeUnwrap();
@@ -355,5 +355,5 @@ it('should upsert and retrieve FileInfo', () => {
   // ... test implementation ...
 });
 */
-  },
+  }
 );

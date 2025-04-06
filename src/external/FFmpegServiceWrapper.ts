@@ -20,9 +20,9 @@ export function probeFile(filePath: string): Promise<AppResult<FfprobeData>> {
           err(
             new ExternalToolError(
               `Failed to probe file ${filePath}: ${probeErr.message}`,
-              { tool: "ffprobe", originalError: probeErr },
-            ),
-          ),
+              { tool: "ffprobe", originalError: probeErr }
+            )
+          )
         );
       } else {
         // Resolve with an Ok result
@@ -51,14 +51,14 @@ export function createFFmpegCommand(filePath: string): ffmpeg.FfmpegCommand {
  */
 export function applyVideoFilters(
   command: ffmpeg.FfmpegCommand,
-  filters: (string | ffmpeg.AudioVideoFilter)[],
+  filters: (string | ffmpeg.AudioVideoFilter)[]
 ): ffmpeg.FfmpegCommand {
   // Convert all filters to the AudioVideoFilter object format
   const processedFilters: ffmpeg.AudioVideoFilter[] = filters.map(
     (
-      f,
+      f
     ): ffmpeg.AudioVideoFilter =>  // Add explicit return type for clarity
-      typeof f === "string" ? { filter: f, options: {} } : f, // Add empty options object
+      typeof f === "string" ? { filter: f, options: {} } : f // Add empty options object
   );
   return command.videoFilters(processedFilters); // Pass the processed array
 }
@@ -71,7 +71,7 @@ export function applyVideoFilters(
  */
 export function addOutputOptions(
   command: ffmpeg.FfmpegCommand,
-  options: string[],
+  options: string[]
 ): ffmpeg.FfmpegCommand {
   return command.outputOptions(options);
 }

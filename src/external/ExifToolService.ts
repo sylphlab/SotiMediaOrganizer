@@ -11,7 +11,7 @@ import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Remov
  */
 export async function readExifTags(
   filePath: string,
-  exifTool: ExifTool,
+  exifTool: ExifTool
 ): Promise<AppResult<Tags>> {
   // Use safeTryAsync to wrap the potentially throwing exifTool.read call
   return safeTryAsync(
@@ -22,8 +22,8 @@ export async function readExifTags(
         {
           cause: error instanceof Error ? error : undefined,
           context: { tool: "exiftool" },
-        },
-      ),
+        }
+      )
   );
 }
 

@@ -68,14 +68,14 @@ describe("Utility Functions", () => {
       expect(res1.isErr()).toBe(true);
       expect(res1._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
       expect(res1._unsafeUnwrapErr().message).toContain(
-        "Unsupported file extension: txt",
+        "Unsupported file extension: txt"
       );
 
       const res2 = getFileTypeByExt("exe");
       expect(res2.isErr()).toBe(true);
       expect(res2._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
       expect(res2._unsafeUnwrapErr().message).toContain(
-        "Unsupported file extension: exe",
+        "Unsupported file extension: exe"
       );
     });
 
@@ -97,13 +97,13 @@ describe("Utility Functions", () => {
       const res1 = getFileType("myfile");
       expect(res1.isErr()).toBe(true);
       expect(res1._unsafeUnwrapErr().message).toContain(
-        "Unsupported file extension:",
+        "Unsupported file extension:"
       ); // Empty extension
 
       const res2 = getFileTypeByExt("");
       expect(res2.isErr()).toBe(true);
       expect(res2._unsafeUnwrapErr().message).toContain(
-        "Unsupported file extension:",
+        "Unsupported file extension:"
       ); // Empty extension
     });
   });
@@ -156,7 +156,7 @@ describe("Utility Functions", () => {
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
       expect(result._unsafeUnwrapErr().message).toContain(
-        "even number of characters",
+        "even number of characters"
       );
     });
 
@@ -164,20 +164,17 @@ describe("Utility Functions", () => {
       const result = hexToSharedArrayBuffer("deadbeeg"); // 'g' is not hex
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
-      expect(result._unsafeUnwrapErr().message).toContain(
-        "non-hex characters",
-      ); // Correct assertion
+      expect(result._unsafeUnwrapErr().message).toContain("non-hex characters"); // Correct assertion
     });
   });
 
-    it("should handle empty hex string", () => {
-      const result = hexToSharedArrayBuffer("");
-      expect(result.isOk()).toBe(true);
-      const sharedBuffer = result._unsafeUnwrap();
-      expect(sharedBuffer).toBeInstanceOf(SharedArrayBuffer);
-      expect(sharedBuffer.byteLength).toBe(0);
-    });
-
+  it("should handle empty hex string", () => {
+    const result = hexToSharedArrayBuffer("");
+    expect(result.isOk()).toBe(true);
+    const sharedBuffer = result._unsafeUnwrap();
+    expect(sharedBuffer).toBeInstanceOf(SharedArrayBuffer);
+    expect(sharedBuffer.byteLength).toBe(0);
+  });
 
   describe("Async Helpers", () => {
     it("filterAsync should filter elements based on async predicate", async () => {
@@ -195,7 +192,7 @@ describe("Utility Functions", () => {
     it("filterAsync should propagate error from predicate", async () => {
       const numbers = [1, 2, 3];
       const failingPredicate = async (
-        n: number,
+        n: number
       ): Promise<AppResult<boolean>> => {
         if (n === 2) {
           return err(new Error("Predicate failed")); // Use err() function
@@ -266,7 +263,7 @@ describe("Utility Functions", () => {
       const result = parseExifTagsToMetadata(tags as Tags);
       expect(result.isOk()).toBe(true);
       expect(result._unsafeUnwrap().imageDate).toEqual(
-        new Date(2023, 0, 1, 10, 0, 0),
+        new Date(2023, 0, 1, 10, 0, 0)
       );
     });
 
@@ -278,7 +275,7 @@ describe("Utility Functions", () => {
       const result = parseExifTagsToMetadata(tags as Tags);
       expect(result.isOk()).toBe(true);
       expect(result._unsafeUnwrap().imageDate).toEqual(
-        new Date(2023, 1, 2, 11, 0, 0),
+        new Date(2023, 1, 2, 11, 0, 0)
       );
     });
 
@@ -289,7 +286,7 @@ describe("Utility Functions", () => {
       const result = parseExifTagsToMetadata(tags as Tags);
       expect(result.isOk()).toBe(true);
       expect(result._unsafeUnwrap().imageDate).toEqual(
-        new Date(2023, 2, 3, 12, 0, 0),
+        new Date(2023, 2, 3, 12, 0, 0)
       );
     });
 
@@ -360,10 +357,10 @@ describe("Utility Functions", () => {
       const result = parseExifTagsToMetadata(badTags as any); // Keep 'as any' for this specific error test case
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr().message).toContain(
-        "Failed to parse EXIF tags",
+        "Failed to parse EXIF tags"
       );
       expect(result._unsafeUnwrapErr().message).toContain(
-        "Unexpected parsing error",
+        "Unexpected parsing error"
       );
 
       describe("quickSelect", () => {
@@ -429,7 +426,7 @@ describe("Utility Functions", () => {
           expect(result.isErr()).toBe(true);
           expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
           expect(result._unsafeUnwrapErr().message).toContain(
-            "Index k (-1) out of bounds",
+            "Index k (-1) out of bounds"
           );
         });
 
@@ -439,7 +436,7 @@ describe("Utility Functions", () => {
           expect(result.isErr()).toBe(true);
           expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
           expect(result._unsafeUnwrapErr().message).toContain(
-            "Index k (3) out of bounds",
+            "Index k (3) out of bounds"
           );
         });
 
@@ -459,7 +456,7 @@ describe("Utility Functions", () => {
 
                 expect(constants.dctCoefficients).toBeInstanceOf(Float32Array);
                 expect(constants.dctCoefficients.length).toBe(
-                  hashSize * resolution,
+                  hashSize * resolution
                 ); // u * x
 
                 expect(constants.normFactors).toBeInstanceOf(Float32Array);
@@ -468,16 +465,16 @@ describe("Utility Functions", () => {
                 // Check a few values (optional, depends on known correct values)
                 const scale = Math.sqrt(2 / resolution);
                 expect(constants.normFactors[0]).toBeCloseTo(
-                  scale / Math.SQRT2,
+                  scale / Math.SQRT2
                 );
                 expect(constants.normFactors[1]).toBeCloseTo(scale);
                 // Check a DCT coefficient (e.g., u=0, x=0) -> cos(0) = 1
                 expect(
-                  constants.dctCoefficients[0 * resolution + 0],
+                  constants.dctCoefficients[0 * resolution + 0]
                 ).toBeCloseTo(1.0);
                 // Check another (e.g., u=1, x=0) -> cos(pi / (2*32))
                 expect(
-                  constants.dctCoefficients[1 * resolution + 0],
+                  constants.dctCoefficients[1 * resolution + 0]
                 ).toBeCloseTo(Math.cos(Math.PI / 64));
               });
 
@@ -487,7 +484,7 @@ describe("Utility Functions", () => {
                 const constants = createDCTConstants(resolution, hashSize);
 
                 expect(constants.dctCoefficients.length).toBe(
-                  hashSize * resolution,
+                  hashSize * resolution
                 );
                 expect(constants.normFactors.length).toBe(hashSize);
               });
@@ -512,33 +509,40 @@ describe("Utility Functions", () => {
                 // Expected DC = sum(input[x,y]) * norm(0) * norm(0) * cos(0)*cos(0) / (size*size)? No, formula is different.
                 // Formula: sum_x sum_y input[x,y] * norm(u)*norm(v)*cos(...)cos(...)
 
-              it("should compute DCT for a checkerboard pattern", () => {
-                const size = 4;
-                const hashSize = 4;
-                const constants = createDCTConstants(size, hashSize);
-                // Create a 4x4 checkerboard pattern
-                const input = new Uint8Array(size * size);
-                for (let y = 0; y < size; y++) {
-                  for (let x = 0; x < size; x++) {
-                    input[y * size + x] = (x + y) % 2 === 0 ? 255 : 0;
+                it("should compute DCT for a checkerboard pattern", () => {
+                  const size = 4;
+                  const hashSize = 4;
+                  const constants = createDCTConstants(size, hashSize);
+                  // Create a 4x4 checkerboard pattern
+                  const input = new Uint8Array(size * size);
+                  for (let y = 0; y < size; y++) {
+                    for (let x = 0; x < size; x++) {
+                      input[y * size + x] = (x + y) % 2 === 0 ? 255 : 0;
+                    }
                   }
-                }
 
-                const result = computeFastDCT(input, size, hashSize, constants);
-                expect(result.isOk()).toBe(true);
-                const dctOutput = result._unsafeUnwrap();
+                  const result = computeFastDCT(
+                    input,
+                    size,
+                    hashSize,
+                    constants
+                  );
+                  expect(result.isOk()).toBe(true);
+                  const dctOutput = result._unsafeUnwrap();
 
-                expect(dctOutput).toBeInstanceOf(Float32Array);
-                expect(dctOutput.length).toBe(hashSize * hashSize); // 4x4 output
+                  expect(dctOutput).toBeInstanceOf(Float32Array);
+                  expect(dctOutput.length).toBe(hashSize * hashSize); // 4x4 output
 
-                // For a checkerboard, DC component should be average (around 127.5)
-                // High frequency components should be significant, others near zero.
-                // Exact values depend on DCT normalization and implementation.
-                // We'll check if DC is roughly average and some AC components are non-zero.
-                expect(dctOutput[0]).toBeCloseTo(127.5 * size); // DC component scaled
-                // Check some high-frequency AC components (e.g., bottom right)
-                expect(Math.abs(dctOutput[hashSize * hashSize - 1])).toBeGreaterThan(0.1);
-              });
+                  // For a checkerboard, DC component should be average (around 127.5)
+                  // High frequency components should be significant, others near zero.
+                  // Exact values depend on DCT normalization and implementation.
+                  // We'll check if DC is roughly average and some AC components are non-zero.
+                  expect(dctOutput[0]).toBeCloseTo(127.5 * size); // DC component scaled
+                  // Check some high-frequency AC components (e.g., bottom right)
+                  expect(
+                    Math.abs(dctOutput[hashSize * hashSize - 1])
+                  ).toBeGreaterThan(0.1);
+                });
 
                 // For u=0, v=0: norm(0)*norm(0) * sum_x sum_y (1 * cos(0) * cos(0))
                 // norm(0) = sqrt(2/size) / sqrt(2) = sqrt(1/size) = 1/sqrt(size) = 1/2
@@ -565,7 +569,7 @@ describe("Utility Functions", () => {
                   incorrectInput,
                   size,
                   hashSize,
-                  constants,
+                  constants
                 );
                 // For now, just assert it completes without the specific index error we previously checked for.
                 // A better test would mock dependencies or check for NaN/Infinity in output if expected.
@@ -581,7 +585,7 @@ describe("Utility Functions", () => {
                 // Manually shorten the coefficients array to trigger the error
                 const shortCoefficients = constants.dctCoefficients.slice(
                   0,
-                  size * hashSize - 1,
+                  size * hashSize - 1
                 ); // Make it too short
                 const badConstants = {
                   ...constants,
@@ -593,14 +597,14 @@ describe("Utility Functions", () => {
                   input,
                   size,
                   hashSize,
-                  badConstants,
+                  badConstants
                 );
                 expect(result.isErr()).toBe(true);
                 expect(result._unsafeUnwrapErr()).toBeInstanceOf(
-                  ValidationError,
+                  ValidationError
                 );
                 expect(result._unsafeUnwrapErr().message).toContain(
-                  "DCT coefficient index out of bounds",
+                  "DCT coefficient index out of bounds"
                 );
               });
             });
@@ -668,10 +672,10 @@ describe("Utility Functions", () => {
                 const result = computeHashFromDCT(dct, hashSize);
                 expect(result.isErr()).toBe(true);
                 expect(result._unsafeUnwrapErr()).toBeInstanceOf(
-                  ValidationError,
+                  ValidationError
                 );
                 expect(result._unsafeUnwrapErr().message).toContain(
-                  "DCT array cannot be empty",
+                  "DCT array cannot be empty"
                 );
               });
 
@@ -680,10 +684,10 @@ describe("Utility Functions", () => {
                 const result = computeHashFromDCT(dct, 1); // Use hashSize=1 for consistency
                 expect(result.isErr()).toBe(true);
                 expect(result._unsafeUnwrapErr()).toBeInstanceOf(
-                  ValidationError,
+                  ValidationError
                 );
                 expect(result._unsafeUnwrapErr().message).toContain(
-                  "Cannot compute median AC value",
+                  "Cannot compute median AC value"
                 );
               });
 
@@ -693,7 +697,7 @@ describe("Utility Functions", () => {
 
           expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
           expect(result._unsafeUnwrapErr().message).toContain(
-            "Index k (0) out of bounds",
+            "Index k (0) out of bounds"
           );
         });
 

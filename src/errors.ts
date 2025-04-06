@@ -11,7 +11,7 @@ export class AppError extends Error {
 
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: Record<string, unknown> },
+    options?: { cause?: unknown; context?: Record<string, unknown> }
   ) {
     // Pass cause to the super constructor if provided
     super(message, options?.cause ? { cause: options.cause } : undefined);
@@ -33,7 +33,7 @@ export class FileSystemError extends AppError {
     options?: {
       cause?: unknown;
       context?: { path?: string; operation?: string };
-    },
+    }
   ) {
     super(message, options);
   }
@@ -50,7 +50,7 @@ export class ExternalToolError extends AppError {
         exitCode?: number | null;
         stderr?: string;
       };
-    },
+    }
   ) {
     super(message, options);
   }
@@ -62,7 +62,7 @@ export class DatabaseError extends AppError {
     options?: {
       cause?: unknown;
       context?: { operation?: string; key?: string };
-    },
+    }
   ) {
     super(message, options);
   }
@@ -74,7 +74,7 @@ export class HashingError extends AppError {
     options?: {
       cause?: unknown;
       context?: { algorithm?: string; filePath?: string };
-    },
+    }
   ) {
     super(message, options);
   }
@@ -86,7 +86,7 @@ export class ConfigurationError extends AppError {
     options?: {
       cause?: unknown;
       context?: { setting?: string; value?: unknown };
-    },
+    }
   ) {
     super(message, options);
   }
@@ -95,7 +95,7 @@ export class ConfigurationError extends AppError {
 export class ValidationError extends AppError {
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { validationDetails?: unknown } },
+    options?: { cause?: unknown; context?: { validationDetails?: unknown } }
   ) {
     super(message, options);
   }
@@ -128,7 +128,7 @@ export type AppResult<T> = Result<T, AnyAppError>;
 // Helper function to wrap potentially throwing operations
 export function safeTry<T>(
   fn: () => T,
-  errorContext?: string | ((err: unknown) => AnyAppError),
+  errorContext?: string | ((err: unknown) => AnyAppError)
 ): AppResult<T> {
   try {
     return ok(fn());
@@ -150,7 +150,7 @@ export function safeTry<T>(
 // Helper for async operations
 export async function safeTryAsync<T>(
   promise: Promise<T>,
-  errorContext?: string | ((err: unknown) => AnyAppError),
+  errorContext?: string | ((err: unknown) => AnyAppError)
 ): Promise<AppResult<T>> {
   try {
     const value = await promise;

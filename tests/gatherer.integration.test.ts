@@ -25,8 +25,10 @@ import {
 
 // --- Mocking Dependencies ---
 // Mock processSingleFile using vi.mock
-vi.mock('../src/fileProcessor');
-const mockProcessSingleFile = processSingleFile as MockedFunction<typeof processSingleFile>; // Use MockedFunction directly
+vi.mock("../src/fileProcessor");
+const mockProcessSingleFile = processSingleFile as MockedFunction<
+  typeof processSingleFile
+>; // Use MockedFunction directly
 
 // Mock CliReporter
 class MockCliReporter extends CliReporter {
@@ -61,11 +63,11 @@ const mockWorkerPool = {
 const TEST_GATHERER_DB_DIR = ".test-gatherer-db";
 const TEST_GATHERER_CACHE_PATH = join(
   TEST_GATHERER_DB_DIR,
-  "gatherer-cache.lmdb",
+  "gatherer-cache.lmdb"
 );
 const TEST_GATHERER_SQLITE_PATH = join(
   TEST_GATHERER_DB_DIR,
-  "gatherer-meta.sqlite",
+  "gatherer-meta.sqlite"
 );
 
 // Sample FileInfo for mocking success - Structure based on src/types.ts
@@ -121,7 +123,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
   afterAll(async () => {
     // Keep afterAll for cache cleanup
     // Close connections and clean up
-    await cache?.close(); // Close cache here
+    await cache.close(); // Close cache here
     // DB cleanup happens in beforeEach/afterEach
     // Add delay before removing directory
     await new Promise((resolve) => setTimeout(resolve, 150));
@@ -133,7 +135,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
 
   afterEach(async () => {
     // Ensure DB connection is closed after each test
-    await dbService?.close();
+    await dbService.close();
     // Clean up the specific test DB file after each test
     if (existsSync(TEST_GATHERER_SQLITE_PATH)) {
       rmSync(TEST_GATHERER_SQLITE_PATH);
@@ -152,7 +154,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     // Use constructor directly
     dbService = new MetadataDBService(
       TEST_GATHERER_DB_DIR,
-      "gatherer-meta.sqlite",
+      "gatherer-meta.sqlite"
     );
     // LMDB cache is reused across tests in this suite, assuming keys are unique enough or overwrite is ok.
 
@@ -182,7 +184,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
 
     // Mock processSingleFile to always succeed
     mockProcessSingleFile.mockImplementation(
-      async (filePath) => ok({ ...sampleFileInfo, path: filePath }), // Return unique path in FileInfo
+      async (filePath) => ok({ ...sampleFileInfo, path: filePath }) // Return unique path in FileInfo
     );
 
     const result = await gatherFileInfoFn(
@@ -193,7 +195,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter,
+      reporter
     );
 
     // Assertions
@@ -209,7 +211,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     const dbData1 = dbCheck1Result._unsafeUnwrap();
     expect(dbData1).toBeDefined();
     // Check reconstructed pHash (first frame hash)
-    const pHash1 = dbData1?.media?.frames?.[0]?.hash;
+    const pHash1 = dbData1?.media?.frames[0]?.hash;
     expect(pHash1).toBeDefined();
     expect(Buffer.from(pHash1!).toString("hex")).toBe(samplePHash);
     // Check another field like width
@@ -243,7 +245,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
         return err(
           new FileSystemError("Mock processing error", {
             context: { path: filePath },
-          }), // Use context
+          }) // Use context
         );
       }
       return ok({ ...sampleFileInfo, path: filePath });
@@ -257,7 +259,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter,
+      reporter
     );
 
     // Assertions
@@ -271,7 +273,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(dbCheckOkResult.isOk()).toBe(true);
     expect(dbCheckOkResult._unsafeUnwrap()).toBeDefined(); // Should exist
     expect(dbCheckOkResult._unsafeUnwrap()?.metadata?.width).toBe(
-      sampleFileInfo.metadata.width,
+      sampleFileInfo.metadata.width
     );
 
     const dbCheckFailResult = await dbService.getFileInfo(errorFilePath);
@@ -285,7 +287,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(reporter.logError).toHaveBeenCalledTimes(1);
     expect(reporter.logError).toHaveBeenCalledWith(
       expect.stringContaining(`Error processing ${errorFilePath}`), // Check message contains file path
-      expect.any(FileSystemError), // Check error object is passed
+      expect.any(FileSystemError) // Check error object is passed
     );
     expect(reporter.logWarning).not.toHaveBeenCalled();
   });
@@ -296,7 +298,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
 
     // Mock processSingleFile to succeed
     mockProcessSingleFile.mockResolvedValue(
-      ok({ ...sampleFileInfo, path: filePath }),
+      ok({ ...sampleFileInfo, path: filePath })
     );
 
     // Mock dbService.upsertFileInfo to fail
@@ -313,7 +315,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter,
+      reporter
     );
 
     // Assertions
@@ -336,8 +338,8 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(reporter.logWarning).toHaveBeenCalledTimes(1);
     expect(reporter.logWarning).toHaveBeenCalledWith(
       expect.stringContaining(
-        `DB upsert failed for ${filePath}: ${dbError.message}`,
-      ),
+        `DB upsert failed for ${filePath}: ${dbError.message}`
+      )
     );
 
     // upsertSpy already restored above
@@ -354,7 +356,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter,
+      reporter
     );
 
     expect(result.validFiles).toHaveLength(0);

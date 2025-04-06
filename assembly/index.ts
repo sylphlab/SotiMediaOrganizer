@@ -1,6 +1,6 @@
 export function hammingDistanceSIMD(
   hash1: StaticArray<u8>,
-  hash2: StaticArray<u8>,
+  hash2: StaticArray<u8>
 ): i32 {
   let distance: i32 = 0;
   const length: i32 = min(hash1.length, hash2.length);

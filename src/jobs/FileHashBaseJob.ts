@@ -28,12 +28,12 @@ export abstract class FileHashBaseJob<
     const hashKeyResult = await getFileStatsHashKey(
       filePath,
       this.fileStatsConfig,
-      this.cache,
+      this.cache
     );
     if (hashKeyResult.isErr()) {
       // Throw an error to maintain previous behavior if hash key fails
       throw new Error(
-        `Failed to get hash key for ${filePath}: ${hashKeyResult.error.message}`,
+        `Failed to get hash key for ${filePath}: ${hashKeyResult.error.message}`
       );
     }
     return hashKeyResult.value; // Return unwrapped value

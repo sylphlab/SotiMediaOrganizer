@@ -19,12 +19,12 @@ export class DebugReporter {
     private readonly cache: LmdbCache,
     private readonly fileProcessorConfig: FileProcessorConfig,
     private readonly exifTool: ExifTool,
-    private readonly workerPool: WorkerPool,
+    private readonly workerPool: WorkerPool
   ) {}
 
   async generateHtmlReports(
     duplicateSets: DuplicateSet[],
-    debugDir: string,
+    debugDir: string
   ): Promise<string[]> {
     const reports = [];
     const batchSize = 1000; // Keep batching logic
@@ -35,7 +35,7 @@ export class DebugReporter {
         batch,
         i,
         debugDir,
-        batchSize,
+        batchSize
       ); // Pass batchSize
       reports.push(reportFileName);
     }
@@ -47,7 +47,7 @@ export class DebugReporter {
     batch: DuplicateSet[],
     startIndex: number,
     debugDir: string,
-    batchSize: number, // Add batchSize parameter
+    batchSize: number // Add batchSize parameter
   ): Promise<string> {
     const totalSets = batch.length;
     let totalRepresentatives = 0;
@@ -64,9 +64,9 @@ export class DebugReporter {
           startIndex + index,
           set.representatives,
           set.duplicates,
-          debugDir,
-        ),
-      ),
+          debugDir
+        )
+      )
     );
 
     const reportContent = `
@@ -133,7 +133,7 @@ export class DebugReporter {
     setIndex: number,
     representatives: Set<string>,
     duplicates: Set<string>,
-    debugDir: string,
+    debugDir: string
   ) {
     const allMedia = await Promise.all([
       ...Array.from(representatives).map(async (sourcePath) => {
@@ -143,7 +143,7 @@ export class DebugReporter {
           this.fileProcessorConfig,
           this.cache,
           this.exifTool,
-          this.workerPool,
+          this.workerPool
         );
         // TODO: Handle potential error from infoResult using Result type
         const info = infoResult.unwrapOr(null); // Temporary unwrap, needs proper error handling
@@ -158,7 +158,7 @@ export class DebugReporter {
           this.fileProcessorConfig,
           this.cache,
           this.exifTool,
-          this.workerPool,
+          this.workerPool
         );
         // TODO: Handle potential error from infoResult using Result type
         const info = infoResult.unwrapOr(null); // Temporary unwrap, needs proper error handling
@@ -178,7 +178,7 @@ export class DebugReporter {
                         ${this.generateMediaElement(relativePath, isRepresentative)}
                     </a>
                     ${info ? this.generateFileDetails(info, score) : "<p>Error processing file details</p>"}
-                </div>`,
+                </div>`
       )
       .join("\n");
 
@@ -218,7 +218,7 @@ export class DebugReporter {
 
   private generateMediaElement(
     relativePath: string,
-    isRepresentative: boolean,
+    isRepresentative: boolean
   ): string {
     const className = isRepresentative ? "representative" : "duplicate";
     if (this.isVideoFile(relativePath)) {

@@ -43,99 +43,99 @@ async function main() {
   program
     .name("mediacurator")
     .description(
-      "Intelligently curate, organize, and deduplicate your digital photo and video collection.",
+      "Intelligently curate, organize, and deduplicate your digital photo and video collection."
     )
     .version("1.0.0")
     .argument("<source>", "Source directories to process")
     .argument("<destination>", "Destination directory for organized media")
     .option(
       "-e, --error <path>",
-      "Directory for files that couldn't be processed",
+      "Directory for files that couldn't be processed"
     )
     .option("-d, --duplicate <path>", "Directory for duplicate files")
     .option(
       "--debug <path>",
-      "Debug directory for storing all files in duplicate sets",
+      "Debug directory for storing all files in duplicate sets"
     )
     .option(
       "-c, --concurrency <number>",
       "Number of workers to use (default: CPU cores - 1)",
       parseInt,
-      Math.max(1, Math.floor(os.cpus().length - 1)),
+      Math.max(1, Math.floor(os.cpus().length - 1))
     )
     .option("-m, --move", "Move files instead of copying them", false)
     .option(
       "-r, --resolution <number>",
       "Resolution for perceptual hashing",
       parseInt,
-      64,
+      64
     )
 
     .option(
       "--min-frames <number>",
       "Minimum number of frames to extract from videos",
       parseInt,
-      5,
+      5
     )
     .option(
       "--max-scene-frames <number>",
       "Maximum number of frames to extract from scene changes",
       parseInt,
-      100,
+      100
     )
     .option(
       "--target-fps <number>",
       "Target frames per second for video extraction",
       parseFloat,
-      2,
+      2
     )
 
     .option(
       "-w, --window-size <number>",
       "Window size for frame clustering",
       parseInt,
-      5,
+      5
     )
     .option(
       "-p, --step-size <number>",
       "Step size for frame clustering",
       parseInt,
-      1,
+      1
     )
     .option(
       "-F, --format <string>",
       "Format for destination directory",
-      "{D.YYYY}/{D.MM}/{D.DD}/{NAME}.{EXT}",
+      "{D.YYYY}/{D.MM}/{D.DD}/{NAME}.{EXT}"
     )
     .option(
       "--scene-change-threshold <number>",
       "Threshold for scene change detection",
       parseFloat,
-      0.05,
+      0.05
     )
     .option(
       "--image-similarity-threshold <number>",
       "Threshold for image similarity (default: 0.99)",
       parseFloat,
-      0.99,
+      0.99
     )
     .option(
       "--image-video-similarity-threshold <number>",
       "Threshold for image-video similarity. For image-video, we use a lower threshold because the frames are not always the same (default: 0.98)",
       parseFloat,
-      0.93,
+      0.93
     )
     .option(
       "--video-similarity-threshold <number>",
       "Threshold for video similarity. For video similarity, we use an even lower threshold because the frames are not always the same (default: 0.97)",
       parseFloat,
-      0.93,
+      0.93
     )
     .option(
       "--max-chunk-size <number>",
       "Maximum chunk size for file processing (default: 2MB)",
       parseInt,
-      2 * 1024 * 1024,
+      2 * 1024 * 1024
     )
     .option("--verbose", "Enable verbose logging", false) // Add verbose option
     .addHelpText(
@@ -175,7 +175,7 @@ async function main() {
     "{TYPE}/{D.YYYY}/{D.WW}/{CAM}/{D.YYYY}{D.MM}{D.DD}_{NAME.L}.{EXT}"
     "{HAS.DATE}/{D.YYYY}/{D.MMMM}/{D.D}-{D.DDDD}/{D.h}{D.mm}{D.a}_{NAME}.{EXT}"
     "{TYPE}/{CAM}/{D.YYYY}/{D.MM}/{D.DD}_{D.HH}{D.mm}_{NAME.U}.{EXT}"
-      `,
+      `
     )
     .parse(process.argv);
 
@@ -201,7 +201,7 @@ async function main() {
       // Handle error during cache creation (e.g., log and exit)
       console.error(
         chalk.red("Failed to initialize cache database:"),
-        cacheResult.error,
+        cacheResult.error
       );
       process.exit(1);
     }
@@ -241,7 +241,7 @@ async function main() {
       exifTool,
       similarityConfig,
       options,
-      workerPool,
+      workerPool
     );
     // Instantiate DebugReporter with dependencies
     const debugReporter = new DebugReporter(
@@ -249,7 +249,7 @@ async function main() {
       cache,
       fileProcessorConfig,
       exifTool,
-      workerPool,
+      workerPool
     );
     // Instantiate FileTransferService - Needs refactoring as MediaProcessor is removed
     // For now, let's pass the dependencies needed by processSingleFile, assuming the service will be refactored later
@@ -258,7 +258,7 @@ async function main() {
       fileProcessorConfig, // Pass config directly
       cache, // Pass cache directly
       exifTool, // Pass exifTool directly
-      workerPool, // Pass workerPool directly
+      workerPool // Pass workerPool directly
     );
 
     // Removed Context.injector.get calls
@@ -268,7 +268,7 @@ async function main() {
     const discoveredFiles = await discoverFilesFn(
       [source],
       options.concurrency,
-      reporter, // Pass reporter
+      reporter // Pass reporter
     );
 
     // Stage 2: Gathering Information
@@ -282,7 +282,7 @@ async function main() {
       exifTool,
       workerPool,
       dbService, // Pass dbService
-      reporter, // Pass reporter
+      reporter // Pass reporter
     );
 
     // Stage 3: Deduplication
@@ -293,14 +293,14 @@ async function main() {
       comparator, // Pass comparator instance
       dbService, // Pass dbService
       similarityConfig, // Pass similarityConfig
-      reporter, // Pass reporter
+      reporter // Pass reporter
     );
 
     // Handle potential error from deduplication
     if (deduplicationResult.isErr()) {
       reporter.logError(
         `\nDeduplication failed: ${deduplicationResult.error.message}`,
-        deduplicationResult.error,
+        deduplicationResult.error
       ); // Use reporter
       // Decide how to proceed - exit? continue without transfer?
       // For now, let's exit.
@@ -322,7 +322,7 @@ async function main() {
       debugReporter, // Pass dependencies
       fileTransferService,
       // TODO: Pass dbService here? Transfer might need it if FileTransferService is refactored.
-      reporter, // Pass reporter
+      reporter // Pass reporter
     );
 
     reporter.logSuccess("\nMedia organization completed"); // Use reporter
@@ -331,9 +331,9 @@ async function main() {
       deduplicationData, // Pass unwrapped data
       [...discoveredFiles.values()].reduce(
         (sum, files) => sum + files.length,
-        0,
+        0
       ),
-      reporter, // Pass reporter to printResults
+      reporter // Pass reporter to printResults
     );
   } catch (error) {
     reporter?.logError("An unexpected error occurred:", error as Error); // Use reporter, ensure error is Error type
@@ -355,20 +355,20 @@ function printResults(
   gatherFileInfoResult: GatherFileInfoResult,
   deduplicationResult: DeduplicationResult,
   totalFiles: number,
-  reporter: CliReporter, // Add reporter parameter
+  reporter: CliReporter // Add reporter parameter
 ) {
   reporter.logInfo(`Total files discovered: ${totalFiles}`);
   reporter.logInfo(`Unique files: ${deduplicationResult.uniqueFiles.size}`);
   reporter.logWarning(
-    `Duplicate sets: ${deduplicationResult.duplicateSets.length}`,
+    `Duplicate sets: ${deduplicationResult.duplicateSets.length}`
   );
   reporter.logWarning(
     `Total duplicates: ${Array.from(
-      deduplicationResult.duplicateSets.values(),
-    ).reduce((sum, set) => sum + set.duplicates.size, 0)}`,
+      deduplicationResult.duplicateSets.values()
+    ).reduce((sum, set) => sum + set.duplicates.size, 0)}`
   );
   reporter.logError(
-    `Files with errors: ${gatherFileInfoResult.errorFiles.length}`,
+    `Files with errors: ${gatherFileInfoResult.errorFiles.length}`
   );
 }
 

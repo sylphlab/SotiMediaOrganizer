@@ -29,7 +29,7 @@ export function createSharpInstance(input?: Buffer | string): Sharp {
  * @returns A Promise resolving to the image metadata.
  */
 export async function readSharpMetadata(
-  instance: Sharp,
+  instance: Sharp
 ): Promise<AppResult<SharpMetadata>> {
   return safeTryAsync(
     instance.metadata(),
@@ -39,8 +39,8 @@ export async function readSharpMetadata(
         {
           cause: error instanceof Error ? error : undefined,
           context: { tool: "sharp" },
-        },
-      ),
+        }
+      )
   );
 }
 
@@ -50,7 +50,7 @@ export async function readSharpMetadata(
  * @returns A Promise resolving to the image stats.
  */
 export async function readSharpStats(
-  instance: Sharp,
+  instance: Sharp
 ): Promise<AppResult<SharpStats>> {
   return safeTryAsync(
     instance.stats(),
@@ -60,8 +60,8 @@ export async function readSharpStats(
         {
           cause: error instanceof Error ? error : undefined,
           context: { tool: "sharp" },
-        },
-      ),
+        }
+      )
   );
 }
 
@@ -78,7 +78,7 @@ export async function readSharpStats(
 export function resizeImage(
   instance: Sharp,
   width: number,
-  height: number,
+  height: number
 ): Sharp {
   return instance.resize(width, height);
 }
@@ -98,7 +98,7 @@ export function grayscaleImage(instance: Sharp): Sharp {
  * @returns A Promise resolving to the image Buffer.
  */
 export async function imageToBuffer(
-  instance: Sharp,
+  instance: Sharp
 ): Promise<AppResult<Buffer>> {
   return safeTryAsync(
     instance.toBuffer(),
@@ -108,7 +108,7 @@ export async function imageToBuffer(
         {
           cause: error instanceof Error ? error : undefined,
           context: { tool: "sharp" },
-        },
-      ),
+        }
+      )
   );
 }

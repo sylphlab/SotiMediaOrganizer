@@ -21,7 +21,7 @@ export async function processMetadata(
   filePath: string,
   exifTool: ExifTool,
   fileStatsConfig: FileStatsConfig, // Pass FileStatsConfig
-  cache: LmdbCache,
+  cache: LmdbCache
 ): Promise<AppResult<Metadata>> {
   // Update return type
   // Use content hash as cache key (requires FileStatsJob logic/config)
@@ -29,7 +29,7 @@ export async function processMetadata(
   const cacheKeyResult = await getFileStatsHashKey(
     filePath,
     fileStatsConfig,
-    cache,
+    cache
   );
   if (cacheKeyResult.isErr()) {
     return err(cacheKeyResult.error); // Propagate error
@@ -45,7 +45,7 @@ export async function processMetadata(
     // Log or handle config check error, but proceed to calculate
     console.warn(
       `Cache config check failed for metadata ${filePath} (key: ${cacheKey}), proceeding with calculation:`,
-      configCheckResult.error,
+      configCheckResult.error
     );
   } else if (configCheckResult.value.isValid) {
     // Config is valid, try getting data
@@ -54,7 +54,7 @@ export async function processMetadata(
       // Log or handle cache get error, but proceed to calculate
       console.warn(
         `Cache get failed for metadata ${filePath} (key: ${cacheKey}), proceeding with calculation:`,
-        cacheGetResult.error,
+        cacheGetResult.error
       );
     } else if (cacheGetResult.value.hit) {
       // Cache hit and data is valid
@@ -86,7 +86,7 @@ export async function processMetadata(
     // Log cache set error but return the calculated result anyway
     console.warn(
       `Cache set failed for metadata ${filePath} (key: ${cacheKey}), but returning calculated result:`,
-      setResult.error,
+      setResult.error
     );
   }
 

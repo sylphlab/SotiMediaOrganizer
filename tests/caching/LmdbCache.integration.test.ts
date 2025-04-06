@@ -6,7 +6,15 @@ import {
 import { rmSync, existsSync } from "fs";
 import { join } from "path";
 // Removed unused ok, err from '../../src/errors'
-import { vi, describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest"; // Import vi
+import {
+  vi,
+  describe,
+  it,
+  expect,
+  beforeAll,
+  afterAll,
+  beforeEach,
+} from "vitest"; // Import vi
 
 const TEST_DB_DIR = ".test-cache-db";
 const TEST_DB_PATH = join(TEST_DB_DIR, "test-cache.lmdb"); // Use .lmdb extension
@@ -25,7 +33,7 @@ describe("LmdbCache Integration Tests", () => {
     const cacheResult = await LmdbCache.create(TEST_DB_PATH);
     if (cacheResult.isErr()) {
       throw new Error(
-        `Failed to create test cache DB: ${cacheResult.error.message}`,
+        `Failed to create test cache DB: ${cacheResult.error.message}`
       );
     }
     cache = cacheResult.value;
@@ -117,7 +125,7 @@ describe("LmdbCache Integration Tests", () => {
     expect(cacheData.data?.id).toBe("xyz");
     expect(cacheData.data?.timestamp).toBeInstanceOf(Date);
     // Compare time, allowing for slight differences if serialization isn't perfect ms
-    expect(cacheData.data?.timestamp?.getTime()).toBeCloseTo(date.getTime());
+    expect(cacheData.data?.timestamp.getTime()).toBeCloseTo(date.getTime());
   });
 
   it.skip("should return invalid config if config is different (Skipped due to timeout)", async () => {
@@ -214,7 +222,7 @@ describe("LmdbCache Integration Tests", () => {
       "closeTestJob",
       "key1",
       "data1",
-      { v: 1 },
+      { v: 1 }
     );
     expect(setResult.isOk()).toBe(true);
 
@@ -225,7 +233,7 @@ describe("LmdbCache Integration Tests", () => {
     // Attempt operations after close - expect errors (specific error type might depend on lmdb-js)
     const getAfterCloseResult = await separateCache.getCache(
       "closeTestJob",
-      "key1",
+      "key1"
     );
     expect(getAfterCloseResult.isErr()).toBe(true);
     // Optionally check the error type/message if lmdb-js provides a specific one for closed env
@@ -235,7 +243,7 @@ describe("LmdbCache Integration Tests", () => {
       "closeTestJob",
       "key2",
       "data2",
-      { v: 2 },
+      { v: 2 }
     );
     expect(setAfterCloseResult.isErr()).toBe(true);
 

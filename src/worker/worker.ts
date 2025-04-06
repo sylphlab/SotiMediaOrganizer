@@ -15,7 +15,7 @@ import { PerceptualHashWorker } from "./perceptualHashWorker";
 const perceptualHashWorkerMapper: Map<number, PerceptualHashWorker> = new Map();
 function computePerceptualHash(
   imageBuffer: Uint8Array,
-  resolution: number,
+  resolution: number
 ): Uint8Array {
   let worker = perceptualHashWorkerMapper.get(resolution);
   if (!worker) {

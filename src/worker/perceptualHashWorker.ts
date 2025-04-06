@@ -16,7 +16,7 @@ export class PerceptualHashWorker {
     // Call createDCTConstants and assign results
     const { dctCoefficients, normFactors } = createDCTConstants(
       resolution,
-      this.HASH_SIZE,
+      this.HASH_SIZE
     );
     this.dctCoefficients = dctCoefficients;
     this.normFactors = normFactors;
