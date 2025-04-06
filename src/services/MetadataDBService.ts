@@ -44,7 +44,7 @@ export class MetadataDBService {
       if (e.code !== "EEXIST") {
         throw new DatabaseError(
           `Failed to create database directory: ${e.message}`,
-          { originalError: e },
+          { cause: e },
         );
       }
     }
@@ -61,7 +61,7 @@ export class MetadataDBService {
       );
       throw new DatabaseError(
         `Failed to initialize SQLite metadata DB: ${error.message}`,
-        { originalError: error },
+        { cause: error },
       );
     }
   }
@@ -245,8 +245,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to upsert FileInfo for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "upsert",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "upsert" },
           },
         ),
     );
@@ -267,8 +267,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to get FileInfo for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "get",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "get" },
           },
         ),
     );
@@ -301,8 +301,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to get multiple FileInfo entries: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "getMultiple",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "getMultiple" },
           },
         ),
     );
@@ -346,8 +346,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to get MediaInfo for files: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "getMediaInfo",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "getMediaInfo" },
           },
         ),
     );
@@ -371,8 +371,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to find by pHash ${pHashHex}: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "findByPHash",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "findByPHash" },
           },
         ),
     );
@@ -430,8 +430,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to find similar candidates for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "findSimilar",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "findSimilar" },
           },
         ),
     );
@@ -452,8 +452,8 @@ export class MetadataDBService {
         new DatabaseError(
           `Failed to close SQLite DB: ${e instanceof Error ? e.message : String(e)}`,
           {
-            originalError: e instanceof Error ? e : undefined,
-            operation: "close",
+            cause: e instanceof Error ? e : undefined,
+            context: { operation: "close" },
           },
         ),
     );

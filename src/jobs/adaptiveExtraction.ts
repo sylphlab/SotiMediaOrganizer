@@ -72,7 +72,7 @@ async function computePerceptualHashWorker(
       (convError) =>
         new AppError(
           `Failed to convert worker buffer to SharedArrayBuffer: ${convError instanceof Error ? convError.message : String(convError)}`,
-          { originalError: convError },
+          { cause: convError },
         ),
     );
   } catch (error) {
@@ -81,8 +81,8 @@ async function computePerceptualHashWorker(
       new ExternalToolError(
         `Perceptual hash worker execution failed: ${error instanceof Error ? error.message : String(error)}`,
         {
-          tool: "workerpool-pHash",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { tool: "workerpool-pHash" },
         },
       ),
     ); // Added closing parenthesis for err()
@@ -145,8 +145,8 @@ function extractFramesWithFilter(
           // Reject with a specific error type
           reject(
             new ExternalToolError(`FFmpeg error: ${error.message}`, {
-              tool: "ffmpeg",
-              originalError: error,
+              cause: error,
+              context: { tool: "ffmpeg" },
             }),
           );
         })
@@ -195,7 +195,7 @@ function extractFramesWithFilter(
           reject(
             new ExternalToolError(
               `FFmpeg pipe stream error: ${streamError.message}`,
-              { tool: "ffmpeg-stream", originalError: streamError },
+              { cause: streamError, context: { tool: "ffmpeg-stream" } },
             ),
           );
         });
@@ -205,8 +205,8 @@ function extractFramesWithFilter(
       new ExternalToolError(
         `Failed to set up frame extraction promise: ${error instanceof Error ? error.message : String(error)}`,
         {
-          tool: "ffmpeg-setup",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { tool: "ffmpeg-setup" },
         },
       ),
   );
@@ -238,7 +238,7 @@ export async function processAdaptiveExtraction( // Added export keyword
     return err(
       new FileSystemError(
         `Could not determine file type for ${filePath}: ${mediaTypeResult.error.message}`,
-        { path: filePath, originalError: mediaTypeResult.error },
+        { cause: mediaTypeResult.error, context: { path: filePath } },
       ),
     );
   }
@@ -255,7 +255,7 @@ export async function processAdaptiveExtraction( // Added export keyword
     return err(
       new DatabaseError(
         `Could not get cache key for ${filePath}: ${cacheKeyResult.error.message}`,
-        { key: filePath, originalError: cacheKeyResult.error },
+        { cause: cacheKeyResult.error, context: { key: filePath } },
       ),
     );
   }
@@ -338,8 +338,8 @@ export async function processAdaptiveExtraction( // Added export keyword
         new ExternalToolError(
           `Sharp image processing failed for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
           {
-            tool: "sharp",
-            originalError: error instanceof Error ? error : undefined,
+            cause: error instanceof Error ? error : undefined,
+            context: { tool: "sharp" },
           },
         ),
     );

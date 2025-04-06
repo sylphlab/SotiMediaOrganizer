@@ -30,7 +30,7 @@ export function getFileTypeByExt(ext: string): AppResult<FileType> {
   }
   return err(
     new ValidationError(`Unsupported file extension: ${ext}`, {
-      validationDetails: { extension: ext },
+      context: { validationDetails: { extension: ext } },
     }),
   );
 }
@@ -178,7 +178,7 @@ export function hexToSharedArrayBuffer(
   if (hex.length % 2 !== 0) {
     return err(
       new ValidationError("Hex string must have an even number of characters", {
-        validationDetails: { length: hex.length },
+        context: { validationDetails: { length: hex.length } },
       }),
     );
   }
@@ -190,7 +190,7 @@ export function hexToSharedArrayBuffer(
       if (isNaN(byte)) {
         return err(
           new ValidationError("Hex string contains non-hex characters", {
-            validationDetails: { substring: hex.substr(i, 2) },
+            context: { validationDetails: { substring: hex.substr(i, 2) } },
           }),
         );
       }
@@ -241,9 +241,8 @@ export async function calculateFileHash(
             new FileSystemError(
               `Error reading file chunk: ${streamError.message}`,
               {
-                path: filePath,
-                operation: "readStream",
-                originalError: streamError,
+                cause: streamError,
+                context: { path: filePath, operation: "readStream" },
               },
             ),
           ),
@@ -280,7 +279,7 @@ export async function calculateFileHash(
   } catch (error) {
     return err(
       new HashingError("Failed to convert hash digest to SharedArrayBuffer", {
-        originalError: error instanceof Error ? error : undefined,
+        cause: error instanceof Error ? error : undefined,
       }),
     );
   }
@@ -347,7 +346,7 @@ export function parseExifTagsToMetadata(tags: Tags): AppResult<Metadata> {
     (error) =>
       new AppError(
         `Failed to parse EXIF tags object: ${error instanceof Error ? error.message : String(error)}`,
-        { originalError: error },
+        { cause: error },
       ),
   );
 }
@@ -369,7 +368,7 @@ export function quickSelect(
     return err(
       new ValidationError(
         `Index k (${k}) out of bounds for array length ${arr.length}`,
-        { validationDetails: { k, length: arr.length } },
+        { context: { validationDetails: { k, length: arr.length } } },
       ),
     );
   }
@@ -486,12 +485,14 @@ export function computeFastDCT(
           new ValidationError(
             `DCT coefficient index out of bounds during column transform`,
             {
-              validationDetails: {
-                v,
-                size,
-                y,
-                index: vCoeffIndex,
-                length: dctCoefficients.length,
+              context: {
+                validationDetails: {
+                  v,
+                  size,
+                  y,
+                  index: vCoeffIndex,
+                  length: dctCoefficients.length,
+                },
               },
             },
           ),
@@ -523,9 +524,8 @@ export async function getFileStats(
       new FileSystemError(
         `Failed to get stats for file: ${e instanceof Error ? e.message : String(e)}`,
         {
-          path: filePath,
-          operation: "stat",
-          originalError: e instanceof Error ? e : undefined,
+          cause: e instanceof Error ? e : undefined,
+          context: { path: filePath, operation: "stat" },
         },
       ),
   );
@@ -544,7 +544,7 @@ export function computeHashFromDCT(
   hashSize: number,
 ): AppResult<Uint8Array> {
   if (dct.length === 0) {
-    return err(new ValidationError("DCT array cannot be empty"));
+    return err(new ValidationError("DCT array cannot be empty")); // No context needed
   }
   // Compute median of AC components (excluding DC component at index 0)
   const acValues = new Float32Array(Math.max(0, dct.length - 1)); // Ensure non-negative length
@@ -557,7 +557,7 @@ export function computeHashFromDCT(
     // Decide on appropriate behavior - maybe return zero hash or error?
     // For now, let's return an error as median is undefined.
     return err(
-      new ValidationError(
+      new ValidationError( // No context needed
         "Cannot compute median AC value from DCT with only DC component",
       ),
     );

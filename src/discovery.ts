@@ -34,9 +34,8 @@ export async function discoverFilesFn(
         new FileSystemError(
           `Error scanning directory ${dirPath}: ${e instanceof Error ? e.message : String(e)}`,
           {
-            path: dirPath,
-            operation: "readdir",
-            originalError: e instanceof Error ? e : undefined,
+            cause: e instanceof Error ? e : undefined,
+            context: { path: dirPath, operation: "readdir" },
           },
         ),
     );

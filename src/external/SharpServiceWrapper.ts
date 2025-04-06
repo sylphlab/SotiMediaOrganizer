@@ -37,8 +37,8 @@ export async function readSharpMetadata(
       new ExternalToolError(
         `Failed to read sharp metadata: ${error instanceof Error ? error.message : String(error)}`,
         {
-          tool: "sharp",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { tool: "sharp" },
         },
       ),
   );
@@ -58,8 +58,8 @@ export async function readSharpStats(
       new ExternalToolError(
         `Failed to read sharp stats: ${error instanceof Error ? error.message : String(error)}`,
         {
-          tool: "sharp",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { tool: "sharp" },
         },
       ),
   );
@@ -106,8 +106,8 @@ export async function imageToBuffer(
       new ExternalToolError(
         `Failed to convert image to buffer: ${error instanceof Error ? error.message : String(error)}`,
         {
-          tool: "sharp",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { tool: "sharp" },
         },
       ),
   );

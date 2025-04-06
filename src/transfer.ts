@@ -44,9 +44,8 @@ export async function transferFilesFn(
         new FileSystemError(
           `Failed to create debug directory ${debugDir}: ${e instanceof Error ? e.message : String(e)}`,
           {
-            path: debugDir,
-            operation: "mkdir",
-            originalError: e instanceof Error ? e : undefined,
+            cause: e instanceof Error ? e : undefined,
+            context: { path: debugDir, operation: "mkdir" },
           },
         ),
     );
@@ -62,9 +61,8 @@ export async function transferFilesFn(
           new FileSystemError(
             `Failed to read debug directory ${debugDir}: ${e instanceof Error ? e.message : String(e)}`,
             {
-              path: debugDir,
-              operation: "readdir",
-              originalError: e instanceof Error ? e : undefined,
+              cause: e instanceof Error ? e : undefined,
+              context: { path: debugDir, operation: "readdir" },
             },
           ),
       );
@@ -80,9 +78,8 @@ export async function transferFilesFn(
               new FileSystemError(
                 `Could not clear file in debug directory: ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
                 {
-                  path: filePath,
-                  operation: "unlink",
-                  originalError: e instanceof Error ? e : undefined,
+                  cause: e instanceof Error ? e : undefined,
+                  context: { path: filePath, operation: "unlink" },
                 },
               ),
           );

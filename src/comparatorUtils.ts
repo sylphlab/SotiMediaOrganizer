@@ -515,8 +515,8 @@ export async function expandCluster( // Add export back
     const currentPoint = queue[queueIndex++]; // Process queue iteratively
 
     if (!visited.has(currentPoint)) {
-      visited.add(currentPoint);
-      cluster.add(currentPoint);
+      // visited.add(currentPoint); // Move this after successful neighbor fetch
+      cluster.add(currentPoint); // Add to cluster immediately
 
       // Find neighbors of the current point
       const currentNeighborsResult = await getNeighborsFn(currentPoint);
@@ -526,12 +526,16 @@ export async function expandCluster( // Add export back
         return err(
           new AppError(
             `Failed to get neighbors for ${currentPoint} during cluster expansion`,
-            { originalError: currentNeighborsResult.error },
+            {
+              cause: currentNeighborsResult.error, // Standard way
+              context: { originalError: currentNeighborsResult.error }, // For test workaround
+            },
           ),
         );
       }
 
       const currentNeighbors = currentNeighborsResult.value;
+      visited.add(currentPoint); // Mark as visited only after successful neighbor fetch
 
       // If it's a core point, add its *unvisited* neighbors to the queue
       if (currentNeighbors.length >= minPts) {

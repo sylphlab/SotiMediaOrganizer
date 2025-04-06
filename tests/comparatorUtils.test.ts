@@ -18,7 +18,7 @@ import {
   Metadata,
 } from "../src/types"; // Removed unused FileType
 import { hexToSharedArrayBuffer } from "../src/utils";
-// Removed unused imports: AppResult, ok, err, ValidationError
+import { AppResult, ok, err, AppError } from "../src/errors"; // Add necessary imports back
 import * as comparatorUtils from "../src/comparatorUtils"; // Import the module itself for spying
 
 describe("Comparator Utilities", () => {
@@ -1066,3 +1066,188 @@ describe("Comparator Utilities", () => {
   // --- Add tests for selectRepresentativeCaptures ---
   // --- Add tests for selectRepresentativesFromScored ---
 });
+
+
+  // --- Add tests for mergeAndDeduplicateClusters ---
+  describe("mergeAndDeduplicateClusters", () => {
+    it("should return empty array for empty input", () => {
+      expect(comparatorUtils.mergeAndDeduplicateClusters([])).toEqual([]);
+    });
+
+    it("should return clusters as is if there is no overlap", () => {
+      const cluster1 = new Set(['a', 'b']);
+      const cluster2 = new Set(['c', 'd']);
+      const cluster3 = new Set(['e']);
+      const result = comparatorUtils.mergeAndDeduplicateClusters([cluster1, cluster2, cluster3]);
+      // Order might change, so check content
+      expect(result).toHaveLength(3);
+      expect(result).toContainEqual(new Set(['a', 'b']));
+      expect(result).toContainEqual(new Set(['c', 'd']));
+      expect(result).toContainEqual(new Set(['e']));
+    });
+
+    it("should merge two overlapping clusters", () => {
+      const cluster1 = new Set(['a', 'b', 'c']);
+      const cluster2 = new Set(['c', 'd', 'e']);
+      const cluster3 = new Set(['f', 'g']);
+      const result = comparatorUtils.mergeAndDeduplicateClusters([cluster1, cluster2, cluster3]);
+      expect(result).toHaveLength(2);
+      expect(result).toContainEqual(new Set(['a', 'b', 'c', 'd', 'e']));
+      expect(result).toContainEqual(new Set(['f', 'g']));
+    });
+
+    it("should merge multiple overlapping clusters", () => {
+      const cluster1 = new Set(['a', 'b']);
+      const cluster2 = new Set(['b', 'c']);
+      const cluster3 = new Set(['c', 'd']);
+      const cluster4 = new Set(['e', 'f']);
+      const cluster5 = new Set(['f', 'a']); // Overlaps with cluster1 via 'a'
+      const result = comparatorUtils.mergeAndDeduplicateClusters([cluster1, cluster2, cluster3, cluster4, cluster5]);
+      expect(result).toHaveLength(1);
+      expect(result[0]).toEqual(new Set(['a', 'b', 'c', 'd', 'e', 'f']));
+    });
+
+    it("should handle clusters that are subsets of others", () => {
+      const cluster1 = new Set(['a', 'b', 'c', 'd']);
+      const cluster2 = new Set(['b', 'c']); // Subset
+      const cluster3 = new Set(['e', 'f']);
+      const result = comparatorUtils.mergeAndDeduplicateClusters([cluster1, cluster2, cluster3]);
+      expect(result).toHaveLength(2);
+      expect(result).toContainEqual(new Set(['a', 'b', 'c', 'd']));
+      expect(result).toContainEqual(new Set(['e', 'f']));
+    });
+
+
+  // --- Add tests for expandCluster ---
+  describe("expandCluster", () => {
+    const minPts = 3; // Example minPts
+
+    it("should expand a simple cluster from a core point", async () => {
+      const visited = new Set<string>();
+      const point = 'a';
+      const initialNeighbors = ['a', 'b', 'c']; // 'a' is core
+      const allNeighbors: Record<string, string[]> = {
+        a: ['a', 'b', 'c'],
+        b: ['a', 'b'], // Not core
+        c: ['a', 'c', 'd'], // Core
+        d: ['c', 'd', 'e'], // Core
+        e: ['d', 'e'], // Not core
+      };
+      const mockGetNeighborsFn = jest.fn(async (p: string): Promise<AppResult<string[]>> => {
+        return ok(allNeighbors[p] || []);
+      });
+
+      const result = await comparatorUtils.expandCluster(point, initialNeighbors, visited, minPts, mockGetNeighborsFn);
+
+      expect(result.isOk()).toBe(true);
+      const cluster = result._unsafeUnwrap();
+      expect(cluster).toEqual(new Set(['a', 'b', 'c', 'd', 'e']));
+      expect(visited).toEqual(new Set(['a', 'b', 'c', 'd', 'e'])); // All points in cluster should be visited
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('a');
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('b');
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('c');
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('d');
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('e');
+    });
+
+    it("should handle already visited points correctly", async () => {
+      const visited = new Set<string>(['b']); // 'b' is pre-visited
+      const point = 'a';
+      const initialNeighbors = ['a', 'b', 'c']; // 'a' is core
+      const allNeighbors: Record<string, string[]> = {
+        a: ['a', 'b', 'c'],
+        b: ['a', 'b'],
+        c: ['a', 'c'], // Not core
+      };
+      const mockGetNeighborsFn = jest.fn(async (p: string): Promise<AppResult<string[]>> => {
+        return ok(allNeighbors[p] || []);
+      });
+
+      const result = await comparatorUtils.expandCluster(point, initialNeighbors, visited, minPts, mockGetNeighborsFn);
+
+      expect(result.isOk()).toBe(true);
+      const cluster = result._unsafeUnwrap();
+      expect(cluster).toEqual(new Set(['a', 'b', 'c'])); // 'b' is included even if pre-visited
+      expect(visited).toEqual(new Set(['a', 'b', 'c']));
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('a');
+      expect(mockGetNeighborsFn).not.toHaveBeenCalledWith('b'); // Should not fetch neighbors for pre-visited 'b'
+      expect(mockGetNeighborsFn).toHaveBeenCalledWith('c');
+    });
+
+    it("should propagate error if getNeighborsFn fails", async () => {
+      const visited = new Set<string>();
+      const point = 'a';
+      const initialNeighbors = ['a', 'b', 'c'];
+      const mockError = new AppError("Neighbor fetch failed");
+      const mockGetNeighborsFn = jest.fn(async (p: string): Promise<AppResult<string[]>> => {
+        if (p === 'c') {
+          return err(mockError);
+        }
+        return ok([p]); // Simple neighbors otherwise
+      });
+
+      const result = await comparatorUtils.expandCluster(point, initialNeighbors, visited, minPts, mockGetNeighborsFn);
+
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+          expect(result.error.message).toContain("Failed to get neighbors for c");
+          // Check the context.originalError property (workaround for potential cause issue)
+          expect((result.error.context as { originalError: unknown })?.originalError).toBe(mockError);
+      }
+      expect(visited).toEqual(new Set(['a', 'b'])); // Visited up to the point of failure
+    });
+
+    it("should correctly handle border points added via different core points", async () => {
+        // Scenario: a -> b, c -> b. Start expanding from 'a'. 'b' should be included.
+        const visited = new Set<string>();
+        const point = 'a';
+        const initialNeighbors = ['a', 'b']; // 'a' is not core initially
+        const allNeighbors: Record<string, string[]> = {
+            a: ['a', 'b'],
+            b: ['a', 'b', 'c'], // 'b' is core
+            c: ['b', 'c', 'd'], // 'c' is core
+            d: ['c', 'd']
+        };
+        const mockGetNeighborsFn = jest.fn(async (p: string): Promise<AppResult<string[]>> => {
+            return ok(allNeighbors[p] || []);
+        });
+
+        // We need to simulate the DBSCAN loop calling expandCluster
+        // Let's assume expandCluster is called for 'b' first (as it's core)
+        const resultB = await comparatorUtils.expandCluster('b', ['a', 'b', 'c'], visited, minPts, mockGetNeighborsFn);
+        expect(resultB.isOk()).toBe(true);
+        expect(resultB._unsafeUnwrap()).toEqual(new Set(['a', 'b', 'c', 'd']));
+        expect(visited).toEqual(new Set(['a', 'b', 'c', 'd']));
+
+        // Now, if DBSCAN were to try expanding from 'a' (which is now visited), expandCluster shouldn't run again.
+        // If it *did* run (e.g., if 'a' was processed before 'b'), it should still work:
+        visited.clear(); // Reset visited for this hypothetical scenario
+        const resultA = await comparatorUtils.expandCluster('a', ['a', 'b'], visited, 3, mockGetNeighborsFn);
+        // 'a' is not core (needs 3 neighbors), so expandCluster would typically not be called by DBSCAN for it.
+        // If called directly, it would just return {'a'} as it doesn't meet minPts to expand further.
+        // This test case might be better suited for the runDbscanCore tests.
+        // Let's adjust the scenario slightly: a IS core.
+        visited.clear();
+        allNeighbors['a'] = ['a', 'b', 'x']; // Make 'a' core
+        allNeighbors['x'] = ['a', 'x'];
+        const resultA_core = await comparatorUtils.expandCluster('a', ['a', 'b', 'x'], visited, minPts, mockGetNeighborsFn);
+        expect(resultA_core.isOk()).toBe(true);
+        // Should find a, b, x, c, d
+        expect(resultA_core._unsafeUnwrap()).toEqual(new Set(['a', 'b', 'x', 'c', 'd']));
+        expect(visited).toEqual(new Set(['a', 'b', 'x', 'c', 'd']));
+    });
+
+  });
+
+
+    it("should handle identical clusters", () => {
+      const cluster1 = new Set(['a', 'b']);
+      const cluster2 = new Set(['a', 'b']);
+      const cluster3 = new Set(['c']);
+      const result = comparatorUtils.mergeAndDeduplicateClusters([cluster1, cluster2, cluster3]);
+      expect(result).toHaveLength(2);
+      expect(result).toContainEqual(new Set(['a', 'b']));
+      expect(result).toContainEqual(new Set(['c']));
+    });
+  });
+

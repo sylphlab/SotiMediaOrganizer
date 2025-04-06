@@ -6,12 +6,15 @@ export const err = importedErr;
 
 // Base application error class
 export class AppError extends Error {
-  public readonly context?: unknown; // Optional context for richer error details
+  public readonly context?: Record<string, unknown>; // Context for additional details, excluding 'cause'
+  public readonly cause?: unknown; // Standard error cause property
 
-  constructor(message: string, context?: unknown) {
-    super(message);
+  constructor(message: string, options?: { cause?: unknown; context?: Record<string, unknown> }) {
+    // Pass cause to the super constructor if provided
+    super(message, options?.cause ? { cause: options.cause } : undefined);
     this.name = this.constructor.name; // Set the name to the specific error class
-    this.context = context;
+    this.context = options?.context; // Store additional context separately
+    // this.cause = options?.cause; // Remove redundant assignment, rely on super()
     // Ensure the stack trace is captured correctly
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor);
@@ -21,69 +24,65 @@ export class AppError extends Error {
 
 // Specific error types
 export class FileSystemError extends AppError {
+  // Modify constructors of subclasses to pass options correctly
   constructor(
     message: string,
-    context?: { path?: string; operation?: string; originalError?: Error },
+    options?: { cause?: unknown; context?: { path?: string; operation?: string } },
   ) {
-    super(message, context);
+    super(message, options);
   }
 }
 
 export class ExternalToolError extends AppError {
   constructor(
     message: string,
-    context?: {
-      tool?: string;
-      command?: string;
-      exitCode?: number | null;
-      stderr?: string;
-      originalError?: Error;
-    },
+    options?: { cause?: unknown; context?: { tool?: string; command?: string; exitCode?: number | null; stderr?: string } },
   ) {
-    super(message, context);
+    super(message, options);
   }
 }
 
 export class DatabaseError extends AppError {
   constructor(
     message: string,
-    context?: { operation?: string; key?: string; originalError?: Error },
+    options?: { cause?: unknown; context?: { operation?: string; key?: string } },
   ) {
-    super(message, context);
+    super(message, options);
   }
 }
 
 export class HashingError extends AppError {
   constructor(
     message: string,
-    context?: { algorithm?: string; filePath?: string; originalError?: Error },
+    options?: { cause?: unknown; context?: { algorithm?: string; filePath?: string } },
   ) {
-    super(message, context);
+    super(message, options);
   }
 }
 
 export class ConfigurationError extends AppError {
   constructor(
     message: string,
-    context?: { setting?: string; value?: unknown },
+    options?: { cause?: unknown; context?: { setting?: string; value?: unknown } },
   ) {
-    super(message, context);
+    super(message, options);
   }
 }
 
 export class ValidationError extends AppError {
-  constructor(message: string, context?: { validationDetails?: unknown }) {
-    super(message, context);
+  constructor(message: string, options?: { cause?: unknown; context?: { validationDetails?: unknown } }) {
+    super(message, options);
   }
 }
 
 export class UnknownError extends AppError {
-  constructor(originalError: unknown) {
+  constructor(cause: unknown) { // Accept cause directly
     const message =
-      originalError instanceof Error
-        ? originalError.message
+      cause instanceof Error
+        ? cause.message
         : "An unknown error occurred";
-    super(message, { originalError });
+    // Pass cause to super constructor
+    super(message, { cause });
   }
 }
 
@@ -117,7 +116,7 @@ export function safeTry<T>(
       const message = errorContext
         ? `${errorContext}: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}` // Use renamed variable
         : `Operation failed: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}`; // Use renamed variable
-      appError = new AppError(message, { originalError: caughtError }); // Use renamed variable
+      appError = new AppError(message, { cause: caughtError }); // Pass caughtError as cause
     }
     return err(appError); // Use the imported err function
   }
@@ -147,12 +146,13 @@ export async function safeTryAsync<T>(
       ) {
         // Use the renamed variable
         // Example: File not found
+        // Pass caughtError as cause to FileSystemError
         appError = new FileSystemError(message, {
-          originalError: caughtError, // Use the renamed variable
-          operation: "async operation",
+          cause: caughtError,
+          context: { operation: "async operation" },
         });
       } else {
-        appError = new AppError(message, { originalError: caughtError }); // Use the renamed variable
+        appError = new AppError(message, { cause: caughtError }); // Pass caughtError as cause
       }
     }
     return err(appError); // Use the exported err function (line 5)

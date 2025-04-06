@@ -121,8 +121,8 @@ export async function getFileStatsHashKey(
       new DatabaseError(
         `Failed to convert hash to hex key for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
         {
-          operation: "hexConvert",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { operation: "hexConvert" },
         },
       ),
     );

@@ -238,7 +238,7 @@ export class MediaComparator {
       return err(
         new AppError(
           `Failed to get FileInfo for ${point} in getValidNeighbors`,
-          { originalError: fileInfo1Result.error },
+          { cause: fileInfo1Result.error }, // Use cause
         ),
       ); // Keep AppError for now
     }
@@ -424,7 +424,7 @@ export class MediaComparator {
           return err(
             new AppError(
               `Failed processing ${entry} in selectRepresentatives`,
-              { originalError: fileInfoResult.error },
+              { cause: fileInfoResult.error }, // Use cause
             ),
           );
         }
@@ -494,7 +494,7 @@ export class MediaComparator {
           // Propagate error if file processing fails
           return err(
             new AppError(`Failed processing ${entry} in scoreEntries`, {
-              originalError: fileInfoResult.error,
+              cause: fileInfoResult.error, // Use cause
             }),
           );
         }

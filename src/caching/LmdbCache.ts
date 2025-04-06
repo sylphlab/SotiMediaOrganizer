@@ -52,8 +52,8 @@ export class LmdbCache {
       console.error(message);
       return err(
         new DatabaseError(message, {
-          operation: "open",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { operation: "open" },
         }),
       );
     }
@@ -69,7 +69,7 @@ export class LmdbCache {
       return err(
         new DatabaseError(
           "LMDB root database is not open or has been closed.",
-          { operation: "getJobDbs" },
+          { context: { operation: "getJobDbs" } },
         ),
       );
     }
@@ -89,8 +89,8 @@ export class LmdbCache {
         console.error(message);
         return err(
           new DatabaseError(message, {
-            operation: "openSubDb",
-            originalError: error instanceof Error ? error : undefined,
+            cause: error instanceof Error ? error : undefined,
+            context: { operation: "openSubDb" },
           }),
         );
       }
@@ -135,8 +135,8 @@ export class LmdbCache {
         new DatabaseError(
           `Failed to serialize data with msgpack: ${error instanceof Error ? error.message : String(error)}`,
           {
-            operation: "serialize",
-            originalError: error instanceof Error ? error : undefined,
+            cause: error instanceof Error ? error : undefined,
+            context: { operation: "serialize" },
           },
         ),
     );
@@ -194,8 +194,8 @@ export class LmdbCache {
         return new DatabaseError(
           `Failed to deserialize data: ${error instanceof Error ? error.message : String(error)}`,
           {
-            operation: "deserialize",
-            originalError: error instanceof Error ? error : undefined,
+            cause: error instanceof Error ? error : undefined,
+            context: { operation: "deserialize" },
           },
         );
       },
@@ -246,8 +246,8 @@ export class LmdbCache {
       throw new DatabaseError(
         `Failed to deserialize data: ${error instanceof Error ? error.message : String(error)}`,
         {
-          operation: "deserialize",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { operation: "deserialize" },
         },
       );
     }
@@ -295,9 +295,8 @@ export class LmdbCache {
         return error instanceof DatabaseError
           ? error
           : new DatabaseError(message, {
-              operation: "config_check",
-              key: hashKey,
-              originalError: error instanceof Error ? error : undefined,
+              cause: error instanceof Error ? error : undefined,
+              context: { operation: "config_check", key: hashKey },
             });
       },
     );
@@ -339,9 +338,8 @@ export class LmdbCache {
         return error instanceof DatabaseError
           ? error
           : new DatabaseError(message, {
-              operation: "read",
-              key: hashKey,
-              originalError: error instanceof Error ? error : undefined,
+              cause: error instanceof Error ? error : undefined,
+              context: { operation: "read", key: hashKey },
             });
       },
     );
@@ -388,9 +386,8 @@ export class LmdbCache {
         return error instanceof DatabaseError
           ? error
           : new DatabaseError(message, {
-              operation: "write",
-              key: hashKey,
-              originalError: error instanceof Error ? error : undefined,
+              cause: error instanceof Error ? error : undefined,
+              context: { operation: "write", key: hashKey },
             });
       },
     );
@@ -409,8 +406,8 @@ export class LmdbCache {
         console.error(message);
         return err(
           new DatabaseError(message, {
-            operation: "close",
-            originalError: error instanceof Error ? error : undefined,
+            cause: error instanceof Error ? error : undefined,
+            context: { operation: "close" },
           }),
         );
       }

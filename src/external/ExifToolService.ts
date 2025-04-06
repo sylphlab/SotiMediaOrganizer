@@ -20,8 +20,8 @@ export async function readExifTags(
       new ExternalToolError(
         `Failed to read Exif tags for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
         {
-          tool: "exiftool",
-          originalError: error instanceof Error ? error : undefined,
+          cause: error instanceof Error ? error : undefined,
+          context: { tool: "exiftool" },
         },
       ),
   );
