@@ -161,14 +161,23 @@ describe("Utility Functions", () => {
     });
 
     it("should return Err for hex string with non-hex characters", () => {
-      const result = hexToSharedArrayBuffer("deadbeefZ"); // 'Z' is not hex
+      const result = hexToSharedArrayBuffer("deadbeeg"); // 'g' is not hex
       expect(result.isErr()).toBe(true);
       expect(result._unsafeUnwrapErr()).toBeInstanceOf(ValidationError);
       expect(result._unsafeUnwrapErr().message).toContain(
-        "even number of characters",
-      ); // Correct assertion for odd length
+        "non-hex characters",
+      ); // Correct assertion
     });
   });
+
+    it("should handle empty hex string", () => {
+      const result = hexToSharedArrayBuffer("");
+      expect(result.isOk()).toBe(true);
+      const sharedBuffer = result._unsafeUnwrap();
+      expect(sharedBuffer).toBeInstanceOf(SharedArrayBuffer);
+      expect(sharedBuffer.byteLength).toBe(0);
+    });
+
 
   describe("Async Helpers", () => {
     it("filterAsync should filter elements based on async predicate", async () => {
@@ -502,6 +511,35 @@ describe("Utility Functions", () => {
                 // Manual calculation for DC component (u=0, v=0) with input=1
                 // Expected DC = sum(input[x,y]) * norm(0) * norm(0) * cos(0)*cos(0) / (size*size)? No, formula is different.
                 // Formula: sum_x sum_y input[x,y] * norm(u)*norm(v)*cos(...)cos(...)
+
+              it("should compute DCT for a checkerboard pattern", () => {
+                const size = 4;
+                const hashSize = 4;
+                const constants = createDCTConstants(size, hashSize);
+                // Create a 4x4 checkerboard pattern
+                const input = new Uint8Array(size * size);
+                for (let y = 0; y < size; y++) {
+                  for (let x = 0; x < size; x++) {
+                    input[y * size + x] = (x + y) % 2 === 0 ? 255 : 0;
+                  }
+                }
+
+                const result = computeFastDCT(input, size, hashSize, constants);
+                expect(result.isOk()).toBe(true);
+                const dctOutput = result._unsafeUnwrap();
+
+                expect(dctOutput).toBeInstanceOf(Float32Array);
+                expect(dctOutput.length).toBe(hashSize * hashSize); // 4x4 output
+
+                // For a checkerboard, DC component should be average (around 127.5)
+                // High frequency components should be significant, others near zero.
+                // Exact values depend on DCT normalization and implementation.
+                // We'll check if DC is roughly average and some AC components are non-zero.
+                expect(dctOutput[0]).toBeCloseTo(127.5 * size); // DC component scaled
+                // Check some high-frequency AC components (e.g., bottom right)
+                expect(Math.abs(dctOutput[hashSize * hashSize - 1])).toBeGreaterThan(0.1);
+              });
+
                 // For u=0, v=0: norm(0)*norm(0) * sum_x sum_y (1 * cos(0) * cos(0))
                 // norm(0) = sqrt(2/size) / sqrt(2) = sqrt(1/size) = 1/sqrt(size) = 1/2
                 // DC = (1/2)*(1/2) * sum_x sum_y (1) = (1/4) * 16 = 4

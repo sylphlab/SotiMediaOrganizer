@@ -25,8 +25,8 @@ import {
   afterAll,
   beforeEach,
   afterEach,
-  jest,
-} from "@jest/globals"; // Add Jest imports
+  vi, // Import vi from vitest instead of jest
+} from "vitest"; // Use vitest imports
 
 import { err, DatabaseError } from "../src/errors"; // Removed unused AppResult, ok
 import { rmSync, existsSync, mkdirSync } from "fs";
@@ -36,14 +36,14 @@ import { bufferToSharedArrayBuffer } from "../src/utils"; // Import buffer utili
 // --- Mocking Dependencies ---
 // Mock CliReporter
 class MockCliReporter extends CliReporter {
-  startSpinner = jest.fn();
-  updateSpinnerText = jest.fn();
-  stopSpinnerSuccess = jest.fn();
-  stopSpinnerFailure = jest.fn();
-  logError = jest.fn();
-  logWarning = jest.fn();
-  logInfo = jest.fn();
-  logSuccess = jest.fn();
+  startSpinner = vi.fn(); // Use vi.fn()
+  updateSpinnerText = vi.fn(); // Use vi.fn()
+  stopSpinnerSuccess = vi.fn(); // Use vi.fn()
+  stopSpinnerFailure = vi.fn(); // Use vi.fn()
+  logError = vi.fn(); // Use vi.fn()
+  logWarning = vi.fn(); // Use vi.fn()
+  logInfo = vi.fn(); // Use vi.fn()
+  logSuccess = vi.fn(); // Use vi.fn()
   constructor() {
     super(false);
   }
@@ -202,9 +202,9 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     const mockCacheInstance = {
       /* mock methods if needed by comparator */
     } as LmdbCache;
-    const mockExifToolInstance = { end: jest.fn() } as unknown as ExifTool; // Use simple mock
+    const mockExifToolInstance = { end: vi.fn() } as unknown as ExifTool; // Use vi.fn()
     const mockWorkerPoolInstance = {
-      terminate: jest.fn(),
+      terminate: vi.fn(), // Use vi.fn()
     } as unknown as WorkerPool; // Use simple mock
     const mockFileProcessorConfig = {
       /* mock if needed */
@@ -219,7 +219,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       mockWorkerPoolInstance, // Use mock worker pool
     );
 
-    jest.clearAllMocks();
+    vi.clearAllMocks(); // Use vi.clearAllMocks()
   });
 
   afterEach(async () => {
@@ -279,7 +279,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     const validFiles = rows.map((r) => r.filePath);
 
     // Mock similarity calculation to ensure they are considered similar
-    const calculateSimilaritySpy = jest
+    const calculateSimilaritySpy = vi // Use vi.spyOn()
       .spyOn(comparator, "calculateSimilarity")
       .mockReturnValue(0.99); // Force high similarity
 
@@ -320,7 +320,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       const validFiles = rows.map((r) => r.filePath);
 
       // Mock similarity calculation to return a value BELOW the threshold
-      const calculateSimilaritySpy = jest
+      const calculateSimilaritySpy = vi // Use vi.spyOn()
         .spyOn(comparator, "calculateSimilarity")
         .mockReturnValue(0.9); // Below threshold (e.g., 0.98)
 
@@ -388,7 +388,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
   it("should return error if initial DB query fails", async () => {
     const dbError = new DatabaseError("Mock DB read failed");
     // Mock the specific method expected to be called first
-    const getMultipleSpy = jest
+    const getMultipleSpy = vi // Use vi.spyOn()
       .spyOn(dbService, "getMultipleFileInfo")
       .mockImplementation(() => err(dbError)); // Make mock synchronous
 

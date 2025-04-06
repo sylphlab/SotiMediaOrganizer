@@ -41,3 +41,10 @@
   - Test coverage needs improvement, pending completion of Task 4.1.
   - Deduplication LSH loop optimization (fetching candidate info on demand) postponed.
   - `CliReporter` refinement postponed (e.g., proper handling of `clearLine`/`redraw`).
+- **Discovery Integration Tests:** Several tests in `tests/discovery.integration.test.ts` consistently hang in the `bun test` environment (marked as skipped). The root cause (potentially related to async/concurrency handling in `discoverFilesFn` or Bun's interaction) needs further investigation.
+- **File Processor Tests:** Unit tests in `tests/fileProcessor.test.ts` are skipped due to persistent mocking issues (`jest.mock` not recognized) within the `bun test` environment.
+- **Gatherer Integration Tests:** Tests in `tests/gatherer.integration.test.ts` are skipped due to the same `jest.mock` compatibility issues in `bun test`.
+- **Deduplicator Unit Tests:** Tests in `tests/deduplicator.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
+- **Discovery Unit Tests:** Tests in `tests/discovery.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
+- **Gatherer Unit Tests:** Tests in `tests/gatherer.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.
+  - **Transfer Unit Tests:** Tests in `tests/transfer.test.ts` are also skipped due to `jest.mock` compatibility issues in `bun test`.

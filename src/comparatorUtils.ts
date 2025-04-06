@@ -627,7 +627,7 @@ export function getFramesInTimeRange(
     (frame) =>
       frame?.hash &&
       frame.timestamp >= startTime &&
-      frame.timestamp <= endTime,
+      frame.timestamp <= endTime, // Revert to inclusive end time
   );
 }
 
@@ -648,9 +648,11 @@ export function calculateVideoSimilarity(
   >,
   wasmExports: WasmExports | null,
 ): number {
-  if (media1.frames.length === 0 || media2.frames.length === 0) {
-    return 0; // Return 0 similarity if either video has no frames
-  }
+  // Handle cases where one or both videos have no frames
+  const len1 = media1.frames.length;
+  const len2 = media2.frames.length;
+  if (len1 === 0 && len2 === 0) return 1; // Both empty -> perfect similarity
+  if (len1 === 0 || len2 === 0) return 0; // Only one empty -> zero similarity
 
   const [shorterMedia, longerMedia] =
     media1.duration <= media2.duration ? [media1, media2] : [media2, media1];

@@ -2,7 +2,7 @@ import {
   MediaInfo,
   DeduplicationResult,
   FileInfo,
-  FrameInfo,
+  // FrameInfo, // Removed unused import
   SimilarityConfig,
   ProgramOptions,
   FileProcessor,
@@ -21,15 +21,15 @@ import { ok, err, AppResult, AppError } from "./src/errors"; // Removed unused A
 import {
   calculateImageSimilarity,
   calculateImageVideoSimilarity, // Keep this import
-  calculateSequenceSimilarityDTW, // Keep this import
+  // calculateSequenceSimilarityDTW, // Removed unused import
   getAdaptiveThreshold, // Keep this import
   sortEntriesByScore, // Keep this import
   selectRepresentativesFromScored, // Keep this import
   mergeAndDeduplicateClusters, // Keep this import
   runDbscanCore, // Keep this import
   // Import the newly moved functions
-  calculateVideoSimilarity,
-  getFramesInTimeRange,
+  calculateVideoSimilarity, // Keep this import
+  // getFramesInTimeRange, // Removed unused import
 } from "./src/comparatorUtils"; // Import runDbscanCore, Removed expandCluster
 // Removed inversify imports
 import { type WorkerPool } from "./src/contexts/types"; // Removed unused Types import

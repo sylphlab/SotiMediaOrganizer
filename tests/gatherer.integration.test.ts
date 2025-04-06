@@ -20,26 +20,23 @@ import {
   afterAll,
   beforeEach,
   afterEach,
-  jest,
-} from "@jest/globals"; // Add Jest imports, including afterEach
+  jest, // Import jest from @jest/globals
+} from "@jest/globals"; // Use @jest/globals imports
 
 // --- Mocking Dependencies ---
-// jest.mock('../src/fileProcessor'); // Removed due to potential Bun compatibility issues
-
-// Explicitly type the mock function
-const mockProcessSingleFile = processSingleFile as jest.MockedFunction<
-  typeof processSingleFile
->;
+// Mock processSingleFile using vi.mock
+jest.mock('../src/fileProcessor');
+const mockProcessSingleFile = processSingleFile as jest.MockedFunction<typeof processSingleFile>;
 
 // Mock CliReporter
 class MockCliReporter extends CliReporter {
-  initializeMultiBar = jest.fn();
-  updateProgress = jest.fn();
-  stopMultiBar = jest.fn();
-  logError = jest.fn();
-  logWarning = jest.fn();
-  logInfo = jest.fn();
-  logSuccess = jest.fn();
+  initializeMultiBar = jest.fn(); // Use jest.fn()
+  updateProgress = jest.fn(); // Use jest.fn()
+  stopMultiBar = jest.fn(); // Use jest.fn()
+  logError = jest.fn(); // Use jest.fn()
+  logWarning = jest.fn(); // Use jest.fn()
+  logInfo = jest.fn(); // Use jest.fn()
+  logSuccess = jest.fn(); // Use jest.fn()
   // Add any other methods used by gatherFileInfoFn if necessary
   constructor() {
     super(false);
@@ -48,15 +45,15 @@ class MockCliReporter extends CliReporter {
 
 // Mock ExifTool (basic mock, methods might need specific implementations if used)
 const mockExifTool = {
-  read: jest.fn(),
-  write: jest.fn(),
-  end: jest.fn(), // Simple mock
+  read: jest.fn(), // Use jest.fn()
+  write: jest.fn(), // Use jest.fn()
+  end: jest.fn(), // Use jest.fn()
 } as unknown as ExifTool;
 
 // Mock WorkerPool (basic mock)
 const mockWorkerPool = {
-  exec: jest.fn(),
-  terminate: jest.fn(), // Simple mock
+  exec: jest.fn(), // Use jest.fn()
+  terminate: jest.fn(), // Use jest.fn()
 } as unknown as WorkerPool;
 // --- End Mocking ---
 
@@ -146,7 +143,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
   beforeEach(async () => {
     // Renamed from previous beforeEach
     // Reset mocks
-    jest.clearAllMocks();
+    jest.clearAllMocks(); // Use jest.clearAllMocks()
 
     // Clean up previous DB file if exists and create new DB instance
     if (existsSync(TEST_GATHERER_SQLITE_PATH)) {
@@ -304,7 +301,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
 
     // Mock dbService.upsertFileInfo to fail
     const dbError = new DatabaseError("Mock DB upsert failed");
-    const upsertSpy = jest
+    const upsertSpy = jest // Use jest.spyOn()
       .spyOn(dbService, "upsertFileInfo")
       .mockReturnValue(err(dbError));
 

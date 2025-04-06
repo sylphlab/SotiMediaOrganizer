@@ -187,7 +187,7 @@ export async function deduplicateFilesFn(
               {
                 hash: bufferToSharedArrayBuffer(
                   Buffer.from(targetPHashHex, "hex"),
-                ),
+                ), // No unwrap needed
                 timestamp: 0,
               },
             ],
@@ -221,7 +221,7 @@ export async function deduplicateFilesFn(
                 {
                   hash: bufferToSharedArrayBuffer(
                     Buffer.from(candidatePHashHex, "hex"),
-                  ),
+                  ), // No unwrap needed
                   timestamp: 0,
                 },
               ],

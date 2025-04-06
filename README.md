@@ -160,6 +160,42 @@ Available formats for each prefix:
 "{TYPE}/{HAS.CAM}/{D.YYYY}/{D.MM}/{D.DD}_{D.HH}{D.mm}_{NAME.U}_{RND}.{EXT}"
 ```
 
+### Advanced Examples
+
+**1. Organize only specific file types (e.g., videos) and use a complex format:**
+
+```bash
+# Note: Currently, smo processes all supported types found.
+# Filtering by type would require pre-filtering sources or a new feature.
+# This example focuses on the format string for videos.
+smo /path/to/videos /output/organized_videos \\\
+  --format "{TYPE}/{CAM}/{D.YYYY}/{D.MMMM}/{NAME}_{GEO}.{EXT}" \\\
+  --verbose
+```
+
+**2. Perform a dry run (copy mode) to see potential duplicates without moving files:**
+
+```bash
+smo /path/to/media /output/dry_run_target \\\
+  -d /output/dry_run_duplicates \\\
+  -e /output/dry_run_errors \\\
+  --debug /output/dry_run_debug_reports # Use debug to get reports
+# Default is copy mode (move=false)
+```
+
+_This allows you to review the debug reports in `/output/dry_run_debug_reports` before committing to moving files._
+
+**3. Maximize concurrency and use stricter similarity thresholds for archival purposes:**
+
+```bash
+smo /archive/source /archive/target \\\
+  -d /archive/duplicates \\\
+  -c 16 # Use more cores if available
+  --image-similarity-threshold 0.995 \\\
+  --video-similarity-threshold 0.98 \\\
+  --move # Move files for archival
+```
+
 ## 🔍 Sophisticated Deduplication (LSH Powered)
 
 MediaCurator employs a robust, database-centric approach using Locality-Sensitive Hashing (LSH) for efficient and scalable deduplication:
@@ -314,6 +350,116 @@ MediaCurator is built for speed and scale:
 - **Concurrency**: Leverages worker threads (`workerpool`) for parallel perceptual hash generation, maximizing CPU utilization.
 - **Robust Caching (LMDB)**: Utilizes LMDB for high-speed caching of intermediate results (file stats, metadata, hashes), enabling quick resumption and avoiding redundant computations.
 - **Functional Pipeline**: A clear, functional pipeline architecture enhances maintainability and testability.
+
+## 🏗️ Architecture Overview
+
+MediaCurator processes files through a sequential pipeline, leveraging caching and a central database for efficiency and state management.
+
+```mermaid
+flowchart TD
+    A[Start: smo command] --> B{1. Discovery};
+    B -- File Paths --> C{2. Gatherer};
+    C -- FileInfo (Metadata, Hashes) --> D[Metadata DB (SQLite)];
+    C -- Intermediate Results --> E[Cache (LMDB)];
+    D -- Stored FileInfo --> F{3. Deduplicator};
+    F -- Similarity Candidates --> D;
+    F -- Duplicate Sets & Unique Files --> G{4. Transfer};
+    G -- Files to Move/Copy --> H[Filesystem];
+    G -- Debug Reports --> I[Debug Output];
+
+    subgraph "Pipeline Stages"
+        B; C; F; G;
+    end
+
+    subgraph "Core Services & Data"
+        D; E; H; I;
+    end
+
+    subgraph "External Tools (Used by Gatherer)"
+        J[FFmpeg];
+        K[Sharp/libvips];
+        L[ExifTool];
+    end
+
+    subgraph "Concurrency (Used by Gatherer)"
+        M[Worker Pool (pHash)];
+    end
+
+    C --> J;
+    C --> K;
+    C --> L;
+    C --> M;
+```
+
+**Key Components:**
+
+- **Pipeline Stages (`src/discovery.ts`, `src/gatherer.ts`, etc.):** Functional modules responsible for each step of the process.
+- **Metadata DB (`src/services/MetadataDBService.ts`):** SQLite database storing file paths, hashes (content & perceptual), LSH keys, duration, resolution, etc. Used for efficient querying during deduplication.
+- **Cache (`src/caching/LmdbCache.ts`):** LMDB database caching results from expensive operations (file stats, metadata extraction, hashing) to speed up re-runs and enable pause/resume.
+- **File Transfer (`src/services/FileTransferService.ts`):** Handles the actual moving or copying of files based on the deduplication results and user configuration.
+- **Reporting (`src/reporting/CliReporter.ts`, `src/reporting/DebugReporter.ts`):** Provides user feedback via the CLI and generates detailed HTML reports for duplicate sets in debug mode.
+- **External Wrappers (`src/external/`):** Interfaces with external tools like FFmpeg, Sharp, and ExifTool.
+- **Workers (`src/worker/`):** Offloads CPU-intensive tasks (like perceptual hashing) to separate threads.
+
+
+## 💻 Development Setup
+
+Interested in contributing? Here's how to set up your development environment:
+
+1.  **Prerequisites:**
+    *   Node.js (>=14 recommended)
+    *   Bun (>=0.5 recommended for running/testing)
+    *   Git
+    *   FFmpeg (ensure it's in your system's PATH)
+    *   ExifTool (ensure it's in your system's PATH)
+    *   libvips (required by Sharp, installation varies by OS)
+
+2.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/your-username/mediacurator.git # Replace with actual repo URL if known
+    cd mediacurator
+    ```
+
+3.  **Install Dependencies:**
+    ```bash
+    bun install
+    ```
+
+4.  **Build the Project:**
+    *   Compile TypeScript and AssemblyScript:
+        ```bash
+        bun run build
+        ```
+
+5.  **Run Tests:**
+    *   Run all tests:
+        ```bash
+        bun test
+        ```
+    *   **Note:** Currently, several unit and integration tests involving mocking (`jest.mock`, `jest.resetAllMocks`) are known to fail when run with `bun test` due to compatibility issues. Tests for core utilities and simpler integration tests should pass. See `memory-bank/progress.md` for details.
+
+6.  **Linting and Formatting:**
+    *   Check for linting errors:
+        ```bash
+        bun run lint
+        ```
+    *   Format code (using Prettier, configured in `package.json`):
+        ```bash
+        bun run format
+        ```
+
+7.  **Running Locally:**
+    *   Build the project first (`bun run build`).
+    *   Run the compiled code directly:
+        ```bash
+        bun dist/index.js <source...> <destination> [options]
+        ```
+    *   Alternatively, use `bun run` to execute the TypeScript source directly (slower):
+        ```bash
+        bun run src/index.ts <source...> <destination> [options]
+        ```
+
+8.  **Pre-commit Hook:** Husky is configured to run linters and tests before committing. Ensure tests pass (or skip problematic ones temporarily) for the commit to succeed.
 
 ## 🤝 Contribute to MediaCurator
 

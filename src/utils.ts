@@ -182,6 +182,14 @@ export function hexToSharedArrayBuffer(
       }),
     );
   }
+  // Add regex check for valid hex characters
+  if (!/^[0-9a-fA-F]*$/.test(hex)) {
+    return err(
+      new ValidationError("Hex string contains non-hex characters", {
+        context: { validationDetails: { hexString: hex } }, // Provide full string for context
+      }),
+    );
+  }
   try {
     const buffer = new SharedArrayBuffer(hex.length / 2);
     const view = new Uint8Array(buffer);

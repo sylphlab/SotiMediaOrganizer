@@ -89,11 +89,11 @@ export async function discoverFilesFn(
   // Wait for all recursive scans to complete (ensure semaphore is drained)
   // This simple wait might not be perfectly accurate if new tasks are added rapidly,
   // but should be sufficient for directory scanning. A more robust approach might involve tracking active promises.
-  await semaphore.waitForUnlock(concurrency); // Wait for initial tasks
-  while (semaphore.isLocked() || semaphore.getValue() !== concurrency) {
-    // Wait for recursive tasks
-    await new Promise((resolve) => setTimeout(resolve, 50)); // Small delay to prevent busy-waiting
-  }
+  // await semaphore.waitForUnlock(concurrency); // Wait for initial tasks - Promise.all should handle this.
+  // The complex while loop waiting for the semaphore might be incorrect or unnecessary
+  // as Promise.all on the initial scans should theoretically wait for all nested awaits.
+  // Removing this loop to see if it resolves the hanging issue.
+  // If hangs persist, the issue is likely within the recursive scanDirectory calls or error handling.
 
   // spinner.succeed is called within stopSpinnerSuccess
   reporter.stopSpinnerSuccess(

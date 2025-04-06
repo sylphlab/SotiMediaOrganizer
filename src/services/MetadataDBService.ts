@@ -170,16 +170,13 @@ export class MetadataDBService {
     const pHashBuffer = row.pHash ? Buffer.from(row.pHash, "hex") : undefined;
     // Basic reconstruction - MediaInfo is simplified
     const partialFileInfo: Partial<FileInfo> = {
-      fileStats: row.contentHash
-        ? {
-            hash: bufferToSharedArrayBuffer(
-              Buffer.from(row.contentHash, "hex"),
-            ), // Convert hex -> Buffer -> SharedArrayBuffer
+      fileStats: {
+            // Use optional chaining and nullish coalescing for hash reconstruction
+            hash: row.contentHash ? bufferToSharedArrayBuffer(Buffer.from(row.contentHash, "hex"))._unsafeUnwrap() : undefined, // Unwrap AppResult
             size: row.size ?? 0,
             createdAt: row.createdAt ? new Date(row.createdAt) : new Date(0),
             modifiedAt: row.modifiedAt ? new Date(row.modifiedAt) : new Date(0),
-          }
-        : undefined,
+      },
       metadata: {
         width: row.imageWidth ?? 0,
         height: row.imageHeight ?? 0,
@@ -192,8 +189,8 @@ export class MetadataDBService {
         duration: row.mediaDuration ?? 0,
         // Only reconstructing the primary pHash for now
         frames: pHashBuffer
-          ? [{ hash: bufferToSharedArrayBuffer(pHashBuffer), timestamp: 0 }]
-          : [], // Convert Buffer -> SharedArrayBuffer
+          ? [{ hash: bufferToSharedArrayBuffer(pHashBuffer)._unsafeUnwrap(), timestamp: 0 }] // Unwrap AppResult
+          : [],
       },
     };
     return partialFileInfo;

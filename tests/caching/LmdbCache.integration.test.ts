@@ -6,12 +6,13 @@ import {
 import { rmSync, existsSync } from "fs";
 import { join } from "path";
 // Removed unused ok, err from '../../src/errors'
+import { jest, describe, it, expect, beforeAll, afterAll, beforeEach } from "@jest/globals"; // Import Jest globals
 
 const TEST_DB_DIR = ".test-cache-db";
 const TEST_DB_PATH = join(TEST_DB_DIR, "test-cache.lmdb"); // Use .lmdb extension
 
 describe("LmdbCache Integration Tests", () => {
-  jest.setTimeout(30000); // Increase timeout to 30 seconds for LMDB tests
+  jest.setTimeout(30000); // Use jest.setTimeout
 
   let cache: LmdbCache;
 

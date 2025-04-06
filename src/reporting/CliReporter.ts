@@ -210,7 +210,8 @@ export class CliReporter {
     };
 
     return (
-      `${chalk.white(payload.format.padEnd(6))} ${bar} ${chalk.green(percentage.padStart(6))}% | ` +
+      // Ensure payload and payload.format exist before accessing padEnd
+      `${chalk.white((payload?.format ?? 'N/A').padEnd(6))} ${bar} ${chalk.green(percentage.padStart(6))}% | ` +
       `${chalk.cyan(params.value.toString().padStart(7))}/${chalk.cyan(params.total.toString().padStart(7))} | ` +
       `${timeInfo} | ` +
       `${chalk.red(stats.errorCount.toString().padStart(5))} errors`

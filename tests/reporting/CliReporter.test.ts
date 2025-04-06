@@ -2,13 +2,14 @@ import { CliReporter } from "../../src/reporting/CliReporter";
 // Removed unused chalk, cliProgress, Spinner imports
 
 import {
+  vi, // Import vi
   describe,
   it,
   expect,
   beforeEach,
   afterEach,
-  jest,
-} from "@jest/globals"; // Add Jest imports
+  SpyInstance // Import SpyInstance type
+} from "vitest"; // Import from vitest
 
 // --- Mocking Dependencies ---
 // Mocking for chalk, spinner, cli-progress removed.
@@ -17,18 +18,20 @@ import {
 
 describe("CliReporter Tests", () => {
   let reporter: CliReporter;
-  let consoleLogSpy: jest.SpiedFunction<typeof console.log>;
-  let consoleWarnSpy: jest.SpiedFunction<typeof console.warn>;
-  let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
+  // Use Vitest SpyInstance type
+  let consoleLogSpy: SpyInstance<Parameters<typeof console.log>, ReturnType<typeof console.log>>;
+  let consoleWarnSpy: SpyInstance<Parameters<typeof console.warn>, ReturnType<typeof console.warn>>;
+  let consoleErrorSpy: SpyInstance<Parameters<typeof console.error>, ReturnType<typeof console.error>>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    // vi.clearAllMocks(); // Usually not needed if using mockClear in beforeEach
     // Default reporter (verbose=false)
     reporter = new CliReporter(false);
     // Spy on console methods
-    consoleLogSpy = jest.spyOn(console, "log").mockImplementation(() => {});
-    consoleWarnSpy = jest.spyOn(console, "warn").mockImplementation(() => {});
-    consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    // Use vi.spyOn
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   });
 
   afterEach(() => {
