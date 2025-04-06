@@ -1,4 +1,4 @@
-<!-- Version: 1.8 | Last Updated: 2025-04-06 | Updated By: Cline -->
+<!-- Version: 2.2 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Project Progress
 
@@ -26,13 +26,21 @@
   - **Phase 4:** Added/Updated integration/unit tests for `LmdbCache`, `discovery`, `gatherer`, `deduplicator`, `transfer`, `CliReporter`.
   - **Phase 4 (Task 4.1):** Added/Updated unit tests for `src/utils.ts` (covering buffer/hex conversions, async helpers, DCT helpers, quickSelect, EXIF parsing).
   - **Phase 4 (Task 4.2):** Memory Bank files updated (Completed).
+  - **Phase 4 (Task 4.x):** Created `ARCHITECTURE.md` with Mermaid diagram.
+  - **Phase 4 (Task 4.x):** Updated `README.md` to link to `ARCHITECTURE.md`.
+  - **Phase 4 (Task 4.x):** Updated `README.md` with detailed format string placeholders.
+  - **Phase 4 (Task 4.x):** Added "Advanced Usage Examples" section to `README.md`.
+  - **Phase 4 (Task 4.x):** Expanded "Key Features" descriptions in `README.md`.
+  - **Phase 4 (Task 4.x):** Refined "Performance & Quality" section in `README.md`.
+  - **Phase 4 (Task 4.x):** Created initial VitePress documentation structure (`docs/`, `.vitepress/config.js`, `index.md`).
+  - **Phase 4 (Task 4.x):** Added basic content framework for initial guide pages (`introduction.md`, `installation.md`, `getting-started.md`, `format-string.md`, `deduplication.md`).
 - **What's Next / To Be Built:**
   - **Testing (Phase 4 - Task 4.1):**
     - **Continue Task 4.1:** Add more test cases (edge cases, error handling) to existing test files (e.g., `comparatorUtils.test.ts`, integration tests).
     - Implement unit tests for remaining pure functions.
     - Investigate end-to-end testing strategy.
-  - **Documentation (Phase 4):**
-    - _Potentially_ add more detailed usage examples or architecture diagrams to README or separate docs.
+  - **Documentation (Phase 4 - Task 4.x):**
+    - Continue adding detailed documentation (e.g., advanced usage examples, refine existing sections).
   - **Postponed:**
     - Further Phase 2 Optimizations (LSH loop DB fetch, worker refinement, benchmarking).
     - Further Phase 3 UI Refinements (`CliReporter` logging/dynamic UI, verbosity levels).

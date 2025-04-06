@@ -33,20 +33,20 @@ MediaCurator is developed with these principles:
 
 ## 🚀 Key Features
 
-- **Smart Organization**: Organize by date, geo, camera model via flexible format strings.
-- **Advanced Deduplication**: DB-centric LSH for scalable duplicate/similarity detection (images & videos).
-- **High Performance**: Optimized with Sharp (libvips), FFmpeg, SQLite (`better-sqlite3`), WASM, and `workerpool`.
-- **Robust Architecture**: Functional TypeScript pipeline (`neverthrow` error handling), Manual DI.
-- **Scalable Storage**: SQLite for efficient metadata handling of millions of files.
-- **Efficient Caching**: LMDB cache for pause/resume and faster re-runs.
-- **Wide Format Support**: Handles common image/video formats (extendable).
-- **Refined CLI**: Clear progress indicators and verbose logging (`CliReporter`).
+- **Smart Organization**: Automatically structure your media library into folders based on date (EXIF or file creation), geolocation tags, camera model, or file type using highly customizable format strings. Bring logic and consistency to your collection effortlessly.
+- **Advanced Deduplication**: Go beyond simple filename or hash checks. MediaCurator employs a sophisticated database-centric Locality-Sensitive Hashing (LSH) approach to efficiently find duplicate and visually similar images and videos, even if they have different resolutions or minor edits. Reclaim significant storage space.
+- **High Performance**: Engineered for speed. Leverages the power of native libraries like Sharp (libvips) for image processing and FFmpeg for video analysis. Utilizes SQLite (`better-sqlite3`) for fast metadata lookups, WebAssembly (WASM) for optimized calculations (like Hamming distance), and `workerpool` for parallel processing to handle massive libraries efficiently.
+- **Robust & Modern Architecture**: Built on a solid foundation using TypeScript with a functional programming approach. Features a clear pipeline architecture, reliable error handling via `neverthrow` (Result type), and clean Manual Dependency Injection for maintainability and testability.
+- **Scalable Metadata Storage**: Employs an embedded SQLite database (`better-sqlite3`) to manage metadata and similarity hashes for potentially millions of files without excessive memory usage. Ensures efficient querying during deduplication.
+- **Efficient Caching**: Integrates an LMDB-based cache to store intermediate processing results. This allows for seamless pause/resume functionality and significantly speeds up subsequent runs by avoiding redundant computations.
+- **Wide Format Support**: Natively handles a broad range of common image and video formats thanks to FFmpeg and Sharp. The architecture is designed to be extensible for future format additions.
+- **Refined CLI Experience**: Provides clear, real-time feedback during processing using progress bars and spinners via the dedicated `CliReporter` service. Offers a `--verbose` option for detailed logging when needed.
 
 ## 📊 Performance & Quality
 
-- **Efficiency**: Designed for speed with optimized algorithms (LSH, WASM) and concurrency. _(Benchmark results coming soon)_
-- **Test Coverage**: Aiming for **100% code coverage**, enforced via CI. [![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](#) <!-- Placeholder -->
-- **Code Quality**: Maintained with strict ESLint rules and Prettier formatting.
+- **Efficiency**: Designed for speed with optimized algorithms (LSH, WASM) and concurrency. Benchmarking is planned to quantify performance gains.
+- **Test Coverage**: Striving for high test coverage, enforced via CI checks. Testing is ongoing to improve coverage across all modules.
+- **Code Quality**: Maintained with strict ESLint rules and Prettier formatting to ensure consistency and readability.
 
 ## 📚 Documentation
 
@@ -114,9 +114,106 @@ smo /media/photos /media/downloads/new_vids /library/organized \
 
 **Format String Placeholders:**
 
-_(See previous README version or future documentation for the detailed list of date, filename, metadata, and conditional placeholders.)_
+Use these placeholders in the `--format` string to customize the output directory structure and filenames.
+
+**Date Placeholders:**
+
+- Prefix `I.` for Image Date (from EXIF), `F.` for File Creation Date, `D.` for Mixed Date (prefers Image Date, falls back to File Creation Date).
+- **Year:** `{?.YYYY}` (e.g., 2023), `{?.YY}` (e.g., 23)
+- **Month:** `{?.MMMM}` (e.g., January), `{?.MMM}` (e.g., Jan), `{?.MM}` (e.g., 01), `{?.M}` (e.g., 1)
+- **Day:** `{?.DD}` (e.g., 05), `{?.D}` (e.g., 5)
+- **Weekday:** `{?.DDDD}` (e.g., Sunday), `{?.DDD}` (e.g., Sun)
+- **Hour:** `{?.HH}` (24h, e.g., 14), `{?.H}` (24h, e.g., 14), `{?.hh}` (12h, e.g., 02), `{?.h}` (12h, e.g., 2)
+- **Minute:** `{?.mm}` (e.g., 08), `{?.m}` (e.g., 8)
+- **Second:** `{?.ss}` (e.g., 09), `{?.s}` (e.g., 9)
+- **AM/PM:** `{?.a}` (am/pm), `{?.A}` (AM/PM)
+- **Week:** `{?.WW}` (Week number, e.g., 01-53)
+
+**Filename Placeholders:**
+
+- `{NAME}`: Original filename without extension.
+- `{NAME.L}`: Lowercase original filename.
+- `{NAME.U}`: Uppercase original filename.
+- `{EXT}`: Original file extension (including the dot, e.g., `.jpg`).
+
+**Metadata Placeholders:**
+
+- `{GEO}`: GPS coordinates if available (e.g., `34.05_-118.24`), empty otherwise.
+- `{CAM}`: Camera model if available, empty otherwise.
+- `{TYPE}`: "Image" or "Video".
+
+**Conditional Placeholders:**
+
+- `{HAS.GEO}`: "GeoTagged" or "NoGeo".
+- `{HAS.CAM}`: "WithCamera" or "NoCamera".
+- `{HAS.DATE}`: "Dated" (if Image Date exists) or "NoDate".
+
+**Other Placeholders:**
+
+- `{RND}`: A random 8-character hexadecimal string (useful for preventing filename collisions).
+
+**Example:** `{D.YYYY}/{D.MMMM}/{TYPE}/{NAME}_{RND}{EXT}` might produce `2023/April/Image/IMG_1234_a1b2c3d4.jpg`.
+
+## 💡 Advanced Usage Examples
+
+**1. Dry Run - Check Organization Without Moving Files:**
+
+Use `--debug` to see a report of what _would_ happen without actually moving or copying files. This is useful for testing your format string or checking potential duplicates.
+
+```bash
+smo /media/photos /library/organized \
+  --debug /tmp/smo_debug_report \
+  --format "{D.YYYY}-{D.MM}/{TYPE}/{NAME}{EXT}"
+```
+
+_(No files are moved/copied, but a report detailing potential actions and duplicates is saved to `/tmp/smo_debug_report`)_
+
+**2. High-Sensitivity Deduplication for Archival:**
+
+Increase sensitivity for finding duplicates, useful when archiving and wanting to be very sure about removing redundant files. Use a lower similarity threshold and potentially a higher pHash resolution.
+
+```bash
+smo /archive_source /library/organized \
+  -d /library/duplicates \
+  --move \
+  --resolution 128 \
+  --image-similarity-threshold 0.95 \
+  --video-similarity-threshold 0.90 \
+  --format "{D.YYYY}/{D.MM}/{NAME}{EXT}" \
+  --verbose
+```
+
+**3. Organizing Specific File Types Only (Using Shell Globbing):**
+
+While `smo` doesn't have a built-in file type filter, you can use your shell's globbing capabilities to process only specific types.
+
+```bash
+# Organize only JPG files from the photos directory
+smo /media/photos/**/*.jpg /library/organized_jpgs \
+  --format "{D.YYYY}/{NAME}{EXT}"
+
+# Organize only MP4 files
+smo /media/videos/**/*.mp4 /library/organized_mp4s \
+  --format "{D.YYYY}/{D.MM}/{NAME}{EXT}"
+```
+
+_(Note: Shell globbing behavior might vary. Ensure your shell supports recursive globbing (`**`) if needed.)_
+
+**4. Prioritize EXIF Date, Fallback to File Date, Group by Camera:**
+
+Organize photos primarily by the date they were taken (EXIF), but use the file creation date if EXIF is missing. Also, create subfolders for each camera model found.
+
+```bash
+smo /camera_roll /library/by_camera \
+  --format "{HAS.CAM}/{CAM}/{D.YYYY}-{D.MM}/{NAME}_{RND}{EXT}" \
+  --verbose
+```
+
+_(This might create paths like: `WithCamera/iPhone 14 Pro/2023-10/IMG_001_abc123ef.jpg` or `NoCamera/Unknown/2024-01/video_clip_xyz98765.mp4`)_
 
 ## 🏗️ Architecture Overview
+
+For a more detailed diagram and component description, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 MediaCurator uses a pipeline architecture with SQLite for metadata/LSH and LMDB for caching.
 
