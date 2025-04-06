@@ -152,8 +152,8 @@ export function calculateImageVideoSimilarity(
     if (similarity > bestSimilarity) {
       bestSimilarity = similarity;
 
-      // Early exit if we find a similarity above the threshold
-      if (bestSimilarity >= similarityConfig.imageVideoSimilarityThreshold) {
+      // Early exit only if we find a perfect match
+      if (bestSimilarity === 1.0) {
         return bestSimilarity;
       }
     }
@@ -176,7 +176,8 @@ export function calculateSequenceSimilarityDTW(
 ): number {
   const m = seq1.length;
   const n = seq2.length;
-  if (m === 0 || n === 0) return 0; // Return 0 if either sequence is empty
+  if (m === 0 && n === 0) return 1; // Perfect similarity if both empty
+  if (m === 0 || n === 0) return 0; // Zero similarity if only one is empty
 
   // Use a 1D array to optimize space for DTW cost matrix (only need previous row)
   const dtw: number[] = new Array(n + 1).fill(Infinity);
@@ -347,6 +348,11 @@ export function selectRepresentativeCaptures(
 
   for (const { entry: capture1, fileInfo: info1 } of highQualityCaptures) {
     if (processedCaptures.has(capture1)) continue;
+    // Skip captures that don't have a hash for comparison
+    if (!info1.media.frames[0]?.hash) {
+        processedCaptures.add(capture1); // Mark as processed (cannot be compared or selected)
+        continue;
+    }
 
     let isDuplicate = false;
     // Compare against already selected unique captures
@@ -419,6 +425,18 @@ export function selectRepresentativesFromScored(
     // Combine the best video with the selected unique image captures
     return [bestEntry, ...uniqueImageCaptures];
   }
+}
+
+
+/**
+ * Selects unique, high-quality image captures from a list of potential captures,
+ * comparing them against a reference video's quality and against each other for similarity.
+ * Assumes potentialCaptures are pre-sorted by score (descending) if score-based tie-breaking is desired.
+ * @param potentialCaptures Array of objects containing image file paths and their FileInfo.
+ * @param bestVideoInfo FileInfo of the highest-scoring video in the cluster.
+ * @param similarityConfig Configuration containing the image similarity threshold.
+ * @param wasmExports Optional WASM exports for hamming distance calculation.
+ * @returns An array of file paths for the unique, high-quality image captures.
 }
 
 // Removed extra closing brace

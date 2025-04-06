@@ -1,8 +1,8 @@
-<!-- Version: 2.9 | Last Updated: 2025-04-06 | Updated By: Cline -->
+<!-- Version: 3.2 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Active Context
 
-- **Current Focus:** Started Phase 3 UI Improvements. Refactored CLI output and progress reporting across pipeline stages.
+- **Current Focus:** Phase 4 (Testing & Documentation). Continuing Task 4.1: Implementing more tests.
 - **Recent Changes:**
   - Planned Phase 1 refactoring (Architect Mode), saved plan to `phase1_refactoring_plan.md`.
   - Added `neverthrow` dependency.
@@ -23,17 +23,15 @@
   - **Phase 3:** Added `--verbose` option to `index.ts`.
   - **Phase 3:** Refactored `index.ts`, `discovery.ts`, `gatherer.ts`, `deduplicator.ts`, `transfer.ts` to use `CliReporter`.
   - **Phase 3:** Refined `CliReporter` progress bar formatting.
-- **Next Steps:**
-  - **Phase 3:** Further refine `CliReporter` (e.g., better handling of logging alongside dynamic UI, aggregate error reporting).
-  - **Phase 2 (Postponed):**
-    - **Optimization:** Refactor LSH similarity check loop in `deduplicator.ts` to fetch only necessary `MediaInfo` from DB for candidates, instead of relying on `allFileInfoMap`.
-    - **Workers (Task 2.4):** Re-evaluate worker usage for pHash generation in the context of DB interaction.
-    - **Benchmarking (Task 2.5):** Introduce benchmarking for key pipeline stages.
-  - **Phase 4 (Testing):** Develop comprehensive test suite.
+  - **Phase 4 (Task 4.3):** Updated `README.md` to reflect current architecture and features.
+  - **Phase 4 (Task 4.1):** Added/Updated integration/unit tests for `LmdbCache`, `discovery`, `gatherer`, `deduplicator`, `transfer`, `CliReporter`.
+  - **Phase 4 (Task 4.2):** Updated Memory Bank files (Completed).
+- **Next Steps:** Phase 4 (Testing & Documentation):
+    - **Task 4.1:** Continue implementing tests (add more test cases, cover edge cases, improve coverage).
+    - **Task 4.x:** Add more detailed documentation (e.g., architecture diagrams, advanced usage).
 - **Open Questions/Decisions:**
-  - Optimal DI strategy? **Decision:** Manual Injection implemented in Phase 1.
-  - Feasibility and approach for a Web UI? **Decision:** Lower priority, deferred past Phase 3.
-  - Specific FP patterns to adopt? **Decision:** Using `neverthrow` for `Result`, explicit side-effect isolation. Further patterns TBD.
-  - Best way to ensure scalability for millions of files? **Decision:** Adopt SQLite (Phase 2), streaming/batching. **Decision:** Replace VPTree/DBSCAN with DB-centric LSH approach (Phase 2).
-  - How to address persistent mocking issues in `bun test`? **Decision:** Defer testing strategy until after major refactoring (Phase 4).
-  - **Blocker:** None currently.
+    - Specific LSH function/parameters and DB indexing strategy for optimal performance? **Decision:** Current LSH (4x16bit bands) implemented; further tuning deferred.
+    - How to address persistent mocking issues in `bun test`? **Decision:** Focus on integration tests and higher-level mocking. Skip `better-sqlite3` tests under Bun for now.
+    - Need for further Phase 2 optimizations (LSH loop DB fetch, worker refinement, benchmarking)? **Decision:** Postpone until after initial testing/documentation pass.
+    - Need for further Phase 3 UI refinements? **Decision:** Postpone until after initial testing/documentation pass.
+    - Need for end-to-end testing framework/strategy? **Decision:** Deferred.

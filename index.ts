@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Removed import "reflect-metadata";
-
 import { Command } from "commander";
 import chalk from "chalk";
 import {

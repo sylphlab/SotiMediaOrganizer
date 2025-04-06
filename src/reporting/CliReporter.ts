@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import cliProgress from "cli-progress";
 import { Spinner } from "@topcli/spinner";
+// Removed NODE_ENV check
 
 // Define interface for progress bar payload
 interface ProgressBarPayload {
@@ -34,22 +35,25 @@ export class CliReporter {
   }
 
   updateSpinnerText(text: string): void {
-    if (this.spinner) {
+    if (!this.spinner) return; // Restore original check
+    if (this.spinner) { // Keep original check for safety, though covered by above
       this.spinner.text = text;
     }
   }
 
   stopSpinnerSuccess(text?: string): void {
-    if (this.spinner) {
+    if (!this.spinner) return; // Restore original check
+    if (this.spinner) { // Keep original check
       this.spinner.succeed(text); // succeed() method should exist
       this.spinner = null;
     }
   }
 
   stopSpinnerFailure(text?: string): void {
-    if (this.spinner) {
-      // @ts-expect-error - spinner.stop() exists but types might be off
-      this.spinner.fail(text);
+    if (!this.spinner) return; // Restore original check
+    if (this.spinner) { // Keep original check
+      // Fallback to succeed() with a failure indicator as stop/fail/error don't seem to exist
+      this.spinner.succeed(text ? `❌ ${text}` : '❌');
       this.spinner = null;
     }
   }
@@ -65,7 +69,7 @@ export class CliReporter {
         etaBuffer: 1000,
         barsize: 15,
         etaAsynchronousUpdate: true,
-        format: this.formatProgressBar, // Use a method for formatting
+        format: this.formatProgressBar.bind(this), // Bind 'this' context
       },
       cliProgress.Presets.shades_classic,
     );

@@ -1,4 +1,4 @@
-<!-- Version: 1.8 | Last Updated: 2025-04-05 | Updated By: Cline -->
+<!-- Version: 1.9 | Last Updated: 2025-04-06 | Updated By: Cline -->
 
 # Cline Rules & Project Intelligence
 
@@ -10,14 +10,14 @@
 *   **Project Patterns:**
     *   Memory Bank system is used for context persistence.
     *   Strict 500 LoC limit per source file.
-    *   *Current:* Dependency Injection using `inversify` managed via `Context.ts` (subject to change).
+    *   Dependency Management: Manual Injection via `index.ts`.
     *   *Current:* Pipeline architecture decomposed into functional stages (`discovery`, `gatherer`, `deduplicator`, `transfer`).
     *   *Current:* Job logic refactored into functions (`src/jobs/`).
     *   *Current:* Caching isolated (`src/caching/LmdbCache.ts`).
     *   *Current:* External tools wrapped (`src/external/`).
     *   Use of WASM for performance-critical calculations (Hamming distance).
     *   Use of `workerpool` for concurrency.
-    *   Use of VPTree for deduplication.
+    *   Use of DB-centric LSH for similarity candidate finding.
 *   **Workflow:**
     *   Read ALL Memory Bank files at the start of each task.
     *   Update Memory Bank after task completion/significant analysis/change in direction.

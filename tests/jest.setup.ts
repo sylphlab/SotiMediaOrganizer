@@ -1,4 +1,2 @@
-// Import reflect-metadata to ensure Reflect API is available for inversify
-import "reflect-metadata";
-
+// No setup needed currently after removing inversify
 // You can add other global test setup here if needed in the future

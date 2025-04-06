@@ -57,7 +57,7 @@ export async function transferFilesFn(
     } else {
       // Clear the debug directory (optional)
       const readDirResult = await safeTryAsync(
-        readdir(debugDir),
+        readdir(debugDir, { withFileTypes: true }), // Add withFileTypes: true
         (e) =>
           new FileSystemError(
             `Failed to read debug directory ${debugDir}: ${e instanceof Error ? e.message : String(e)}`,
@@ -70,8 +70,10 @@ export async function transferFilesFn(
       );
 
       if (readDirResult.isOk()) {
-        for (const file of readDirResult.value) {
-          const filePath = join(debugDir, file);
+        // Ensure readDirResult.value is an array of objects with a 'name' property
+        for (const fileEntry of readDirResult.value) {
+          // Access the 'name' property for the file path
+          const filePath = join(debugDir, fileEntry.name);
           const unlinkResult = await safeTryAsync(
             unlink(filePath),
             (e) =>
@@ -124,6 +126,20 @@ export async function transferFilesFn(
   // Delegate actual file transfers to the service
   // TODO: Abstract progress reporting later
   reporter.startSpinner("Transferring files..."); // Use reporter
+
+  // Check if there are any files to transfer at all
+  const hasUniqueFiles = deduplicationResult.uniqueFiles.size > 0;
+  // Check if any set actually contains duplicates to be moved/copied
+  const hasDuplicateFiles = duplicateDir ? deduplicationResult.duplicateSets.some(set => set.duplicates.size > 0) : false;
+  // Check if error files need moving/copying
+  const hasErrorFiles = errorDir ? gatherFileInfoResult.errorFiles.length > 0 : false;
+  const needsTransfer = hasUniqueFiles || hasDuplicateFiles || hasErrorFiles;
+
+  if (!needsTransfer) {
+    reporter.stopSpinnerSuccess("File transfer completed (No files needed transferring).");
+    return; // Nothing to transfer
+  }
+
   // Assuming transferOrganizedFiles handles its own errors internally or returns AppResult
   // For now, keep try/catch for simplicity as it's not returning AppResult yet
   try {
@@ -144,7 +160,7 @@ export async function transferFilesFn(
     // Workaround for spinner type issue: stop and log error manually
     reporter.stopSpinnerFailure(
       // Use reporter
-      `File transfer failed: ${transferError.message}`,
+      `File transfer failed: ${transferError instanceof Error ? transferError.message : String(transferError)}`, // Ensure message is string
     );
     throw transferError; // Rethrow after stopping spinner and logging
   }

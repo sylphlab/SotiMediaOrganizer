@@ -108,17 +108,17 @@ export function safeTry<T>(
 ): AppResult<T> {
   try {
     return ok(fn());
-  } catch (err) {
+  } catch (caughtError) { // Renamed variable
     let appError: AnyAppError;
     if (typeof errorContext === "function") {
-      appError = errorContext(err);
+      appError = errorContext(caughtError); // Use renamed variable
     } else {
       const message = errorContext
-        ? `${errorContext}: ${err instanceof Error ? err.message : String(err)}`
-        : `Operation failed: ${err instanceof Error ? err.message : String(err)}`;
-      appError = new AppError(message, { originalError: err });
+        ? `${errorContext}: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}` // Use renamed variable
+        : `Operation failed: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}`; // Use renamed variable
+      appError = new AppError(message, { originalError: caughtError }); // Use renamed variable
     }
-    return err(appError);
+    return err(appError); // Use the imported err function
   }
 }
 
@@ -130,25 +130,25 @@ export async function safeTryAsync<T>(
   try {
     const value = await promise;
     return ok(value);
-  } catch (err) {
+  } catch (caughtError) { // Rename the caught error variable
     let appError: AnyAppError;
     if (typeof errorContext === "function") {
-      appError = errorContext(err);
+      appError = errorContext(caughtError); // Use the renamed variable
     } else {
       const message = errorContext
-        ? `${errorContext}: ${err instanceof Error ? err.message : String(err)}`
-        : `Async operation failed: ${err instanceof Error ? err.message : String(err)}`;
+        ? `${errorContext}: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}` // Use the renamed variable
+        : `Async operation failed: ${caughtError instanceof Error ? caughtError.message : String(caughtError)}`; // Use the renamed variable
       // Attempt to create a more specific error if possible, otherwise use base AppError
-      if (err instanceof Error && err.message.includes("ENOENT")) {
+      if (caughtError instanceof Error && caughtError.message.includes("ENOENT")) { // Use the renamed variable
         // Example: File not found
         appError = new FileSystemError(message, {
-          originalError: err,
+          originalError: caughtError, // Use the renamed variable
           operation: "async operation",
         });
       } else {
-        appError = new AppError(message, { originalError: err });
+        appError = new AppError(message, { originalError: caughtError }); // Use the renamed variable
       }
     }
-    return err(appError);
+    return err(appError); // Use the exported err function (line 5)
   }
 }

@@ -300,8 +300,18 @@ function parseExifDate(
   }
   // exiftool-vendored types already handle Date, ExifDateTime, ExifDate
   if (value instanceof Date) return value;
-  if (value instanceof ExifDateTime) return value.toDate();
-  if (value instanceof ExifDate) return value.toDate(); // ExifDate might not have time, handle appropriately if needed
+  // Duck typing: Check if it has a toDate method
+  if (value && typeof (value as any).toDate === 'function') {
+      // Attempt to call toDate and ensure it returns a Date
+      try {
+          const date = (value as any).toDate();
+          if (date instanceof Date) {
+              return date;
+          }
+      } catch (e) {
+          // Ignore errors from toDate call, will return undefined below
+      }
+  }
   return undefined;
 }
 
@@ -460,7 +470,7 @@ export function computeFastDCT(
       for (let x = 0; x < size; x++) {
         sum += input[y * size + x] * dctCoefficients[coeffOffset + x];
       }
-      temp[u] = sum;
+      temp[u] = normFactors[u] * sum; // Apply row normalization factor
     }
 
     // DCT column transform and normalization

@@ -1,5 +1,3 @@
-// Removed import "reflect-metadata";
-
 // Removed unused imports: FileProcessorConfig, SimilarityConfig, WasmExports, DBSCANWorkerData, MediaInfo
 // Removed unused imports: VPNode, VPTree
 // Removed unused imports: runDbscanCore, calculateImageSimilarity
