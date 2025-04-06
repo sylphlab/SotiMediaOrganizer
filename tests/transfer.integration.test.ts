@@ -5,8 +5,8 @@ import {
   expect,
   beforeEach,
   afterEach,
-} from "vitest"; // Use vitest imports
-import { join } from "path"; // Import join
+} from 'vitest'; // Use vitest imports
+import { join } from 'path'; // Import join
 // import * as fsPromises from "fs/promises"; // Don't import directly when mocking
 
 import {
@@ -16,18 +16,18 @@ import {
   existsSync,
   writeFileSync,
   Dirent,
-} from "fs"; // Use sync fs methods, keep only one Dirent import
+} from 'fs'; // Use sync fs methods, keep only one Dirent import
 
 // --- Now import the module that uses the mocked fs/promises ---
-import { transferFilesFn } from "../src/transfer"; // Import AFTER mock
+import { transferFilesFn } from '../src/transfer'; // Import AFTER mock
 // Import other necessary types/classes
-import { GatherFileInfoResult, DeduplicationResult } from "../src/types";
-import { DebugReporter } from "../src/reporting/DebugReporter";
-import { FileTransferService } from "../src/services/FileTransferService"; // Import FileTransferService
-import { CliReporter } from "../src/reporting/CliReporter";
+import { GatherFileInfoResult, DeduplicationResult } from '../src/types';
+import { DebugReporter } from '../src/reporting/DebugReporter';
+import { FileTransferService } from '../src/services/FileTransferService'; // Import FileTransferService
+import { CliReporter } from '../src/reporting/CliReporter';
 
 // Mock fs/promises first
-vi.mock("fs/promises", () => ({
+vi.mock('fs/promises', () => ({
   mkdir: vi.fn(async () => undefined),
   readdir: vi.fn(async () => [] as Dirent[]),
   unlink: vi.fn(async () => undefined),
@@ -61,17 +61,17 @@ const mockFileTransferService = {
 
 // --- Test Setup ---
 const mockGatherResult: GatherFileInfoResult = {
-  validFiles: ["valid1.jpg", "valid2.png"],
-  errorFiles: ["error1.txt"],
+  validFiles: ['valid1.jpg', 'valid2.png'],
+  errorFiles: ['error1.txt'],
 };
 
 const mockDedupResult: DeduplicationResult = {
-  uniqueFiles: new Set(["valid1.jpg"]),
+  uniqueFiles: new Set(['valid1.jpg']),
   duplicateSets: [
     {
-      bestFile: "valid2.png", // Assuming valid2 is best in its set
-      representatives: new Set(["valid2.png"]),
-      duplicates: new Set(["duplicate_of_valid2.png"]), // Need a duplicate file path
+      bestFile: 'valid2.png', // Assuming valid2 is best in its set
+      representatives: new Set(['valid2.png']),
+      duplicates: new Set(['duplicate_of_valid2.png']), // Need a duplicate file path
     },
   ],
 };
@@ -79,17 +79,17 @@ const mockDedupResult: DeduplicationResult = {
 // Add a duplicate file to gather result for transfer service logic
 const mockGatherResultWithDuplicate = {
   ...mockGatherResult,
-  validFiles: [...mockGatherResult.validFiles, "duplicate_of_valid2.png"],
+  validFiles: [...mockGatherResult.validFiles, 'duplicate_of_valid2.png'],
 };
 
-describe("transferFilesFn Integration Tests", () => {
+describe('transferFilesFn Integration Tests', () => {
   // Variables to hold imported mocks, defined at the top level of describe
   let reporterInstance: MockCliReporter; // Declare here
 
   beforeEach(async () => {
     // Make beforeEach async
     // Ensure clean output directory before each test
-    const outputDir = "output";
+    const outputDir = 'output';
     if (existsSync(outputDir)) {
       rmSync(outputDir, { recursive: true, force: true });
     }
@@ -97,7 +97,7 @@ describe("transferFilesFn Integration Tests", () => {
     vi.resetAllMocks(); // Use resetAllMocks
 
     // Import the mocked fs/promises module defined at the top level
-    const fsPromises = await import("fs/promises");
+    const fsPromises = await import('fs/promises');
 
     // Instantiate local MockCliReporter directly and assign to the describe-scoped variable
     reporterInstance = new MockCliReporter(); // Use the locally defined mock class
@@ -119,17 +119,17 @@ describe("transferFilesFn Integration Tests", () => {
 
   // Clean up output directory after all tests in this suite
   afterAll(() => {
-    const outputDir = "output"; // Define the base output directory
+    const outputDir = 'output'; // Define the base output directory
     if (existsSync(outputDir)) {
       rmSync(outputDir, { recursive: true, force: true });
     }
   });
 
-  it("should call transfer service with correct arguments (copy)", async () => {
-    const targetDir = "output/target";
-    const duplicateDir = "output/duplicates";
-    const errorDir = "output/errors";
-    const format = "{NAME}.{EXT}";
+  it('should call transfer service with correct arguments (copy)', async () => {
+    const targetDir = 'output/target';
+    const duplicateDir = 'output/duplicates';
+    const errorDir = 'output/errors';
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
 
     // No need for spyOn, we will check the mock directly
@@ -144,14 +144,14 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
 
     expect(reporterInstance.startSpinner).toHaveBeenCalledWith(
-      "Transferring files..."
+      'Transferring files...',
     ); // Use the instance
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1);
     expect(mockFileTransferService.transferOrganizedFiles).toHaveBeenCalledWith(
       mockGatherResultWithDuplicate,
@@ -160,11 +160,11 @@ describe("transferFilesFn Integration Tests", () => {
       duplicateDir,
       errorDir,
       format,
-      shouldMove
+      shouldMove,
     );
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledWith(
       // Use the instance
-      expect.stringContaining("File transfer completed")
+      expect.stringContaining('File transfer completed'),
     );
     expect(mockDebugReporter.generateHtmlReports).not.toHaveBeenCalled();
     // Assert side effects: Check that debug dir was NOT created
@@ -174,9 +174,9 @@ describe("transferFilesFn Integration Tests", () => {
     // Spies are restored in afterEach
   });
 
-  it("should call transfer service with correct arguments (move)", async () => {
-    const targetDir = "output/target_move";
-    const format = "{D.YYYY}/{NAME}.{EXT}";
+  it('should call transfer service with correct arguments (move)', async () => {
+    const targetDir = 'output/target_move';
+    const format = '{D.YYYY}/{NAME}.{EXT}';
     const shouldMove = true;
 
     await transferFilesFn(
@@ -190,11 +190,11 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
 
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1);
     expect(mockFileTransferService.transferOrganizedFiles).toHaveBeenCalledWith(
       mockGatherResult,
@@ -203,22 +203,22 @@ describe("transferFilesFn Integration Tests", () => {
       undefined,
       undefined,
       format,
-      shouldMove // Should be true
+      shouldMove, // Should be true
     );
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalled(); // Use the instance
   });
 
-  it("should handle debug directory creation and report generation", async () => {
-    const targetDir = "output/target_debug";
-    const debugDir = "output/debug_report";
-    const format = "{NAME}.{EXT}";
+  it('should handle debug directory creation and report generation', async () => {
+    const targetDir = 'output/target_debug';
+    const debugDir = 'output/debug_report';
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
     // Create dummy files for cleanup assertion
     mkdirSync(debugDir, { recursive: true });
-    writeFileSync(join(debugDir, "old_report.html"), "dummy");
-    writeFileSync(join(debugDir, "temp.txt"), "dummy");
+    writeFileSync(join(debugDir, 'old_report.html'), 'dummy');
+    writeFileSync(join(debugDir, 'temp.txt'), 'dummy');
     // Explicitly mock unlink for this test to ensure it resolves
-    const fsPromises = await import("fs/promises");
+    const fsPromises = await import('fs/promises');
     vi.mocked(fsPromises.unlink).mockResolvedValue(undefined);
 
     await transferFilesFn(
@@ -232,7 +232,7 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
     // Assert side effects: check if files were deleted
     // await new Promise(resolve => setTimeout(resolve, 50)); // Delay didn't fix it
@@ -243,32 +243,32 @@ describe("transferFilesFn Integration Tests", () => {
     expect(mockDebugReporter.generateHtmlReports).toHaveBeenCalledTimes(1);
     expect(mockDebugReporter.generateHtmlReports).toHaveBeenCalledWith(
       mockDedupResult.duplicateSets,
-      debugDir
+      debugDir,
     );
     expect(reporterInstance.logWarning).toHaveBeenCalledWith(
       // Use the instance
-      expect.stringContaining("Debug mode: Duplicate set reports")
+      expect.stringContaining('Debug mode: Duplicate set reports'),
     );
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1); // Still transfers files
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalled(); // Use the instance
 
     // Spies are restored in afterEach
   });
 
-  it("should handle debug directory creation failure", async () => {
-    const targetDir = "output/target_debug_fail";
-    const debugDir = "output/debug_fail";
-    const format = "{NAME}.{EXT}";
+  it('should handle debug directory creation failure', async () => {
+    const targetDir = 'output/target_debug_fail';
+    const debugDir = 'output/debug_fail';
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
-    const mkdirError = new Error("Permission denied");
-    (mkdirError as NodeJS.ErrnoException).code = "EACCES";
+    const mkdirError = new Error('Permission denied');
+    (mkdirError as NodeJS.ErrnoException).code = 'EACCES';
     // Use spyOn to simulate mkdir failure for this specific test
     // Import the mocked module again inside the test to use spyOn
-    const fsPromises = await import("fs/promises"); // Import the mocked module
+    const fsPromises = await import('fs/promises'); // Import the mocked module
     const mkdirSpy = vi
-      .spyOn(fsPromises, "mkdir")
+      .spyOn(fsPromises, 'mkdir')
       .mockRejectedValueOnce(mkdirError); // Spy on the imported mock
 
     // No need for spies, just check the imported mocks
@@ -284,13 +284,13 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
 
     expect(mkdirSpy).toHaveBeenCalledWith(debugDir, { recursive: true });
     expect(reporterInstance.logError).toHaveBeenCalledWith(
       expect.stringContaining(`Failed to create debug directory ${debugDir}`),
-      expect.any(Error)
+      expect.any(Error),
     );
     // Check that readdir/unlink were not called
     // Cannot easily assert non-calls without mocks/spies for readdir/unlink
@@ -298,29 +298,29 @@ describe("transferFilesFn Integration Tests", () => {
     // expect(fsPromisesMock.unlink).not.toHaveBeenCalled();
     expect(mockDebugReporter.generateHtmlReports).not.toHaveBeenCalled(); // Should not generate reports
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1); // Should still transfer files
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalled(); // Use the instance
 
     // Spies are restored in afterEach
   });
 
-  it("should handle debug report generation failure", async () => {
-    const targetDir = "output/target_report_fail";
-    const debugDir = "output/report_fail";
-    const format = "{NAME}.{EXT}";
+  it('should handle debug report generation failure', async () => {
+    const targetDir = 'output/target_report_fail';
+    const debugDir = 'output/report_fail';
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
-    const reportError = new Error("HTML generation failed");
+    const reportError = new Error('HTML generation failed');
     // Ensure mkdir succeeds (let the real function run, or spy if needed)
     // const mkdirSpy = vi.spyOn(fsPromises, 'mkdir').mockResolvedValue(undefined); // Keep commented unless needed
     // Ensure mkdir mock allows success for this test
-    const fsPromises = await import("fs/promises"); // Import the mocked module
+    const fsPromises = await import('fs/promises'); // Import the mocked module
     vi.mocked(fsPromises.mkdir).mockResolvedValue(undefined); // Ensure mkdir mock resolves successfully for this test case
     // Mock the reporter method to throw
     vi.mocked(mockDebugReporter.generateHtmlReports).mockImplementationOnce(
       async () => {
         throw reportError;
-      }
+      },
     );
 
     // Ensure the directory exists before calling the function for this specific test case
@@ -338,7 +338,7 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
 
     // Check if mkdir was called
@@ -348,26 +348,26 @@ describe("transferFilesFn Integration Tests", () => {
     expect(reporterInstance.logError).toHaveBeenCalledWith(
       // Use the instance
       expect.stringContaining(
-        `Failed to generate debug reports in ${debugDir}`
+        `Failed to generate debug reports in ${debugDir}`,
       ),
-      reportError
+      reportError,
     );
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1); // Should still transfer files
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalled(); // Use the instance
 
     // Spies are restored in afterEach
   });
 
-  it("should handle file transfer service failure", async () => {
-    const targetDir = "output/target_transfer_fail";
-    const format = "{NAME}.{EXT}";
+  it('should handle file transfer service failure', async () => {
+    const targetDir = 'output/target_transfer_fail';
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
-    const transferError = new Error("Disk full");
+    const transferError = new Error('Disk full');
 
     (
-      mockFileTransferService.transferOrganizedFiles as import("vitest").Mock
+      mockFileTransferService.transferOrganizedFiles as import('vitest').Mock
     ).mockImplementationOnce(async () => {
       throw transferError;
     });
@@ -385,26 +385,26 @@ describe("transferFilesFn Integration Tests", () => {
         shouldMove,
         mockDebugReporter,
         mockFileTransferService,
-        reporterInstance // Use the instance
-      )
+        reporterInstance, // Use the instance
+      ),
     ).rejects.toThrow(transferError);
 
     expect(reporterInstance.startSpinner).toHaveBeenCalledWith(
-      "Transferring files..."
+      'Transferring files...',
     ); // Use the instance
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1);
     expect(reporterInstance.stopSpinnerFailure).toHaveBeenCalledWith(
       // Use the instance
-      expect.stringContaining(`File transfer failed: ${transferError.message}`)
+      expect.stringContaining(`File transfer failed: ${transferError.message}`),
     );
     expect(reporterInstance.stopSpinnerSuccess).not.toHaveBeenCalled(); // Use the instance
   });
 
-  it("should handle cases with no files to transfer", async () => {
-    const targetDir = "output/target_empty";
-    const format = "{NAME}.{EXT}";
+  it('should handle cases with no files to transfer', async () => {
+    const targetDir = 'output/target_empty';
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
 
     const emptyGatherResult: GatherFileInfoResult = {
@@ -427,28 +427,28 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
 
     expect(reporterInstance.startSpinner).toHaveBeenCalledWith(
-      "Transferring files..."
+      'Transferring files...',
     ); // Use the instance
     // Crucially, the transfer service should NOT be called if there's nothing to transfer
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).not.toHaveBeenCalled();
     // Check for a specific message or just success
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalledWith(
       // Use the instance
-      expect.stringContaining("File transfer completed") // Changed message check
+      expect.stringContaining('File transfer completed'), // Changed message check
     );
     expect(mockDebugReporter.generateHtmlReports).not.toHaveBeenCalled();
   });
 
-  it("should correctly pass errorDir parameter when provided", async () => {
-    const targetDir = "output/target_error_dir";
-    const errorDir = "output/errors_explicit"; // Explicit error dir
-    const format = "{NAME}.{EXT}";
+  it('should correctly pass errorDir parameter when provided', async () => {
+    const targetDir = 'output/target_error_dir';
+    const errorDir = 'output/errors_explicit'; // Explicit error dir
+    const format = '{NAME}.{EXT}';
     const shouldMove = false;
 
     await transferFilesFn(
@@ -462,11 +462,11 @@ describe("transferFilesFn Integration Tests", () => {
       shouldMove,
       mockDebugReporter,
       mockFileTransferService,
-      reporterInstance // Use the instance
+      reporterInstance, // Use the instance
     );
 
     expect(
-      mockFileTransferService.transferOrganizedFiles
+      mockFileTransferService.transferOrganizedFiles,
     ).toHaveBeenCalledTimes(1);
     expect(mockFileTransferService.transferOrganizedFiles).toHaveBeenCalledWith(
       mockGatherResult,
@@ -475,7 +475,7 @@ describe("transferFilesFn Integration Tests", () => {
       undefined,
       errorDir, // Check if errorDir is passed correctly
       format,
-      shouldMove
+      shouldMove,
     );
     expect(reporterInstance.stopSpinnerSuccess).toHaveBeenCalled(); // Use the instance
   });

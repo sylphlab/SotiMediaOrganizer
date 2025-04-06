@@ -1,10 +1,10 @@
-import { deduplicateFilesFn } from "../src/deduplicator";
-import { MediaComparator } from "../MediaComparator";
-import { MetadataDBService } from "../src/services/MetadataDBService";
-import { CliReporter } from "../src/reporting/CliReporter";
-import * as comparatorUtils from "../src/comparatorUtils";
-import { FileInfoRow } from "../src/services/MetadataDBService"; // Import FileInfoRow
-import * as utils from "../src/utils";
+import { deduplicateFilesFn } from '../src/deduplicator';
+import { MediaComparator } from '../MediaComparator';
+import { MetadataDBService } from '../src/services/MetadataDBService';
+import { CliReporter } from '../src/reporting/CliReporter';
+import * as comparatorUtils from '../src/comparatorUtils';
+import { FileInfoRow } from '../src/services/MetadataDBService'; // Import FileInfoRow
+import * as utils from '../src/utils';
 import {
   DeduplicationResult,
   FileInfo,
@@ -13,9 +13,9 @@ import {
   DuplicateSet,
   FileStats,
   Metadata,
-} from "../src/types";
-import { ok, err, AppError, DatabaseError, AppResult } from "../src/errors";
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
+} from '../src/types';
+import { ok, err, AppError, DatabaseError, AppResult } from '../src/errors';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 // Mock dependencies
 // jest.mock("../MediaComparator"); // Mock the class constructor and methods
@@ -29,34 +29,34 @@ import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 
 // Use vi.mock() for module mocking
 // Define mocks inside factories to avoid hoisting issues
-vi.mock("../MediaComparator", () => ({
+vi.mock('../MediaComparator', () => ({
   MediaComparator: class {
     calculateSimilarity = vi.fn((info1: MediaInfo, info2: MediaInfo) => 0.95);
     processResults = vi.fn(async () =>
       ok({
         uniqueFiles: new Set<string>(),
         duplicateSets: [] as DuplicateSet[],
-      })
+      }),
     );
     constructor() {}
   },
 }));
-vi.mock("../src/services/MetadataDBService", () => ({
+vi.mock('../src/services/MetadataDBService', () => ({
   MetadataDBService: class {
     getMultipleFileInfo = vi.fn(async () =>
-      ok(new Map<string, Partial<FileInfo>>())
+      ok(new Map<string, Partial<FileInfo>>()),
     );
     getMediaInfoForFiles = vi.fn(async (paths: string[]) =>
       ok(
         new Map<
           string,
           { pHash: string | null; mediaDuration: number | null }
-        >()
-      )
+        >(),
+      ),
     );
     findSimilarCandidates = vi.fn(
       async (targetFile: string, lshKeys: (string | null)[]) =>
-        ok([] as string[])
+        ok([] as string[]),
     );
     getFileInfo = vi.fn<(filePath: string) => AppResult<Partial<FileInfo>>>(); // Define signature here
     constructor() {}
@@ -64,7 +64,7 @@ vi.mock("../src/services/MetadataDBService", () => ({
     upsertFileInfo = vi.fn(() => ok(undefined));
   },
 }));
-vi.mock("../src/reporting/CliReporter", () => ({
+vi.mock('../src/reporting/CliReporter', () => ({
   CliReporter: class {
     startSpinner = vi.fn();
     updateSpinnerText = vi.fn();
@@ -77,7 +77,7 @@ vi.mock("../src/reporting/CliReporter", () => ({
     logSuccess = vi.fn();
   },
 }));
-vi.mock("../src/comparatorUtils", async (importOriginal) => {
+vi.mock('../src/comparatorUtils', async (importOriginal) => {
   const original = await importOriginal<typeof comparatorUtils>();
   return {
     ...original,
@@ -85,7 +85,7 @@ vi.mock("../src/comparatorUtils", async (importOriginal) => {
     getAdaptiveThreshold: vi.fn(() => 0.9),
   };
 });
-vi.mock("../src/utils", async (importOriginal) => {
+vi.mock('../src/utils', async (importOriginal) => {
   const original = await importOriginal<typeof utils>();
   return {
     ...original,
@@ -100,9 +100,9 @@ const mockComparator = new MediaComparator(
   {} as any,
   {} as any,
   {} as any,
-  {} as any
+  {} as any,
 ); // Provide 6 args
-const mockDbService = new MetadataDBService(":memory:");
+const mockDbService = new MetadataDBService(':memory:');
 const mockReporter = new CliReporter(false);
 
 // Helper function for hexToSharedArrayBuffer
@@ -112,7 +112,7 @@ function hexToSharedArrayBuffer(hex: string): AppResult<SharedArrayBuffer> {
     return err(new AppError(`Invalid hex string length: ${hex.length}`));
   }
   try {
-    const buffer = Buffer.from(hex, "hex");
+    const buffer = Buffer.from(hex, 'hex');
     const sab = new SharedArrayBuffer(buffer.length);
     const view = new Uint8Array(sab);
     view.set(buffer);
@@ -121,7 +121,7 @@ function hexToSharedArrayBuffer(hex: string): AppResult<SharedArrayBuffer> {
     return err(
       new AppError(`Failed to convert hex to SharedArrayBuffer: ${e.message}`, {
         cause: e,
-      })
+      }),
     );
   }
 }
@@ -158,44 +158,44 @@ const mockFileInfoC: FileInfo = {
   media: { duration: 5, frames: [{ hash: mockSAB, timestamp: 0 }] },
 }; // Video
 
-describe("deduplicateFilesFn", () => {
+describe('deduplicateFilesFn', () => {
   // Use vi.mocked() on the original imported functions/methods
   // Note: For methods on classes, access them via the instance
   // Need to await dynamic imports for utils and comparatorUtils inside an async context (e.g., beforeAll or test)
   // Let's define them inside beforeEach for simplicity for now.
   // Declare variables for mocked functions/methods
   let mockedCalculateSimilarity: ReturnType<
-    typeof vi.mocked<MediaComparator["calculateSimilarity"]>
+    typeof vi.mocked<MediaComparator['calculateSimilarity']>
   >;
   let mockedProcessResults: ReturnType<
-    typeof vi.mocked<MediaComparator["processResults"]>
+    typeof vi.mocked<MediaComparator['processResults']>
   >;
   let mockedGetMultipleFileInfo: ReturnType<
-    typeof vi.mocked<MetadataDBService["getMultipleFileInfo"]>
+    typeof vi.mocked<MetadataDBService['getMultipleFileInfo']>
   >;
   let mockedGetMediaInfoForFiles: ReturnType<
-    typeof vi.mocked<MetadataDBService["getMediaInfoForFiles"]>
+    typeof vi.mocked<MetadataDBService['getMediaInfoForFiles']>
   >;
   let mockedFindSimilarCandidates: ReturnType<
-    typeof vi.mocked<MetadataDBService["findSimilarCandidates"]>
+    typeof vi.mocked<MetadataDBService['findSimilarCandidates']>
   >;
   let mockedGetFileInfo: ReturnType<
-    typeof vi.mocked<MetadataDBService["getFileInfo"]>
+    typeof vi.mocked<MetadataDBService['getFileInfo']>
   >;
   let mockedStartSpinner: ReturnType<
-    typeof vi.mocked<CliReporter["startSpinner"]>
+    typeof vi.mocked<CliReporter['startSpinner']>
   >;
   let mockedUpdateSpinnerText: ReturnType<
-    typeof vi.mocked<CliReporter["updateSpinnerText"]>
+    typeof vi.mocked<CliReporter['updateSpinnerText']>
   >;
   let mockedStopSpinnerSuccess: ReturnType<
-    typeof vi.mocked<CliReporter["stopSpinnerSuccess"]>
+    typeof vi.mocked<CliReporter['stopSpinnerSuccess']>
   >;
   let mockedStopSpinnerFailure: ReturnType<
-    typeof vi.mocked<CliReporter["stopSpinnerFailure"]>
+    typeof vi.mocked<CliReporter['stopSpinnerFailure']>
   >;
-  let mockedLogWarning: ReturnType<typeof vi.mocked<CliReporter["logWarning"]>>;
-  let mockedLogError: ReturnType<typeof vi.mocked<CliReporter["logError"]>>;
+  let mockedLogWarning: ReturnType<typeof vi.mocked<CliReporter['logWarning']>>;
+  let mockedLogError: ReturnType<typeof vi.mocked<CliReporter['logError']>>;
   let mockedMergeClusters: ReturnType<
     typeof vi.mocked<typeof comparatorUtils.mergeAndDeduplicateClusters>
   >;
@@ -209,8 +209,8 @@ describe("deduplicateFilesFn", () => {
   beforeEach(async () => {
     // Import actual functions here to use with vi.mocked
     // Need to cast the imported module because vi.mock factory returns a different type
-    const actualComparatorUtils = await import("../src/comparatorUtils");
-    const actualUtils = await import("../src/utils");
+    const actualComparatorUtils = await import('../src/comparatorUtils');
+    const actualUtils = await import('../src/utils');
 
     // Assign mocked variables
     mockedCalculateSimilarity = vi.mocked(mockComparator.calculateSimilarity);
@@ -218,7 +218,7 @@ describe("deduplicateFilesFn", () => {
     mockedGetMultipleFileInfo = vi.mocked(mockDbService.getMultipleFileInfo);
     mockedGetMediaInfoForFiles = vi.mocked(mockDbService.getMediaInfoForFiles);
     mockedFindSimilarCandidates = vi.mocked(
-      mockDbService.findSimilarCandidates
+      mockDbService.findSimilarCandidates,
     );
     mockedGetFileInfo = vi.mocked(mockDbService.getFileInfo);
     mockedStartSpinner = vi.mocked(mockReporter.startSpinner);
@@ -228,10 +228,10 @@ describe("deduplicateFilesFn", () => {
     mockedLogWarning = vi.mocked(mockReporter.logWarning);
     mockedLogError = vi.mocked(mockReporter.logError);
     mockedMergeClusters = vi.mocked(
-      actualComparatorUtils.mergeAndDeduplicateClusters
+      actualComparatorUtils.mergeAndDeduplicateClusters,
     );
     mockedGetAdaptiveThreshold = vi.mocked(
-      actualComparatorUtils.getAdaptiveThreshold
+      actualComparatorUtils.getAdaptiveThreshold,
     );
     mockedBufferToSAB = vi.mocked(actualUtils.bufferToSharedArrayBuffer);
 
@@ -255,14 +255,14 @@ describe("deduplicateFilesFn", () => {
     // Reset default implementations
     mockedCalculateSimilarity.mockReturnValue(0.95);
     mockedProcessResults.mockResolvedValue(
-      ok({ uniqueFiles: new Set<string>(), duplicateSets: [] })
+      ok({ uniqueFiles: new Set<string>(), duplicateSets: [] }),
     );
     mockedGetMultipleFileInfo.mockResolvedValue(ok(new Map()));
     mockedGetMediaInfoForFiles.mockResolvedValue(ok(new Map()));
     mockedFindSimilarCandidates.mockResolvedValue(ok([]));
     mockedGetFileInfo.mockReturnValue(ok(mockFileInfoA as Partial<FileInfo>));
     mockedMergeClusters.mockImplementation(
-      (clusters: Set<string>[]) => clusters
+      (clusters: Set<string>[]) => clusters,
     );
     mockedGetAdaptiveThreshold.mockReturnValue(0.9);
     // Correct the mock implementation to return SharedArrayBuffer directly
@@ -272,19 +272,19 @@ describe("deduplicateFilesFn", () => {
         const view = new Uint8Array(sab);
         view.set(buffer);
         return sab;
-      }
+      },
     );
   });
 
   // Removed old beforeEach block
 
-  it("should return empty result for empty input", async () => {
+  it('should return empty result for empty input', async () => {
     const result = await deduplicateFilesFn(
       [],
       mockComparator,
       mockDbService,
       mockSimilarityConfig,
-      mockReporter
+      mockReporter,
     );
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
@@ -297,10 +297,10 @@ describe("deduplicateFilesFn", () => {
     expect(mockedMergeClusters).toHaveBeenCalledWith([]);
   });
 
-  it("should handle only exact duplicates", async () => {
-    const files = ["a.jpg", "b.jpg", "c.png"];
-    const pHashAB = "aabbccddeeff0011";
-    const pHashC = "1122334455667788";
+  it('should handle only exact duplicates', async () => {
+    const files = ['a.jpg', 'b.jpg', 'c.png'];
+    const pHashAB = 'aabbccddeeff0011';
+    const pHashC = '1122334455667788';
 
     // Mock DB responses
     // Ensure mock data includes duration for Partial<FileInfo> compatibility
@@ -308,7 +308,7 @@ describe("deduplicateFilesFn", () => {
     const hashABResult = hexToSharedArrayBuffer(pHashAB);
     const hashCResult = hexToSharedArrayBuffer(pHashC);
     if (hashABResult.isErr() || hashCResult.isErr())
-      throw new Error("Failed to create mock hashes"); // Should not happen in test setup
+      throw new Error('Failed to create mock hashes'); // Should not happen in test setup
     const hashAB = hashABResult.value;
     const hashC = hashCResult.value;
 
@@ -316,44 +316,44 @@ describe("deduplicateFilesFn", () => {
       ok(
         new Map<string, Partial<FileInfo>>([
           [
-            "a.jpg",
+            'a.jpg',
             {
               media: { duration: 0, frames: [{ hash: hashAB, timestamp: 0 }] },
             },
           ],
           [
-            "b.jpg",
+            'b.jpg',
             {
               media: { duration: 0, frames: [{ hash: hashAB, timestamp: 0 }] },
             },
           ],
           [
-            "c.png",
+            'c.png',
             { media: { duration: 0, frames: [{ hash: hashC, timestamp: 0 }] } },
           ],
-        ])
-      )
+        ]),
+      ),
     );
     // Mock processResults to reflect the exact duplicate cluster
-    const exactCluster = new Set(["a.jpg", "b.jpg"]);
+    const exactCluster = new Set(['a.jpg', 'b.jpg']);
     mockedMergeClusters.mockReturnValue([exactCluster]); // Only exact cluster found
     mockedProcessResults.mockResolvedValue(
       ok({
-        uniqueFiles: new Set(["c.png"]), // c is unique
+        uniqueFiles: new Set(['c.png']), // c is unique
         duplicateSets: [
           {
-            bestFile: "a.jpg",
-            representatives: new Set(["a.jpg"]),
-            duplicates: new Set(["b.jpg"]),
+            bestFile: 'a.jpg',
+            representatives: new Set(['a.jpg']),
+            duplicates: new Set(['b.jpg']),
           },
         ],
-      })
+      }),
     );
     mockedGetFileInfo.mockImplementation((file: string) => {
-      if (file === "a.jpg") return ok(mockFileInfoA as Partial<FileInfo>); // Cast for mock return
-      if (file === "b.jpg") return ok(mockFileInfoB as Partial<FileInfo>); // Cast for mock return
-      if (file === "c.png") return ok(mockFileInfoC as Partial<FileInfo>); // Cast for mock return
-      return err(new DatabaseError("Not found"));
+      if (file === 'a.jpg') return ok(mockFileInfoA as Partial<FileInfo>); // Cast for mock return
+      if (file === 'b.jpg') return ok(mockFileInfoB as Partial<FileInfo>); // Cast for mock return
+      if (file === 'c.png') return ok(mockFileInfoC as Partial<FileInfo>); // Cast for mock return
+      return err(new DatabaseError('Not found'));
     });
 
     const result = await deduplicateFilesFn(
@@ -361,36 +361,36 @@ describe("deduplicateFilesFn", () => {
       mockComparator,
       mockDbService,
       mockSimilarityConfig,
-      mockReporter
+      mockReporter,
     );
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
-      expect(result.value.uniqueFiles).toEqual(new Set(["c.png"]));
+      expect(result.value.uniqueFiles).toEqual(new Set(['c.png']));
       expect(result.value.duplicateSets.length).toBe(1);
       expect(result.value.duplicateSets[0].duplicates).toEqual(
-        new Set(["b.jpg"])
+        new Set(['b.jpg']),
       );
     }
     expect(mockedFindSimilarCandidates).not.toHaveBeenCalled(); // No similarity check needed
     expect(mockedMergeClusters).toHaveBeenCalledWith([exactCluster]);
     expect(mockedProcessResults).toHaveBeenCalledWith(
       [exactCluster],
-      expect.any(Function)
+      expect.any(Function),
     );
   });
 
-  it("should handle only similarity duplicates", async () => {
-    const files = ["simA1.jpg", "simA2.jpg", "uniqueB.png"];
-    const pHashA1 = "aabbccddeeff0011";
-    const pHashA2 = "aabbccddeeff0012"; // Slightly different
-    const pHashB = "1122334455667788";
+  it('should handle only similarity duplicates', async () => {
+    const files = ['simA1.jpg', 'simA2.jpg', 'uniqueB.png'];
+    const pHashA1 = 'aabbccddeeff0011';
+    const pHashA2 = 'aabbccddeeff0012'; // Slightly different
+    const pHashB = '1122334455667788';
 
     const hashA1Result = hexToSharedArrayBuffer(pHashA1);
     const hashA2Result = hexToSharedArrayBuffer(pHashA2);
     const hashBResult = hexToSharedArrayBuffer(pHashB);
     if (hashA1Result.isErr() || hashA2Result.isErr() || hashBResult.isErr())
-      throw new Error("Failed to create mock hashes");
+      throw new Error('Failed to create mock hashes');
     const hashA1 = hashA1Result.value;
     const hashA2 = hashA2Result.value;
     const hashB = hashBResult.value;
@@ -400,54 +400,54 @@ describe("deduplicateFilesFn", () => {
       ok(
         new Map<string, Partial<FileInfo>>([
           [
-            "simA1.jpg",
+            'simA1.jpg',
             {
               media: { duration: 0, frames: [{ hash: hashA1, timestamp: 0 }] },
             },
           ],
           [
-            "simA2.jpg",
+            'simA2.jpg',
             {
               media: { duration: 0, frames: [{ hash: hashA2, timestamp: 0 }] },
             },
           ],
           [
-            "uniqueB.png",
+            'uniqueB.png',
             { media: { duration: 0, frames: [{ hash: hashB, timestamp: 0 }] } },
           ],
-        ])
-      )
+        ]),
+      ),
     );
     // Mock MediaInfo needed for LSH candidate check and similarity calc
     // Correct the mock implementation signature and return type
     mockedGetMediaInfoForFiles.mockImplementation(
       (
-        paths
+        paths,
       ): AppResult<
-        Map<string, Pick<FileInfoRow, "pHash" | "mediaDuration">>
+        Map<string, Pick<FileInfoRow, 'pHash' | 'mediaDuration'>>
       > => {
         const map = new Map<
           string,
-          Pick<FileInfoRow, "pHash" | "mediaDuration">
+          Pick<FileInfoRow, 'pHash' | 'mediaDuration'>
         >();
-        if (paths.includes("simA1.jpg"))
-          map.set("simA1.jpg", { pHash: pHashA1, mediaDuration: 0 });
-        if (paths.includes("simA2.jpg"))
-          map.set("simA2.jpg", { pHash: pHashA2, mediaDuration: 0 });
-        if (paths.includes("uniqueB.png"))
-          map.set("uniqueB.png", { pHash: pHashB, mediaDuration: 0 });
+        if (paths.includes('simA1.jpg'))
+          map.set('simA1.jpg', { pHash: pHashA1, mediaDuration: 0 });
+        if (paths.includes('simA2.jpg'))
+          map.set('simA2.jpg', { pHash: pHashA2, mediaDuration: 0 });
+        if (paths.includes('uniqueB.png'))
+          map.set('uniqueB.png', { pHash: pHashB, mediaDuration: 0 });
         return ok(map);
-      }
+      },
     );
     // Mock LSH candidates: A1 finds A2
     mockedFindSimilarCandidates.mockImplementation(
       (targetFile): AppResult<string[]> => {
         // Return AppResult directly
-        if (targetFile === "simA1.jpg") return ok(["simA2.jpg"]);
-        if (targetFile === "simA2.jpg") return ok(["simA1.jpg"]); // Assume symmetric for simplicity
-        if (targetFile === "uniqueB.png") return ok([]);
+        if (targetFile === 'simA1.jpg') return ok(['simA2.jpg']);
+        if (targetFile === 'simA2.jpg') return ok(['simA1.jpg']); // Assume symmetric for simplicity
+        if (targetFile === 'uniqueB.png') return ok([]);
         return ok([]);
-      }
+      },
     );
     // Mock similarity calculation: A1 and A2 are similar
     mockedCalculateSimilarity.mockImplementation(
@@ -459,7 +459,7 @@ describe("deduplicateFilesFn", () => {
         // Helper to compare SharedArrayBuffers (implement if needed, or use a library)
         const compareSAB = (
           sab1: SharedArrayBuffer | undefined,
-          sab2: SharedArrayBuffer | undefined
+          sab2: SharedArrayBuffer | undefined,
         ): boolean => {
           if (!sab1 || !sab2 || sab1.byteLength !== sab2.byteLength)
             return false;
@@ -482,30 +482,30 @@ describe("deduplicateFilesFn", () => {
           return 0.95; // High similarity for the expected pair
         }
         return 0.1; // Low similarity otherwise
-      }
+      },
     );
     // Mock merge to return the similarity cluster
-    const simCluster = new Set(["simA1.jpg", "simA2.jpg"]);
+    const simCluster = new Set(['simA1.jpg', 'simA2.jpg']);
     mockedMergeClusters.mockReturnValue([simCluster]);
     // Mock processResults
     mockedProcessResults.mockResolvedValue(
       ok({
-        uniqueFiles: new Set(["uniqueB.png"]),
+        uniqueFiles: new Set(['uniqueB.png']),
         duplicateSets: [
           {
-            bestFile: "simA1.jpg",
-            representatives: new Set(["simA1.jpg"]),
-            duplicates: new Set(["simA2.jpg"]),
+            bestFile: 'simA1.jpg',
+            representatives: new Set(['simA1.jpg']),
+            duplicates: new Set(['simA2.jpg']),
           },
         ],
-      })
+      }),
     );
     // Mock getFileInfo for scoring in processResults
     mockedGetFileInfo.mockImplementation((file: string) => {
-      if (file === "simA1.jpg") return ok(mockFileInfoA as Partial<FileInfo>); // Cast for mock return
-      if (file === "simA2.jpg") return ok(mockFileInfoB as Partial<FileInfo>); // Cast for mock return
-      if (file === "uniqueB.png") return ok(mockFileInfoC as Partial<FileInfo>); // Cast for mock return
-      return err(new DatabaseError("Not found"));
+      if (file === 'simA1.jpg') return ok(mockFileInfoA as Partial<FileInfo>); // Cast for mock return
+      if (file === 'simA2.jpg') return ok(mockFileInfoB as Partial<FileInfo>); // Cast for mock return
+      if (file === 'uniqueB.png') return ok(mockFileInfoC as Partial<FileInfo>); // Cast for mock return
+      return err(new DatabaseError('Not found'));
     });
 
     const result = await deduplicateFilesFn(
@@ -513,15 +513,15 @@ describe("deduplicateFilesFn", () => {
       mockComparator,
       mockDbService,
       mockSimilarityConfig,
-      mockReporter
+      mockReporter,
     );
 
     expect(result.isOk()).toBe(true);
     if (result.isOk()) {
-      expect(result.value.uniqueFiles).toEqual(new Set(["uniqueB.png"]));
+      expect(result.value.uniqueFiles).toEqual(new Set(['uniqueB.png']));
       expect(result.value.duplicateSets.length).toBe(1);
       expect(result.value.duplicateSets[0].duplicates).toEqual(
-        new Set(["simA2.jpg"])
+        new Set(['simA2.jpg']),
       );
     }
     expect(mockedGetMultipleFileInfo).toHaveBeenCalledTimes(1);
@@ -534,7 +534,7 @@ describe("deduplicateFilesFn", () => {
     expect(mergeArgs[0]).toEqual(simCluster);
     expect(mockedProcessResults).toHaveBeenCalledWith(
       [simCluster],
-      expect.any(Function)
+      expect.any(Function),
     );
   });
 

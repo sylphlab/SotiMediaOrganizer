@@ -4,23 +4,23 @@ import {
   FileType,
   FrameInfo,
   FileStatsConfig,
-} from "../types";
-import { LmdbCache } from "../caching/LmdbCache";
-import { getFileType } from "../utils"; // getFileType needs AppResult handling
-import { getFileStatsHashKey } from "./fileStats";
+} from '../types';
+import { LmdbCache } from '../caching/LmdbCache';
+import { getFileType } from '../utils'; // getFileType needs AppResult handling
+import { getFileStatsHashKey } from './fileStats';
 import {
   createSharpInstance,
   resizeImage,
   grayscaleImage,
   imageToBuffer,
-} from "../external/SharpServiceWrapper"; // TODO: Refactor these
+} from '../external/SharpServiceWrapper'; // TODO: Refactor these
 import {
   createFFmpegCommand,
   probeFile,
   applyVideoFilters,
   addOutputOptions,
-} from "../external/FFmpegServiceWrapper"; // TODO: Refactor these
-import { WorkerPool } from "../contexts/types";
+} from '../external/FFmpegServiceWrapper'; // TODO: Refactor these
+import { WorkerPool } from '../contexts/types';
 import {
   AppResult,
   ok,
@@ -32,9 +32,9 @@ import {
   AppError,
   safeTry,
   safeTryAsync,
-} from "../errors"; // Added AppError
+} from '../errors'; // Added AppError
 
-const JOB_NAME = "adaptiveExtraction"; // Define job name constant
+const JOB_NAME = 'adaptiveExtraction'; // Define job name constant
 
 // --- Helper: reduceFrames (pure function) ---
 function reduceFrames(frames: FrameInfo[], targetCount: number): FrameInfo[] {
@@ -51,7 +51,7 @@ function reduceFrames(frames: FrameInfo[], targetCount: number): FrameInfo[] {
 async function computePerceptualHashWorker(
   imageBuffer: Uint8Array,
   resolution: number,
-  workerPool: WorkerPool
+  workerPool: WorkerPool,
 ): Promise<AppResult<SharedArrayBuffer>> {
   // Update return type
   // Wrap worker pool call - Await the non-standard promise first
@@ -59,7 +59,7 @@ async function computePerceptualHashWorker(
     // Await the potentially non-standard promise from the worker pool
     const buffer = await workerPool.computePerceptualHash(
       imageBuffer,
-      resolution
+      resolution,
     );
 
     // Now perform the conversion within a standard try/catch or safeTry
@@ -72,8 +72,8 @@ async function computePerceptualHashWorker(
       (convError) =>
         new AppError(
           `Failed to convert worker buffer to SharedArrayBuffer: ${convError instanceof Error ? convError.message : String(convError)}`,
-          { cause: convError }
-        )
+          { cause: convError },
+        ),
     );
   } catch (error) {
     // Catch errors from awaiting the worker pool promise
@@ -82,9 +82,9 @@ async function computePerceptualHashWorker(
         `Perceptual hash worker execution failed: ${error instanceof Error ? error.message : String(error)}`,
         {
           cause: error instanceof Error ? error : undefined,
-          context: { tool: "workerpool-pHash" },
-        }
-      )
+          context: { tool: 'workerpool-pHash' },
+        },
+      ),
     ); // Added closing parenthesis for err()
   }
 }
@@ -95,7 +95,7 @@ function extractFramesWithFilter(
   videoPath: string,
   selectFilter: string,
   config: AdaptiveExtractionConfig,
-  workerPool: WorkerPool // Pass workerPool for hashing
+  workerPool: WorkerPool, // Pass workerPool for hashing
 ): Promise<AppResult<FrameInfo[]>> {
   // Update return type
   // Wrap the entire promise logic to handle synchronous errors during setup
@@ -117,7 +117,7 @@ function extractFramesWithFilter(
           const framePromise = computePerceptualHashWorker(
             Uint8Array.from(frameBuffer),
             config.resolution,
-            workerPool
+            workerPool,
           ).then((hashResult): AppResult<FrameInfo> => {
             // Ensure the .then callback returns AppResult
             if (hashResult.isErr()) {
@@ -136,21 +136,21 @@ function extractFramesWithFilter(
         selectFilter,
         `showinfo`,
         `scale=${config.resolution}:${config.resolution}:force_original_aspect_ratio=disable:flags=lanczos`,
-        "format=gray",
+        'format=gray',
       ]);
-      addOutputOptions(command, ["-vsync", "vfr", "-f", "rawvideo"]);
+      addOutputOptions(command, ['-vsync', 'vfr', '-f', 'rawvideo']);
 
       command
-        .on("error", (error) => {
+        .on('error', (error) => {
           // Reject with a specific error type
           reject(
             new ExternalToolError(`FFmpeg error: ${error.message}`, {
               cause: error,
-              context: { tool: "ffmpeg" },
-            })
+              context: { tool: 'ffmpeg' },
+            }),
           );
         })
-        .on("end", async () => {
+        .on('end', async () => {
           processFrames(); // Process remaining buffer
           try {
             // Wait for all frame processing promises (which resolve to AppResult<FrameInfo>)
@@ -176,7 +176,7 @@ function extractFramesWithFilter(
             reject(new UnknownError(error));
           }
         })
-        .on("stderr", (stderrLine: string) => {
+        .on('stderr', (stderrLine: string) => {
           const timeMatch = stderrLine.match(/pts_time:([0-9.]+)/);
           if (timeMatch) {
             const timestamp = parseFloat(timeMatch[1]);
@@ -185,18 +185,18 @@ function extractFramesWithFilter(
           }
         })
         .pipe()
-        .on("data", (chunk: Buffer) => {
+        .on('data', (chunk: Buffer) => {
           buffer = Buffer.concat([buffer, chunk]);
           processFrames();
         })
-        .on("error", (streamError) => {
+        .on('error', (streamError) => {
           // Add error handling for the stream itself
           // Reject with a specific error type
           reject(
             new ExternalToolError(
               `FFmpeg pipe stream error: ${streamError.message}`,
-              { cause: streamError, context: { tool: "ffmpeg-stream" } }
-            )
+              { cause: streamError, context: { tool: 'ffmpeg-stream' } },
+            ),
           );
         });
     }),
@@ -206,9 +206,9 @@ function extractFramesWithFilter(
         `Failed to set up frame extraction promise: ${error instanceof Error ? error.message : String(error)}`,
         {
           cause: error instanceof Error ? error : undefined,
-          context: { tool: "ffmpeg-setup" },
-        }
-      )
+          context: { tool: 'ffmpeg-setup' },
+        },
+      ),
   );
 }
 
@@ -228,7 +228,7 @@ export async function processAdaptiveExtraction( // Added export keyword
   config: AdaptiveExtractionConfig,
   fileStatsConfig: FileStatsConfig,
   cache: LmdbCache,
-  workerPool: WorkerPool
+  workerPool: WorkerPool,
 ): Promise<AppResult<MediaInfo>> {
   // Update return type
   // Handle AppResult from getFileType
@@ -238,8 +238,8 @@ export async function processAdaptiveExtraction( // Added export keyword
     return err(
       new FileSystemError(
         `Could not determine file type for ${filePath}: ${mediaTypeResult.error.message}`,
-        { cause: mediaTypeResult.error, context: { path: filePath } }
-      )
+        { cause: mediaTypeResult.error, context: { path: filePath } },
+      ),
     );
   }
   const mediaType = mediaTypeResult.value; // Unwrap
@@ -248,15 +248,15 @@ export async function processAdaptiveExtraction( // Added export keyword
   const cacheKeyResult = await getFileStatsHashKey(
     filePath,
     fileStatsConfig,
-    cache
+    cache,
   );
   if (cacheKeyResult.isErr()) {
     // If we can't get the hash key, we can't use the cache or store results effectively
     return err(
       new DatabaseError(
         `Could not get cache key for ${filePath}: ${cacheKeyResult.error.message}`,
-        { cause: cacheKeyResult.error, context: { key: filePath } }
-      )
+        { cause: cacheKeyResult.error, context: { key: filePath } },
+      ),
     );
   }
   const cacheKey = cacheKeyResult.value; // Unwrap
@@ -270,7 +270,7 @@ export async function processAdaptiveExtraction( // Added export keyword
     // Log or handle config check error, but proceed to calculate
     console.warn(
       `Cache config check failed for ${filePath} (key: ${cacheKey}), proceeding with calculation:`,
-      configCheckResult.error
+      configCheckResult.error,
     );
   } else {
     // Config check succeeded, now check the value
@@ -289,13 +289,13 @@ export async function processAdaptiveExtraction( // Added export keyword
     if (cacheIsValid) {
       const cacheGetResult = await cache.getCache<MediaInfo>(
         JOB_NAME,
-        cacheKey
+        cacheKey,
       );
       if (cacheGetResult.isErr()) {
         // Log or handle cache get error, but proceed to calculate
         console.warn(
           `Cache get failed for ${filePath} (key: ${cacheKey}), proceeding with calculation:`,
-          cacheGetResult.error
+          cacheGetResult.error,
         );
       } else if (cacheGetResult.value.hit) {
         // Cache hit and data is valid
@@ -318,7 +318,7 @@ export async function processAdaptiveExtraction( // Added export keyword
       // TODO: Refactor createSharpInstance, grayscaleImage, resizeImage if they can fail meaningfully
       const sharpInstance = createSharpInstance(filePath);
       const processedInstance = grayscaleImage(
-        resizeImage(sharpInstance, config.resolution, config.resolution)
+        resizeImage(sharpInstance, config.resolution, config.resolution),
       );
       // Await the result of imageToBuffer, which returns AppResult<Buffer>
       const bufferResult = await imageToBuffer(processedInstance.raw());
@@ -339,9 +339,9 @@ export async function processAdaptiveExtraction( // Added export keyword
           `Sharp image processing failed for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
           {
             cause: error instanceof Error ? error : undefined,
-            context: { tool: "sharp" },
-          }
-        )
+            context: { tool: 'sharp' },
+          },
+        ),
     );
 
     if (imageProcessingResult.isErr()) {
@@ -351,7 +351,7 @@ export async function processAdaptiveExtraction( // Added export keyword
       const hashResult = await computePerceptualHashWorker(
         imageProcessingResult.value,
         config.resolution,
-        workerPool
+        workerPool,
       );
       if (hashResult.isErr()) {
         mediaInfoResult = err(hashResult.error);
@@ -377,7 +377,7 @@ export async function processAdaptiveExtraction( // Added export keyword
 
       if (duration <= 0) {
         console.warn(
-          `Video ${filePath} has zero or negative duration. Returning empty frames.`
+          `Video ${filePath} has zero or negative duration. Returning empty frames.`,
         );
         mediaInfoResult = ok({ frames: [], duration: 0 });
       } else {
@@ -393,7 +393,7 @@ export async function processAdaptiveExtraction( // Added export keyword
           filePath,
           selectFilter,
           config,
-          workerPool
+          workerPool,
         );
 
         if (framesResult.isErr()) {
@@ -403,7 +403,7 @@ export async function processAdaptiveExtraction( // Added export keyword
 
           if (frames.length < 1) {
             console.warn(
-              `No frames extracted from ${filePath} despite positive duration. Returning empty frames.`
+              `No frames extracted from ${filePath} despite positive duration. Returning empty frames.`,
             );
             // No error, just empty frames
             mediaInfoResult = ok({ frames: [], duration });
@@ -415,7 +415,7 @@ export async function processAdaptiveExtraction( // Added export keyword
               // reduceFrames is pure, no AppResult needed unless it could fail
               frames = reduceFrames(
                 frames,
-                Math.max(targetFrameCount, config.maxSceneFrames)
+                Math.max(targetFrameCount, config.maxSceneFrames),
               );
             }
             mediaInfoResult = ok({ frames, duration });
@@ -438,13 +438,13 @@ export async function processAdaptiveExtraction( // Added export keyword
     JOB_NAME,
     cacheKey,
     mediaInfoResult.value,
-    config
+    config,
   );
   if (setResult.isErr()) {
     // Log cache set error but return the successful result anyway
     console.warn(
       `Cache set failed for ${filePath} (key: ${cacheKey}), but returning calculated result:`,
-      setResult.error
+      setResult.error,
     );
   }
 

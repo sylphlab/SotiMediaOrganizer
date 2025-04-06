@@ -1,6 +1,6 @@
 // Removed Mutex, DatabaseContext, Database, eql, buffer/sharedBuffer utils, MemoryCache, postConstruct
-import { LmdbCache } from "../caching/LmdbCache"; // Removed unused CacheResult, ConfigCheckResult
-import { AppResult, ok, err } from "../errors"; // Removed unused AnyAppError
+import { LmdbCache } from '../caching/LmdbCache'; // Removed unused CacheResult, ConfigCheckResult
+import { AppResult, ok, err } from '../errors'; // Removed unused AnyAppError
 // import { inject, injectable } from "inversify"; // REMOVED INVERSIFY
 // import { LmdbCache } from "../caching/LmdbCache"; // Ensure LmdbCache is imported for constructor - REMOVED DUPLICATE
 
@@ -30,25 +30,25 @@ export abstract class BaseFileInfoJob<TResult, TConfig = void> {
     const configCheckResult = await this.cache.checkConfig(
       this.jobName,
       cacheKey,
-      this.config
+      this.config,
     );
     if (configCheckResult.isErr()) {
       // Log or handle config check error, but proceed to calculate
       console.warn(
         `Cache config check failed for ${this.jobName}:${cacheKey}, proceeding with calculation:`,
-        configCheckResult.error
+        configCheckResult.error,
       );
     } else if (configCheckResult.value.isValid) {
       // Config is valid, try getting data
       const cacheGetResult = await this.cache.getCache<TResult>(
         this.jobName,
-        cacheKey
+        cacheKey,
       );
       if (cacheGetResult.isErr()) {
         // Log or handle cache get error, but proceed to calculate
         console.warn(
           `Cache get failed for ${this.jobName}:${cacheKey}, proceeding with calculation:`,
-          cacheGetResult.error
+          cacheGetResult.error,
         );
       } else if (cacheGetResult.value.hit) {
         // Cache hit and data is valid
@@ -75,13 +75,13 @@ export abstract class BaseFileInfoJob<TResult, TConfig = void> {
       this.jobName,
       cacheKey,
       result,
-      this.config
+      this.config,
     );
     if (setResult.isErr()) {
       // Log cache set error but return the calculated result
       console.warn(
         `Cache set failed for ${this.jobName}:${cacheKey}, but returning calculated result:`,
-        setResult.error
+        setResult.error,
       );
     }
 

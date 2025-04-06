@@ -1,9 +1,9 @@
-import Database, { Database as DB } from "better-sqlite3";
-import { FileInfo } from "../types"; // Removed unused FileStats, Metadata, MediaInfo
-import { AppResult, ok, DatabaseError, safeTry } from "../errors"; // Removed unused err
-import { bufferToSharedArrayBuffer } from "../utils"; // Import buffer utility
-import { join } from "path";
-import { mkdirSync } from "fs";
+import Database, { Database as DB } from 'better-sqlite3';
+import { FileInfo } from '../types'; // Removed unused FileStats, Metadata, MediaInfo
+import { AppResult, ok, DatabaseError, safeTry } from '../errors'; // Removed unused err
+import { bufferToSharedArrayBuffer } from '../utils'; // Import buffer utility
+import { join } from 'path';
+import { mkdirSync } from 'fs';
 
 // Define the structure of the data stored in the DB
 // This might evolve as we refactor further
@@ -33,18 +33,18 @@ export class MetadataDBService {
   private dbPath: string;
 
   constructor(
-    dbDirectory: string = ".mediadb",
-    dbFilename: string = "metadata.sqlite"
+    dbDirectory: string = '.mediadb',
+    dbFilename: string = 'metadata.sqlite',
   ) {
     // Ensure the directory exists
     try {
       mkdirSync(dbDirectory, { recursive: true });
     } catch (e) {
       // Ignore error if directory already exists, throw otherwise
-      if (e.code !== "EEXIST") {
+      if (e.code !== 'EEXIST') {
         throw new DatabaseError(
           `Failed to create database directory: ${e.message}`,
-          { cause: e }
+          { cause: e },
         );
       }
     }
@@ -57,18 +57,18 @@ export class MetadataDBService {
     } catch (error) {
       console.error(
         `Failed to open or initialize SQLite database at ${this.dbPath}:`,
-        error
+        error,
       );
       throw new DatabaseError(
         `Failed to initialize SQLite metadata DB: ${error.message}`,
-        { cause: error }
+        { cause: error },
       );
     }
   }
 
   private initSchema(): void {
     // Use PRAGMA journal_mode=WAL for better concurrency
-    this.db.pragma("journal_mode = WAL");
+    this.db.pragma('journal_mode = WAL');
 
     // Create the main table for file information
     this.db.exec(`
@@ -95,24 +95,24 @@ export class MetadataDBService {
 
     // Create indexes for potentially queried columns
     this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_contentHash ON files (contentHash);`
+      `CREATE INDEX IF NOT EXISTS idx_files_contentHash ON files (contentHash);`,
     );
     this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_pHash ON files (pHash);`
+      `CREATE INDEX IF NOT EXISTS idx_files_pHash ON files (pHash);`,
     );
     this.db.exec(`CREATE INDEX IF NOT EXISTS idx_files_size ON files (size);`);
     // Add indexes for LSH keys
     this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_lshKey1 ON files (lshKey1);`
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey1 ON files (lshKey1);`,
     );
     this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_lshKey2 ON files (lshKey2);`
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey2 ON files (lshKey2);`,
     );
     this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_lshKey3 ON files (lshKey3);`
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey3 ON files (lshKey3);`,
     );
     this.db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_files_lshKey4 ON files (lshKey4);`
+      `CREATE INDEX IF NOT EXISTS idx_files_lshKey4 ON files (lshKey4);`,
     );
   }
 
@@ -127,7 +127,7 @@ export class MetadataDBService {
       keys[3] = pHashHex.substring(12, 16);
     } else if (pHashHex) {
       console.warn(
-        `Invalid pHash length (${pHashHex.length}) for LSH key generation: ${pHashHex}`
+        `Invalid pHash length (${pHashHex.length}) for LSH key generation: ${pHashHex}`,
       );
     }
     return keys;
@@ -137,14 +137,14 @@ export class MetadataDBService {
   private fileInfoToRow(filePath: string, fileInfo: FileInfo): FileInfoRow {
     const pHashBuffer = fileInfo.media.frames[0]?.hash;
     const pHashHex = pHashBuffer
-      ? Buffer.from(pHashBuffer).toString("hex")
+      ? Buffer.from(pHashBuffer).toString('hex')
       : null;
     const lshKeys = this.generateLshKeys(pHashHex);
 
     return {
       filePath: filePath,
       contentHash: fileInfo.fileStats.hash
-        ? Buffer.from(fileInfo.fileStats.hash).toString("hex")
+        ? Buffer.from(fileInfo.fileStats.hash).toString('hex')
         : null,
       size: fileInfo.fileStats.size ?? null,
       createdAt: fileInfo.fileStats.createdAt.getTime() ?? null,
@@ -167,14 +167,14 @@ export class MetadataDBService {
   // Helper to convert DB row format back to FileInfo (partial reconstruction)
   // Note: Reconstructing full MediaInfo (all frames) might require a separate table or different storage strategy
   private rowToFileInfo(row: FileInfoRow): Partial<FileInfo> {
-    const pHashBuffer = row.pHash ? Buffer.from(row.pHash, "hex") : undefined;
+    const pHashBuffer = row.pHash ? Buffer.from(row.pHash, 'hex') : undefined;
     // Basic reconstruction - MediaInfo is simplified
     const partialFileInfo: Partial<FileInfo> = {
       fileStats: {
         // Use optional chaining and nullish coalescing for hash reconstruction
         hash: row.contentHash
           ? bufferToSharedArrayBuffer(
-              Buffer.from(row.contentHash, "hex")
+              Buffer.from(row.contentHash, 'hex'),
             )._unsafeUnwrap()
           : undefined, // Unwrap AppResult
         size: row.size ?? 0,
@@ -252,9 +252,9 @@ export class MetadataDBService {
           `Failed to upsert FileInfo for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "upsert" },
-          }
-        )
+            context: { operation: 'upsert' },
+          },
+        ),
     );
   }
 
@@ -263,7 +263,7 @@ export class MetadataDBService {
    * Note: Full MediaInfo (all frames) is not reconstructed here.
    */
   public getFileInfo(filePath: string): AppResult<Partial<FileInfo> | null> {
-    const stmt = this.db.prepare("SELECT * FROM files WHERE filePath = ?");
+    const stmt = this.db.prepare('SELECT * FROM files WHERE filePath = ?');
     return safeTry(
       () => {
         const row = stmt.get(filePath) as FileInfoRow | undefined;
@@ -274,9 +274,9 @@ export class MetadataDBService {
           `Failed to get FileInfo for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "get" },
-          }
-        )
+            context: { operation: 'get' },
+          },
+        ),
     );
   }
 
@@ -284,14 +284,14 @@ export class MetadataDBService {
    * Retrieves multiple FileInfo entries by file paths.
    */
   public getMultipleFileInfo(
-    filePaths: string[]
+    filePaths: string[],
   ): AppResult<Map<string, Partial<FileInfo>>> {
     if (filePaths.length === 0) {
       return ok(new Map());
     }
-    const placeholders = filePaths.map(() => "?").join(",");
+    const placeholders = filePaths.map(() => '?').join(',');
     const stmt = this.db.prepare(
-      `SELECT * FROM files WHERE filePath IN (${placeholders})`
+      `SELECT * FROM files WHERE filePath IN (${placeholders})`,
     );
 
     return safeTry(
@@ -308,9 +308,9 @@ export class MetadataDBService {
           `Failed to get multiple FileInfo entries: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "getMultiple" },
-          }
-        )
+            context: { operation: 'getMultiple' },
+          },
+        ),
     );
   }
 
@@ -318,15 +318,15 @@ export class MetadataDBService {
    * Retrieves only pHash and mediaDuration for multiple files, optimized for similarity checks.
    */
   public getMediaInfoForFiles(
-    filePaths: string[]
-  ): AppResult<Map<string, Pick<FileInfoRow, "pHash" | "mediaDuration">>> {
+    filePaths: string[],
+  ): AppResult<Map<string, Pick<FileInfoRow, 'pHash' | 'mediaDuration'>>> {
     if (filePaths.length === 0) {
       return ok(new Map());
     }
-    const placeholders = filePaths.map(() => "?").join(",");
+    const placeholders = filePaths.map(() => '?').join(',');
     // Select only necessary columns
     const stmt = this.db.prepare(
-      `SELECT filePath, pHash, mediaDuration FROM files WHERE filePath IN (${placeholders})`
+      `SELECT filePath, pHash, mediaDuration FROM files WHERE filePath IN (${placeholders})`,
     );
 
     return safeTry(
@@ -338,7 +338,7 @@ export class MetadataDBService {
         }[];
         const resultMap = new Map<
           string,
-          Pick<FileInfoRow, "pHash" | "mediaDuration">
+          Pick<FileInfoRow, 'pHash' | 'mediaDuration'>
         >();
         for (const row of rows) {
           resultMap.set(row.filePath, {
@@ -353,9 +353,9 @@ export class MetadataDBService {
           `Failed to get MediaInfo for files: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "getMediaInfo" },
-          }
-        )
+            context: { operation: 'getMediaInfo' },
+          },
+        ),
     );
   }
 
@@ -368,7 +368,7 @@ export class MetadataDBService {
    * Finds file entries with an exact matching perceptual hash.
    */
   public findByExactPHash(pHashHex: string): AppResult<FileInfoRow[]> {
-    const stmt = this.db.prepare("SELECT * FROM files WHERE pHash = ?");
+    const stmt = this.db.prepare('SELECT * FROM files WHERE pHash = ?');
     return safeTry(
       () => {
         return stmt.all(pHashHex) as FileInfoRow[];
@@ -378,9 +378,9 @@ export class MetadataDBService {
           `Failed to find by pHash ${pHashHex}: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "findByPHash" },
-          }
-        )
+            context: { operation: 'findByPHash' },
+          },
+        ),
     );
   }
 
@@ -392,14 +392,14 @@ export class MetadataDBService {
    */
   public findSimilarCandidates(
     filePath: string,
-    lshKeys: (string | null)[]
+    lshKeys: (string | null)[],
   ): AppResult<string[]> {
     const validKeys = lshKeys.filter((key) => key !== null);
     if (validKeys.length === 0) {
       return ok([]); // No valid keys to search with
     }
 
-    const placeholders = validKeys.map(() => "?").join(", ");
+    const placeholders = validKeys.map(() => '?').join(', ');
     const whereClauses = [
       validKeys.length > 0 ? `lshKey1 IN (${placeholders})` : null,
       validKeys.length > 0 ? `lshKey2 IN (${placeholders})` : null,
@@ -414,7 +414,7 @@ export class MetadataDBService {
     const sql = `
           SELECT filePath
           FROM files
-          WHERE (${whereClauses.join(" OR ")})
+          WHERE (${whereClauses.join(' OR ')})
             AND filePath != ?
       `;
 
@@ -437,9 +437,9 @@ export class MetadataDBService {
           `Failed to find similar candidates for ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "findSimilar" },
-          }
-        )
+            context: { operation: 'findSimilar' },
+          },
+        ),
     );
   }
 
@@ -459,9 +459,9 @@ export class MetadataDBService {
           `Failed to close SQLite DB: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { operation: "close" },
-          }
-        )
+            context: { operation: 'close' },
+          },
+        ),
     );
   }
 }

@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ["v*.*.*"] # Trigger on version tags
+    tags: ['v*.*.*'] # Trigger on version tags
   pull_request:
     branches: [main]
   workflow_dispatch: # Allow manual trigger
@@ -61,8 +61,8 @@ jobs:
       - name: Setup Node.js for npm publish
         uses: actions/setup-node@v4
         with:
-          node-version: "lts/*" # Use LTS Node.js version
-          registry-url: "https://registry.npmjs.org" # Point to npm registry
+          node-version: 'lts/*' # Use LTS Node.js version
+          registry-url: 'https://registry.npmjs.org' # Point to npm registry
 
       - name: Publish to npm
         run: npm publish --access public # Publish the package

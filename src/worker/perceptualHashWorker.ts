@@ -2,8 +2,8 @@ import {
   createDCTConstants,
   computeFastDCT,
   computeHashFromDCT,
-} from "../utils"; // Removed unused quickSelect
-import { AppResult, ok, err } from "../errors"; // Import AppResult types
+} from '../utils'; // Removed unused quickSelect
+import { AppResult, ok, err } from '../errors'; // Import AppResult types
 
 // Removed duplicate import
 export class PerceptualHashWorker {
@@ -16,7 +16,7 @@ export class PerceptualHashWorker {
     // Call createDCTConstants and assign results
     const { dctCoefficients, normFactors } = createDCTConstants(
       resolution,
-      this.HASH_SIZE
+      this.HASH_SIZE,
     );
     this.dctCoefficients = dctCoefficients;
     this.normFactors = normFactors;

@@ -1,15 +1,15 @@
-import { DeduplicationResult, FileInfo } from "./types";
-import { MediaComparator } from "../MediaComparator";
+import { DeduplicationResult, FileInfo } from './types';
+import { MediaComparator } from '../MediaComparator';
 // Removed Spinner import
-import { CliReporter } from "./reporting/CliReporter"; // Import reporter
-import { MetadataDBService } from "./services/MetadataDBService"; // Removed unused FileInfoRow import
-import { AppResult, err, ok, DatabaseError } from "./errors"; // Import error types
+import { CliReporter } from './reporting/CliReporter'; // Import reporter
+import { MetadataDBService } from './services/MetadataDBService'; // Removed unused FileInfoRow import
+import { AppResult, err, ok, DatabaseError } from './errors'; // Import error types
 import {
   mergeAndDeduplicateClusters,
   getAdaptiveThreshold,
-} from "./comparatorUtils"; // Import merge function and threshold helper
-import { bufferToSharedArrayBuffer } from "./utils"; // Need this for reconstructing MediaInfo
-import { MediaInfo, SimilarityConfig } from "./types"; // Import MediaInfo and SimilarityConfig
+} from './comparatorUtils'; // Import merge function and threshold helper
+import { bufferToSharedArrayBuffer } from './utils'; // Need this for reconstructing MediaInfo
+import { MediaInfo, SimilarityConfig } from './types'; // Import MediaInfo and SimilarityConfig
 
 /**
  * Performs deduplication on a list of valid files.
@@ -24,14 +24,14 @@ export async function deduplicateFilesFn(
   comparator: MediaComparator, // Still needed for calculateSimilarity and processResults
   dbService: MetadataDBService,
   similarityConfig: SimilarityConfig, // Pass config directly
-  reporter: CliReporter // Add reporter parameter
+  reporter: CliReporter, // Add reporter parameter
 ): Promise<AppResult<DeduplicationResult>> {
   // Update return type
   // TODO: Abstract spinner logic later
-  reporter.startSpinner("Deduplicating files..."); // Use reporter
+  reporter.startSpinner('Deduplicating files...'); // Use reporter
 
   // --- Step 1: Find Exact Duplicates using DB ---
-  reporter.updateSpinnerText("Finding exact duplicates (DB query)..."); // Use reporter
+  reporter.updateSpinnerText('Finding exact duplicates (DB query)...'); // Use reporter
   const pHashMap = new Map<string, string[]>(); // pHash -> [filePath1, filePath2, ...]
   const filesWithoutPHash: string[] = []; // Files missing pHash in DB
   const potentiallySimilarFiles = new Set<string>(); // Files to check for similarity
@@ -42,7 +42,7 @@ export async function deduplicateFilesFn(
   if (initialInfoResult.isErr()) {
     reporter.stopSpinnerFailure(
       // Stop spinner on failure
-      `DB Error fetching initial file info for deduplication: ${initialInfoResult.error.message}`
+      `DB Error fetching initial file info for deduplication: ${initialInfoResult.error.message}`,
     );
     return err(initialInfoResult.error);
   }
@@ -52,7 +52,7 @@ export async function deduplicateFilesFn(
     const fileInfo = initialInfoMap.get(filePath);
     const pHashBuffer = fileInfo?.media?.frames[0]?.hash;
     const pHashHex = pHashBuffer
-      ? Buffer.from(pHashBuffer).toString("hex")
+      ? Buffer.from(pHashBuffer).toString('hex')
       : null;
 
     if (pHashHex) {
@@ -63,7 +63,7 @@ export async function deduplicateFilesFn(
     } else {
       reporter.logWarning(
         // Use reporter
-        `File ${filePath} missing pHash in DB, excluding from exact match check.`
+        `File ${filePath} missing pHash in DB, excluding from exact match check.`,
       );
       filesWithoutPHash.push(filePath); // Treat as unique for now
     }
@@ -81,12 +81,12 @@ export async function deduplicateFilesFn(
     }
   });
   reporter.updateSpinnerText(
-    `Found ${exactDuplicateClusters.length} exact duplicate sets via pHash.`
+    `Found ${exactDuplicateClusters.length} exact duplicate sets via pHash.`,
   ); // Use reporter
 
   // --- Step 2: Find Similarity Clusters using LSH ---
   reporter.updateSpinnerText(
-    `Finding similar files using LSH for ${potentiallySimilarFiles.size} candidates...`
+    `Finding similar files using LSH for ${potentiallySimilarFiles.size} candidates...`,
   ); // Use reporter
   const similarityClusters: Set<string>[] = [];
   const processedForSimilarity = new Set<string>(); // Track files already added to a similarity cluster
@@ -103,7 +103,7 @@ export async function deduplicateFilesFn(
     } else if (pHashHex) {
       reporter.logWarning(
         // Use reporter
-        `Invalid pHash length (${pHashHex.length}) for LSH key generation: ${pHashHex}`
+        `Invalid pHash length (${pHashHex.length}) for LSH key generation: ${pHashHex}`,
       );
     }
     return keys;
@@ -126,7 +126,7 @@ export async function deduplicateFilesFn(
     ) {
       reporter.logError(
         // Use reporter
-        `Failed to fetch MediaInfo for target ${targetFile}, skipping similarity check.`
+        `Failed to fetch MediaInfo for target ${targetFile}, skipping similarity check.`,
       );
       processedForSimilarity.add(targetFile);
       continue;
@@ -137,7 +137,7 @@ export async function deduplicateFilesFn(
     if (!targetPHashHex) {
       reporter.logWarning(
         // Use reporter
-        `Skipping similarity check for ${targetFile} due to missing pHash in DB.`
+        `Skipping similarity check for ${targetFile} due to missing pHash in DB.`,
       );
       processedForSimilarity.add(targetFile); // Mark as processed (treated as unique in similarity phase)
       continue;
@@ -147,14 +147,14 @@ export async function deduplicateFilesFn(
     // Find candidates using the DB service
     const candidateResult = await dbService.findSimilarCandidates(
       targetFile,
-      targetLshKeys
+      targetLshKeys,
     );
 
     if (candidateResult.isErr()) {
       reporter.logError(
         // Use reporter
         `Error finding LSH candidates for ${targetFile}: ${candidateResult.error.message}`,
-        candidateResult.error
+        candidateResult.error,
       );
       processedForSimilarity.add(targetFile); // Mark as processed to avoid retrying
       continue;
@@ -171,7 +171,7 @@ export async function deduplicateFilesFn(
         reporter.logError(
           // Use reporter
           `Failed to fetch MediaInfo for candidates of ${targetFile}, skipping comparisons.`,
-          candidateMediaInfoResult.error
+          candidateMediaInfoResult.error,
         );
         // Mark target as processed, but don't mark candidates as they might be compared later
         processedForSimilarity.add(targetFile);
@@ -186,7 +186,7 @@ export async function deduplicateFilesFn(
             frames: [
               {
                 hash: bufferToSharedArrayBuffer(
-                  Buffer.from(targetPHashHex, "hex")
+                  Buffer.from(targetPHashHex, 'hex'),
                 ), // No unwrap needed
                 timestamp: 0,
               },
@@ -198,7 +198,7 @@ export async function deduplicateFilesFn(
         // Should not happen due to earlier check, but safety first
         reporter.logError(
           // Use reporter
-          `Failed to reconstruct target MediaInfo for ${targetFile}.`
+          `Failed to reconstruct target MediaInfo for ${targetFile}.`,
         );
         processedForSimilarity.add(targetFile);
         continue;
@@ -220,7 +220,7 @@ export async function deduplicateFilesFn(
               frames: [
                 {
                   hash: bufferToSharedArrayBuffer(
-                    Buffer.from(candidatePHashHex, "hex")
+                    Buffer.from(candidatePHashHex, 'hex'),
                   ), // No unwrap needed
                   timestamp: 0,
                 },
@@ -232,19 +232,19 @@ export async function deduplicateFilesFn(
         if (!candidateMediaInfo) {
           reporter.logWarning(
             // Use reporter
-            `Skipping comparison between ${targetFile} and ${candidateFile} due to missing candidate MediaInfo.`
+            `Skipping comparison between ${targetFile} and ${candidateFile} due to missing candidate MediaInfo.`,
           );
           continue;
         }
 
         const similarity = comparator.calculateSimilarity(
           targetMediaInfo,
-          candidateMediaInfo
+          candidateMediaInfo,
         );
         const threshold = getAdaptiveThreshold(
           targetMediaInfo,
           candidateMediaInfo,
-          similarityConfig
+          similarityConfig,
         ); // Use passed config
 
         if (similarity >= threshold) {
@@ -262,15 +262,15 @@ export async function deduplicateFilesFn(
       processedForSimilarity.add(targetFile);
     }
     reporter.updateSpinnerText(
-      `Finding similar files... (${checkedCount}/${potentiallySimilarFiles.size} checked)`
+      `Finding similar files... (${checkedCount}/${potentiallySimilarFiles.size} checked)`,
     ); // Use reporter
   }
   reporter.updateSpinnerText(
-    `Found ${similarityClusters.length} similarity clusters via LSH.`
+    `Found ${similarityClusters.length} similarity clusters via LSH.`,
   ); // Use reporter
 
   // --- Step 3: Merge Exact and Similarity Clusters ---
-  reporter.updateSpinnerText("Merging cluster results..."); // Use reporter
+  reporter.updateSpinnerText('Merging cluster results...'); // Use reporter
   // Combine exact matches and results from LSH similarity check
   const allClusters = mergeAndDeduplicateClusters([
     ...exactDuplicateClusters,
@@ -278,7 +278,7 @@ export async function deduplicateFilesFn(
   ]);
 
   // --- Step 4: Process Final Clusters ---
-  reporter.updateSpinnerText("Processing final clusters..."); // Use reporter
+  reporter.updateSpinnerText('Processing final clusters...'); // Use reporter
   // Updated dbSelector to always fetch from DB, as allFileInfoMap is removed
   const dbSelector = async (file: string): Promise<AppResult<FileInfo>> => {
     const result = await dbService.getFileInfo(file);
@@ -286,8 +286,8 @@ export async function deduplicateFilesFn(
     if (!result.value) {
       return err(
         new DatabaseError(
-          `FileInfo not found in DB for ${file} during final processing`
-        )
+          `FileInfo not found in DB for ${file} during final processing`,
+        ),
       );
     }
     // TODO: Ensure rowToFileInfo reconstructs full FileInfo if needed by processResults/scoring
@@ -300,7 +300,7 @@ export async function deduplicateFilesFn(
   if (finalResult.isErr()) {
     reporter.stopSpinnerFailure(
       // Stop spinner on failure
-      `\nDeduplication failed during result processing: ${finalResult.error.message}`
+      `\nDeduplication failed during result processing: ${finalResult.error.message}`,
     );
     return err(finalResult.error); // Propagate error
   }
@@ -312,11 +312,11 @@ export async function deduplicateFilesFn(
   // Log results
   const duplicateCount = duplicateSets.reduce(
     (sum, set) => sum + set.duplicates.size,
-    0
+    0,
   );
   reporter.stopSpinnerSuccess(
     // Use reporter
-    `Deduplication completed: Found ${duplicateSets.length} duplicate sets, ${uniqueFiles.size} unique files, ${duplicateCount} duplicates`
+    `Deduplication completed: Found ${duplicateSets.length} duplicate sets, ${uniqueFiles.size} unique files, ${duplicateCount} duplicates`,
   );
 
   return ok({ uniqueFiles, duplicateSets }); // Return Ok result

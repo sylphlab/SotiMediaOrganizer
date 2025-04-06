@@ -6,3 +6,16 @@ coverage
 .env
 .DS_Store
 *.log
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
+Thumbs.db
+._*

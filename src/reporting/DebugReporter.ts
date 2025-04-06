@@ -1,15 +1,15 @@
 // import { injectable } from "inversify"; // Removed unused 'inject' - REMOVED INVERSIFY
-import { writeFile } from "fs/promises";
-import { join, relative } from "path";
-import { FileInfo, DuplicateSet, FileProcessorConfig } from "../types"; // Added FileProcessorConfig
+import { writeFile } from 'fs/promises';
+import { join, relative } from 'path';
+import { FileInfo, DuplicateSet, FileProcessorConfig } from '../types'; // Added FileProcessorConfig
 // import { MediaProcessor } from "../MediaProcessor"; // Removed old import
-import { MediaComparator } from "../../MediaComparator";
-import { LmdbCache } from "../caching/LmdbCache"; // Added cache import
-import { ExifTool } from "exiftool-vendored"; // Added exiftool import
-import { WorkerPool } from "../contexts/types"; // Removed unused Types import
-import { processSingleFile } from "../fileProcessor"; // Added file processor function import
+import { MediaComparator } from '../../MediaComparator';
+import { LmdbCache } from '../caching/LmdbCache'; // Added cache import
+import { ExifTool } from 'exiftool-vendored'; // Added exiftool import
+import { WorkerPool } from '../contexts/types'; // Removed unused Types import
+import { processSingleFile } from '../fileProcessor'; // Added file processor function import
 // import { inject } from "inversify"; // Added inject - REMOVED INVERSIFY
-import { calculateEntryScore } from "../comparatorUtils"; // Import the utility function
+import { calculateEntryScore } from '../comparatorUtils'; // Import the utility function
 
 // @injectable() // REMOVED INVERSIFY
 export class DebugReporter {
@@ -19,12 +19,12 @@ export class DebugReporter {
     private readonly cache: LmdbCache,
     private readonly fileProcessorConfig: FileProcessorConfig,
     private readonly exifTool: ExifTool,
-    private readonly workerPool: WorkerPool
+    private readonly workerPool: WorkerPool,
   ) {}
 
   async generateHtmlReports(
     duplicateSets: DuplicateSet[],
-    debugDir: string
+    debugDir: string,
   ): Promise<string[]> {
     const reports = [];
     const batchSize = 1000; // Keep batching logic
@@ -35,7 +35,7 @@ export class DebugReporter {
         batch,
         i,
         debugDir,
-        batchSize
+        batchSize,
       ); // Pass batchSize
       reports.push(reportFileName);
     }
@@ -47,7 +47,7 @@ export class DebugReporter {
     batch: DuplicateSet[],
     startIndex: number,
     debugDir: string,
-    batchSize: number // Add batchSize parameter
+    batchSize: number, // Add batchSize parameter
   ): Promise<string> {
     const totalSets = batch.length;
     let totalRepresentatives = 0;
@@ -64,9 +64,9 @@ export class DebugReporter {
           startIndex + index,
           set.representatives,
           set.duplicates,
-          debugDir
-        )
-      )
+          debugDir,
+        ),
+      ),
     );
 
     const reportContent = `
@@ -118,14 +118,14 @@ export class DebugReporter {
                     <p><strong>Total Representatives in this file:</strong> ${totalRepresentatives}</p>
                     <p><strong>Total Duplicates in this file:</strong> ${totalDuplicates}</p>
                 </div>
-                ${setsHtml.join("\n")}
+                ${setsHtml.join('\n')}
             </body>
             </html>
         `;
 
     const reportFileName = `debug-report-${startIndex / batchSize + 1}.html`;
     const reportPath = join(debugDir, reportFileName);
-    await writeFile(reportPath, reportContent, "utf8");
+    await writeFile(reportPath, reportContent, 'utf8');
     return reportFileName;
   }
 
@@ -133,7 +133,7 @@ export class DebugReporter {
     setIndex: number,
     representatives: Set<string>,
     duplicates: Set<string>,
-    debugDir: string
+    debugDir: string,
   ) {
     const allMedia = await Promise.all([
       ...Array.from(representatives).map(async (sourcePath) => {
@@ -143,7 +143,7 @@ export class DebugReporter {
           this.fileProcessorConfig,
           this.cache,
           this.exifTool,
-          this.workerPool
+          this.workerPool,
         );
         // TODO: Handle potential error from infoResult using Result type
         const info = infoResult.unwrapOr(null); // Temporary unwrap, needs proper error handling
@@ -158,7 +158,7 @@ export class DebugReporter {
           this.fileProcessorConfig,
           this.cache,
           this.exifTool,
-          this.workerPool
+          this.workerPool,
         );
         // TODO: Handle potential error from infoResult using Result type
         const info = infoResult.unwrapOr(null); // Temporary unwrap, needs proper error handling
@@ -177,10 +177,10 @@ export class DebugReporter {
                     <a href="${relativePath}" target="_blank" title="Click to view full size">
                         ${this.generateMediaElement(relativePath, isRepresentative)}
                     </a>
-                    ${info ? this.generateFileDetails(info, score) : "<p>Error processing file details</p>"}
-                </div>`
+                    ${info ? this.generateFileDetails(info, score) : '<p>Error processing file details</p>'}
+                </div>`,
       )
-      .join("\n");
+      .join('\n');
 
     return `
             <div class="set">
@@ -195,21 +195,21 @@ export class DebugReporter {
     const resolution =
       fileInfo.metadata.width && fileInfo.metadata.height
         ? `${fileInfo.metadata.width}x${fileInfo.metadata.height}`
-        : "Unknown";
+        : 'Unknown';
     return `
             <p><strong style="font-size: 16px; color: #ff5722;">Score:</strong> <span style="font-size: 16px; color: #ff5722;">${score.toFixed(2)}</span></p>
             <p><strong>Size:</strong> ${this.formatFileSize(fileInfo.fileStats.size)}</p>
-            ${fileInfo.metadata.width && fileInfo.metadata.height ? `<p><strong>Resolution:</strong> ${resolution}</p>` : ""}
-            ${fileInfo.media.duration ? `<p><strong>Duration:</strong> ${this.formatDuration(fileInfo.media.duration)}</p>` : ""}
-            ${fileInfo.metadata.imageDate ? `<p><strong>Date:</strong> ${this.formatDate(fileInfo.metadata.imageDate)}</p>` : ""}
-            ${fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude ? `<p><strong>Geo-location:</strong> ${fileInfo.metadata.gpsLatitude.toFixed(2)}, ${fileInfo.metadata.gpsLongitude.toFixed(2)}</p>` : ""}
-            ${fileInfo.metadata.cameraModel ? `<p><strong>Camera:</strong> ${fileInfo.metadata.cameraModel}</p>` : ""}
+            ${fileInfo.metadata.width && fileInfo.metadata.height ? `<p><strong>Resolution:</strong> ${resolution}</p>` : ''}
+            ${fileInfo.media.duration ? `<p><strong>Duration:</strong> ${this.formatDuration(fileInfo.media.duration)}</p>` : ''}
+            ${fileInfo.metadata.imageDate ? `<p><strong>Date:</strong> ${this.formatDate(fileInfo.metadata.imageDate)}</p>` : ''}
+            ${fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude ? `<p><strong>Geo-location:</strong> ${fileInfo.metadata.gpsLatitude.toFixed(2)}, ${fileInfo.metadata.gpsLongitude.toFixed(2)}</p>` : ''}
+            ${fileInfo.metadata.cameraModel ? `<p><strong>Camera:</strong> ${fileInfo.metadata.cameraModel}</p>` : ''}
         `;
   }
 
   private convertToRelativePath(sourcePath: string, debugDir: string): string {
     const relativePath = relative(debugDir, sourcePath);
-    return relativePath.replace(/\\/g, "/"); // Convert backslashes to forward slashes for web compatibility
+    return relativePath.replace(/\\/g, '/'); // Convert backslashes to forward slashes for web compatibility
   }
 
   private isVideoFile(filePath: string): boolean {
@@ -218,12 +218,12 @@ export class DebugReporter {
 
   private generateMediaElement(
     relativePath: string,
-    isRepresentative: boolean
+    isRepresentative: boolean,
   ): string {
-    const className = isRepresentative ? "representative" : "duplicate";
+    const className = isRepresentative ? 'representative' : 'duplicate';
     if (this.isVideoFile(relativePath)) {
       const placeholder =
-        "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+        'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
       return `
                 <video class="${className}" src="${placeholder}" data-src="${relativePath}" controls muted playsinline preload="none">
                     Your browser does not support the video tag.
@@ -238,10 +238,10 @@ export class DebugReporter {
   }
 
   private formatDate(date?: Date): string {
-    if (!date) return "Unknown";
+    if (!date) return 'Unknown';
     if (isNaN(date.getTime())) {
-      console.log("Invalid Date", date);
-      return "Invalid Date";
+      console.log('Invalid Date', date);
+      return 'Invalid Date';
     }
     return date.toDateString();
   }
@@ -250,7 +250,7 @@ export class DebugReporter {
     const seconds = Math.floor(duration % 60);
     const minutes = Math.floor((duration / 60) % 60);
     const hours = Math.floor((duration / (60 * 60)) % 24);
-    return `${hours ? `${hours}:` : ""}${minutes ? `${minutes}:` : ""}${seconds}s`;
+    return `${hours ? `${hours}:` : ''}${minutes ? `${minutes}:` : ''}${seconds}s`;
   }
 
   private async generateIndex(reportFiles: string[], debugDir: string) {
@@ -275,14 +275,14 @@ export class DebugReporter {
       <body>
           <h1>Deduplication Report Index</h1>
           <ul>
-              ${reportFiles.map((file, index) => `<li><a class="report-link" href="${file}" target="_blank">Report ${index + 1}</a></li>`).join("\n")}
+              ${reportFiles.map((file, index) => `<li><a class="report-link" href="${file}" target="_blank">Report ${index + 1}</a></li>`).join('\n')}
           </ul>
       </body>
       </html>
   `;
 
-    const indexPath = join(debugDir, "index.html");
-    await writeFile(indexPath, indexContent, "utf8");
+    const indexPath = join(debugDir, 'index.html');
+    await writeFile(indexPath, indexContent, 'utf8');
     // Logging moved back to MediaOrganizer or handled differently
   }
 }

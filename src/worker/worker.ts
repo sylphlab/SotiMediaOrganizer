@@ -6,8 +6,8 @@
 // Option A: Pass DBService instance/config (complex)
 // Option B: Pass relevant FileInfo subset via workerData (memory intensive?)
 // Option C: Refactor distance to not need full FileInfo (ideal?)
-import workerpool from "workerpool";
-import { PerceptualHashWorker } from "./perceptualHashWorker";
+import workerpool from 'workerpool';
+import { PerceptualHashWorker } from './perceptualHashWorker';
 // DBSCANWorkerData interface is now imported from types.ts
 
 // Removed performDBSCAN function as DBSCAN now runs on main thread
@@ -15,7 +15,7 @@ import { PerceptualHashWorker } from "./perceptualHashWorker";
 const perceptualHashWorkerMapper: Map<number, PerceptualHashWorker> = new Map();
 function computePerceptualHash(
   imageBuffer: Uint8Array,
-  resolution: number
+  resolution: number,
 ): Uint8Array {
   let worker = perceptualHashWorkerMapper.get(resolution);
   if (!worker) {
@@ -27,7 +27,7 @@ function computePerceptualHash(
   if (result.isErr()) {
     // Decide how to handle worker errors - throw? log? return specific value?
     // Throwing for now, as this indicates a failure within the worker itself.
-    console.error("Error computing perceptual hash in worker:", result.error);
+    console.error('Error computing perceptual hash in worker:', result.error);
     throw result.error; // Or convert to a standard Error
   }
   return result.value; // Return unwrapped value

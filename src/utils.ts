@@ -1,9 +1,9 @@
-import { FileType, Metadata } from "./types";
-import { extname } from "path";
-import { ExifDate, ExifDateTime, Tags } from "exiftool-vendored";
-import { createHash } from "crypto";
-import { createReadStream, Stats } from "fs";
-import { stat } from "fs/promises";
+import { FileType, Metadata } from './types';
+import { extname } from 'path';
+import { ExifDate, ExifDateTime, Tags } from 'exiftool-vendored';
+import { createHash } from 'crypto';
+import { createReadStream, Stats } from 'fs';
+import { stat } from 'fs/promises';
 import {
   AppResult,
   ok,
@@ -15,7 +15,7 @@ import {
   safeTryAsync,
   safeTry,
   AppError,
-} from "./errors"; // Removed unused AnyAppError
+} from './errors'; // Removed unused AnyAppError
 
 export function getFileType(filePath: string): AppResult<FileType> {
   const ext = extname(filePath).slice(1).toLowerCase();
@@ -31,74 +31,74 @@ export function getFileTypeByExt(ext: string): AppResult<FileType> {
   return err(
     new ValidationError(`Unsupported file extension: ${ext}`, {
       context: { validationDetails: { extension: ext } },
-    })
+    }),
   );
 }
 
 export const SUPPORTED_EXTENSIONS = {
   [FileType.Image]: new Set([
-    "jpg",
-    "jpeg",
-    "jpe",
-    "jif",
-    "jfif",
-    "jfi",
-    "jp2",
-    "j2c",
-    "jpf",
-    "jpx",
-    "jpm",
-    "mj2",
-    "png",
-    "webp",
-    "tif",
-    "tiff",
-    "bmp",
-    "dib",
-    "heic",
-    "heif",
-    "avif",
-    "cr2",
-    "cr3",
-    "nef",
-    "nrw",
-    "arw",
-    "srf",
-    "sr2",
-    "dng",
-    "orf",
-    "ptx",
-    "pef",
-    "rw2",
-    "raf",
-    "raw",
-    "x3f",
-    "srw",
+    'jpg',
+    'jpeg',
+    'jpe',
+    'jif',
+    'jfif',
+    'jfi',
+    'jp2',
+    'j2c',
+    'jpf',
+    'jpx',
+    'jpm',
+    'mj2',
+    'png',
+    'webp',
+    'tif',
+    'tiff',
+    'bmp',
+    'dib',
+    'heic',
+    'heif',
+    'avif',
+    'cr2',
+    'cr3',
+    'nef',
+    'nrw',
+    'arw',
+    'srf',
+    'sr2',
+    'dng',
+    'orf',
+    'ptx',
+    'pef',
+    'rw2',
+    'raf',
+    'raw',
+    'x3f',
+    'srw',
   ]),
   [FileType.Video]: new Set([
-    "mp4",
-    "m4v",
-    "mov",
-    "3gp",
-    "3g2",
-    "avi",
-    "mpg",
-    "mpeg",
-    "mpe",
-    "mpv",
-    "m2v",
-    "m2p",
-    "m2ts",
-    "mts",
-    "ts",
-    "qt",
-    "wmv",
-    "asf",
-    "flv",
-    "f4v",
-    "webm",
-    "divx",
-    "gif",
+    'mp4',
+    'm4v',
+    'mov',
+    '3gp',
+    '3g2',
+    'avi',
+    'mpg',
+    'mpeg',
+    'mpe',
+    'mpv',
+    'm2v',
+    'm2p',
+    'm2ts',
+    'mts',
+    'ts',
+    'qt',
+    'wmv',
+    'asf',
+    'flv',
+    'f4v',
+    'webm',
+    'divx',
+    'gif',
   ]),
 };
 
@@ -115,17 +115,17 @@ export function bufferToSharedArrayBuffer(buffer: Buffer): SharedArrayBuffer {
 }
 
 export function sharedArrayBufferToBuffer(
-  sharedArrayBuffer: SharedArrayBuffer
+  sharedArrayBuffer: SharedArrayBuffer,
 ): Buffer {
   return Buffer.from(sharedArrayBuffer);
 }
 
 export async function filterAsync<T>(
   arr: T[],
-  filter: (item: T) => Promise<AppResult<boolean>>
+  filter: (item: T) => Promise<AppResult<boolean>>,
 ): Promise<AppResult<T[]>> {
   const results = await Promise.all(
-    arr.map((item) => safeTryAsync(filter(item)))
+    arr.map((item) => safeTryAsync(filter(item))),
   );
   const filtered: T[] = [];
   for (let i = 0; i < results.length; i++) {
@@ -146,7 +146,7 @@ export async function filterAsync<T>(
 
 export async function mapAsync<T, U>( // Added async keyword
   arr: T[],
-  mapFn: (item: T) => Promise<AppResult<U>>
+  mapFn: (item: T) => Promise<AppResult<U>>,
 ): Promise<AppResult<U[]>> {
   const results: U[] = [];
   for (const item of arr) {
@@ -162,10 +162,10 @@ export async function mapAsync<T, U>( // Added async keyword
 // Convert SharedArrayBuffer to hex string
 export function sharedArrayBufferToHex(buffer: SharedArrayBuffer): string {
   const uint8Array = new Uint8Array(buffer);
-  let hexString = "";
+  let hexString = '';
 
   for (let i = 0; i < uint8Array.length; i++) {
-    hexString += uint8Array[i].toString(16).padStart(2, "0");
+    hexString += uint8Array[i].toString(16).padStart(2, '0');
   }
 
   return hexString;
@@ -173,21 +173,21 @@ export function sharedArrayBufferToHex(buffer: SharedArrayBuffer): string {
 
 // Convert hex string to SharedArrayBuffer
 export function hexToSharedArrayBuffer(
-  hex: string
+  hex: string,
 ): AppResult<SharedArrayBuffer> {
   if (hex.length % 2 !== 0) {
     return err(
-      new ValidationError("Hex string must have an even number of characters", {
+      new ValidationError('Hex string must have an even number of characters', {
         context: { validationDetails: { length: hex.length } },
-      })
+      }),
     );
   }
   // Add regex check for valid hex characters
   if (!/^[0-9a-fA-F]*$/.test(hex)) {
     return err(
-      new ValidationError("Hex string contains non-hex characters", {
+      new ValidationError('Hex string contains non-hex characters', {
         context: { validationDetails: { hexString: hex } }, // Provide full string for context
-      })
+      }),
     );
   }
   try {
@@ -197,9 +197,9 @@ export function hexToSharedArrayBuffer(
       const byte = parseInt(hex.substr(i, 2), 16);
       if (isNaN(byte)) {
         return err(
-          new ValidationError("Hex string contains non-hex characters", {
+          new ValidationError('Hex string contains non-hex characters', {
             context: { validationDetails: { substring: hex.substr(i, 2) } },
-          })
+          }),
         );
       }
       view[i / 2] = byte;
@@ -226,13 +226,13 @@ export function hexToSharedArrayBuffer(
 export async function calculateFileHash(
   filePath: string,
   fileSize: number,
-  maxChunkSize: number
+  maxChunkSize: number,
 ): Promise<AppResult<SharedArrayBuffer>> {
-  const hash = createHash("md5");
+  const hash = createHash('md5');
 
   const hashPart = (
     start: number = 0,
-    size?: number
+    size?: number,
   ): Promise<AppResult<void>> => {
     // Correct return type annotation
     return new Promise<AppResult<void>>((resolve) => {
@@ -241,21 +241,21 @@ export async function calculateFileHash(
         start,
         end: size ? start + size - 1 : undefined,
       });
-      stream.on("data", (chunk: Buffer) => hash.update(chunk));
-      stream.on("end", () => {
+      stream.on('data', (chunk: Buffer) => hash.update(chunk));
+      stream.on('end', () => {
         resolve(ok(undefined));
       }); // Resolve with ok result
-      stream.on("error", (streamError) => {
+      stream.on('error', (streamError) => {
         resolve(
           err(
             new FileSystemError(
               `Error reading file chunk: ${streamError.message}`,
               {
                 cause: streamError,
-                context: { path: filePath, operation: "readStream" },
-              }
-            )
-          )
+                context: { path: filePath, operation: 'readStream' },
+              },
+            ),
+          ),
         ); // Resolve with err result
       });
     });
@@ -270,7 +270,7 @@ export async function calculateFileHash(
       if (part1Result.isErr()) return err(part1Result.error); // Reconstruct Err with correct type
       const part2Result = await hashPart(
         fileSize - safeChunkSize,
-        safeChunkSize
+        safeChunkSize,
       );
       if (part2Result.isErr()) return err(part2Result.error); // Reconstruct Err with correct type
     } else {
@@ -288,9 +288,9 @@ export async function calculateFileHash(
     return ok(bufferToSharedArrayBuffer(hash.digest()));
   } catch (error) {
     return err(
-      new HashingError("Failed to convert hash digest to SharedArrayBuffer", {
+      new HashingError('Failed to convert hash digest to SharedArrayBuffer', {
         cause: error instanceof Error ? error : undefined,
-      })
+      }),
     );
   }
 }
@@ -298,19 +298,19 @@ export async function calculateFileHash(
 
 // Helper function to parse various date formats from ExifTool
 function parseExifDate(
-  value: string | ExifDateTime | ExifDate | undefined
+  value: string | ExifDateTime | ExifDate | undefined,
 ): Date | undefined {
   if (!value) return undefined;
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     // Try parsing common string formats, adjust as needed
-    const date = new Date(value.replace(/(\d{4}):(\d{2}):(\d{2})/, "$1-$2-$3")); // Handle YYYY:MM:DD
+    const date = new Date(value.replace(/(\d{4}):(\d{2}):(\d{2})/, '$1-$2-$3')); // Handle YYYY:MM:DD
     if (!isNaN(date.getTime())) return date;
     return undefined;
   }
   // exiftool-vendored types already handle Date, ExifDateTime, ExifDate
   if (value instanceof Date) return value;
   // Duck typing: Check if it has a toDate method
-  if (value && typeof (value as { toDate?: unknown }).toDate === "function") {
+  if (value && typeof (value as { toDate?: unknown }).toDate === 'function') {
     // Use more specific type assertion
     // Attempt to call toDate and ensure it returns a Date
     try {
@@ -356,8 +356,8 @@ export function parseExifTagsToMetadata(tags: Tags): AppResult<Metadata> {
     (error) =>
       new AppError(
         `Failed to parse EXIF tags object: ${error instanceof Error ? error.message : String(error)}`,
-        { cause: error }
-      )
+        { cause: error },
+      ),
   );
 }
 
@@ -371,15 +371,15 @@ export function parseExifTagsToMetadata(tags: Tags): AppResult<Metadata> {
  */
 export function quickSelect(
   arr: Float32Array | number[],
-  k: number
+  k: number,
 ): AppResult<number> {
   // Ensure k is within bounds
   if (k < 0 || k >= arr.length) {
     return err(
       new ValidationError(
         `Index k (${k}) out of bounds for array length ${arr.length}`,
-        { context: { validationDetails: { k, length: arr.length } } }
-      )
+        { context: { validationDetails: { k, length: arr.length } } },
+      ),
     );
   }
 
@@ -430,7 +430,7 @@ export function quickSelect(
  */
 export function createDCTConstants(
   resolution: number,
-  hashSize: number = 8
+  hashSize: number = 8,
 ): { dctCoefficients: Float32Array; normFactors: Float32Array } {
   const size = resolution;
   const scale = Math.sqrt(2 / size);
@@ -440,7 +440,7 @@ export function createDCTConstants(
   for (let u = 0; u < hashSize; u++) {
     for (let x = 0; x < size; x++) {
       dctCoefficients[u * size + x] = Math.cos(
-        ((2 * x + 1) * u * Math.PI) / (2 * size)
+        ((2 * x + 1) * u * Math.PI) / (2 * size),
       );
     }
   }
@@ -467,7 +467,7 @@ export function computeFastDCT(
   input: Uint8Array,
   size: number,
   hashSize: number,
-  dctConstants: { dctCoefficients: Float32Array; normFactors: Float32Array }
+  dctConstants: { dctCoefficients: Float32Array; normFactors: Float32Array },
 ): AppResult<Float32Array> {
   const output = new Float32Array(hashSize * hashSize);
   const temp = new Float32Array(hashSize);
@@ -504,8 +504,8 @@ export function computeFastDCT(
                   length: dctCoefficients.length,
                 },
               },
-            }
-          )
+            },
+          ),
         );
       }
       const vCoeff = dctCoefficients[vCoeffIndex];
@@ -526,7 +526,7 @@ export function computeFastDCT(
  * @returns A Promise resolving to the Stats object.
  */
 export async function getFileStats(
-  filePath: string
+  filePath: string,
 ): Promise<AppResult<Stats>> {
   return safeTryAsync(
     stat(filePath),
@@ -535,9 +535,9 @@ export async function getFileStats(
         `Failed to get stats for file: ${e instanceof Error ? e.message : String(e)}`,
         {
           cause: e instanceof Error ? e : undefined,
-          context: { path: filePath, operation: "stat" },
-        }
-      )
+          context: { path: filePath, operation: 'stat' },
+        },
+      ),
   );
 }
 
@@ -551,10 +551,10 @@ export async function getFileStats(
  */
 export function computeHashFromDCT(
   dct: Float32Array,
-  hashSize: number
+  hashSize: number,
 ): AppResult<Uint8Array> {
   if (dct.length === 0) {
-    return err(new ValidationError("DCT array cannot be empty")); // No context needed
+    return err(new ValidationError('DCT array cannot be empty')); // No context needed
   }
   // Compute median of AC components (excluding DC component at index 0)
   const acValues = new Float32Array(Math.max(0, dct.length - 1)); // Ensure non-negative length
@@ -568,8 +568,8 @@ export function computeHashFromDCT(
     // For now, let's return an error as median is undefined.
     return err(
       new ValidationError( // No context needed
-        "Cannot compute median AC value from DCT with only DC component"
-      )
+        'Cannot compute median AC value from DCT with only DC component',
+      ),
     );
   }
 
@@ -586,7 +586,7 @@ export function computeHashFromDCT(
 
   if (hashSize !== 8) {
     console.warn(
-      "computeHashFromDCT currently assumes hashSize=8 for byte packing. Results may be incorrect for other sizes."
+      'computeHashFromDCT currently assumes hashSize=8 for byte packing. Results may be incorrect for other sizes.',
     );
   }
 

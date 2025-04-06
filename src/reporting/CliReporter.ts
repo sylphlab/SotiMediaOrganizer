@@ -1,6 +1,6 @@
-import chalk from "chalk";
-import cliProgress from "cli-progress";
-import { Spinner } from "@topcli/spinner";
+import chalk from 'chalk';
+import cliProgress from 'cli-progress';
+import { Spinner } from '@topcli/spinner';
 // Removed NODE_ENV check
 
 // Define interface for progress bar payload
@@ -56,7 +56,7 @@ export class CliReporter {
     if (this.spinner) {
       // Keep original check
       // Fallback to succeed() with a failure indicator as stop/fail/error don't seem to exist
-      this.spinner.succeed(text ? `❌ ${text}` : "❌");
+      this.spinner.succeed(text ? `❌ ${text}` : '❌');
       this.spinner = null;
     }
   }
@@ -74,7 +74,7 @@ export class CliReporter {
         etaAsynchronousUpdate: true,
         format: this.formatProgressBar.bind(this), // Bind 'this' context
       },
-      cliProgress.Presets.shades_classic
+      cliProgress.Presets.shades_classic,
     );
 
     this.bars.clear(); // Clear previous bars if any
@@ -94,7 +94,7 @@ export class CliReporter {
   updateProgress(
     format: string,
     increment: number,
-    statsUpdate?: Partial<ProgressBarPayload["stats"]>
+    statsUpdate?: Partial<ProgressBarPayload['stats']>,
   ): void {
     // Allow partial stats update
     const barData = this.bars.get(format); // Get the object containing bar and payload
@@ -152,26 +152,26 @@ export class CliReporter {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = Math.floor(seconds % 60);
-    return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${remainingSeconds.toString().padStart(2, "0")}`;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
   }
 
   private getBrailleProgressChar(progress: number): string {
     // Braille characters for smoother progress bar
-    if (progress >= 0.875) return "⣿";
-    if (progress >= 0.75) return "⣷";
-    if (progress >= 0.625) return "⣧";
-    if (progress >= 0.5) return "⣇";
-    if (progress >= 0.375) return "⡇";
-    if (progress >= 0.25) return "⡆";
-    if (progress >= 0.125) return "⡄";
-    if (progress > 0) return "⡀";
-    return " ";
+    if (progress >= 0.875) return '⣿';
+    if (progress >= 0.75) return '⣷';
+    if (progress >= 0.625) return '⣧';
+    if (progress >= 0.5) return '⣇';
+    if (progress >= 0.375) return '⡇';
+    if (progress >= 0.25) return '⡆';
+    if (progress >= 0.125) return '⡄';
+    if (progress > 0) return '⡀';
+    return ' ';
   }
 
   private formatProgressBar(
     options: cliProgress.Options,
     params: cliProgress.Params,
-    payload: ProgressBarPayload
+    payload: ProgressBarPayload,
   ): string {
     // Use defined interface
     // Implementation copied and adapted from original gatherer.ts
@@ -180,9 +180,9 @@ export class CliReporter {
     const remainderProgress = params.progress * barSize - completeBars;
     const microProgressChar = this.getBrailleProgressChar(remainderProgress); // Use helper method
     const bar =
-      "⣿".repeat(completeBars) +
+      '⣿'.repeat(completeBars) +
       microProgressChar +
-      " ".repeat(Math.max(0, barSize - completeBars - 1)); // Ensure repeat count is non-negative
+      ' '.repeat(Math.max(0, barSize - completeBars - 1)); // Ensure repeat count is non-negative
 
     const percentage = (params.progress * 100).toFixed(2);
     let timeInfo: string;
@@ -193,13 +193,13 @@ export class CliReporter {
         const eta = this.formatTime(params.eta); // Use helper method
         timeInfo = `ETA: ${chalk.yellow(eta.padStart(9))}`;
       } else {
-        timeInfo = "ETA: ---".padStart(14); // Placeholder if ETA is infinite/zero
+        timeInfo = 'ETA: ---'.padStart(14); // Placeholder if ETA is infinite/zero
       }
     } else {
       // Stopped
       const duration = this.formatTime(
         // Use helper method
-        (params.stopTime - params.startTime) / 1000
+        (params.stopTime - params.startTime) / 1000,
       );
       timeInfo = `Time: ${chalk.yellow(duration.padStart(8))}`;
     }
@@ -211,7 +211,7 @@ export class CliReporter {
 
     return (
       // Ensure payload and payload.format exist before accessing padEnd
-      `${chalk.white((payload.format ?? "N/A").padEnd(6))} ${bar} ${chalk.green(percentage.padStart(6))}% | ` +
+      `${chalk.white((payload.format ?? 'N/A').padEnd(6))} ${bar} ${chalk.green(percentage.padStart(6))}% | ` +
       `${chalk.cyan(params.value.toString().padStart(7))}/${chalk.cyan(params.total.toString().padStart(7))} | ` +
       `${timeInfo} | ` +
       `${chalk.red(stats.errorCount.toString().padStart(5))} errors`

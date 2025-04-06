@@ -1,145 +1,145 @@
 #!/usr/bin/env node
-import { Command } from "commander";
-import chalk from "chalk";
+import { Command } from 'commander';
+import chalk from 'chalk';
 import {
   type ProgramOptions,
   type DeduplicationResult,
   type GatherFileInfoResult,
   FileProcessorConfig, // Added FileProcessorConfig
   SimilarityConfig, // Added SimilarityConfig
-} from "./src/types";
+} from './src/types';
 // import { MediaOrganizer } from "./MediaOrganizer"; // Removed old class import
-import os from "os";
+import os from 'os';
 // Removed import { Context } from "./src/contexts/Context";
 // Removed duplicate import for discoverFilesFn
-import { gatherFileInfoFn } from "./src/gatherer";
-import { deduplicateFilesFn } from "./src/deduplicator"; // Import the new function
-import { LmdbCache } from "./src/caching/LmdbCache"; // Import dependencies
-import { ExifTool } from "exiftool-vendored";
-import { WorkerPool } from "./src/contexts/types"; // Removed unused Types import
-import workerpool, { Pool } from "workerpool"; // Import the Pool type
-import sharp from "sharp"; // Add sharp import
-import type { CustomWorker } from "./src/worker/worker"; // Import worker type for pool proxy
-import { MediaComparator } from "./MediaComparator";
-import { transferFilesFn } from "./src/transfer"; // Import the new function
-import { DebugReporter } from "./src/reporting/DebugReporter"; // Import dependencies
-import { FileTransferService } from "./src/services/FileTransferService";
-import { discoverFilesFn } from "./src/discovery";
-import { MetadataDBService } from "./src/services/MetadataDBService"; // Import DB service
-import { CliReporter } from "./src/reporting/CliReporter"; // Import the new reporter
+import { gatherFileInfoFn } from './src/gatherer';
+import { deduplicateFilesFn } from './src/deduplicator'; // Import the new function
+import { LmdbCache } from './src/caching/LmdbCache'; // Import dependencies
+import { ExifTool } from 'exiftool-vendored';
+import { WorkerPool } from './src/contexts/types'; // Removed unused Types import
+import workerpool, { Pool } from 'workerpool'; // Import the Pool type
+import sharp from 'sharp'; // Add sharp import
+import type { CustomWorker } from './src/worker/worker'; // Import worker type for pool proxy
+import { MediaComparator } from './MediaComparator';
+import { transferFilesFn } from './src/transfer'; // Import the new function
+import { DebugReporter } from './src/reporting/DebugReporter'; // Import dependencies
+import { FileTransferService } from './src/services/FileTransferService';
+import { discoverFilesFn } from './src/discovery';
+import { MetadataDBService } from './src/services/MetadataDBService'; // Import DB service
+import { CliReporter } from './src/reporting/CliReporter'; // Import the new reporter
 
 function exitHandler() {
-  console.log(chalk.red("\nmedia-curator was interrupted"));
-  process.stdout.write("\u001B[?25h"); // Show cursor
+  console.log(chalk.red('\nmedia-curator was interrupted'));
+  process.stdout.write('\u001B[?25h'); // Show cursor
   process.exit();
 }
 
 async function main() {
-  process.on("SIGINT", exitHandler); // Handle Ctrl+C
-  process.on("SIGTERM", exitHandler); // Handle kill commands
+  process.on('SIGINT', exitHandler); // Handle Ctrl+C
+  process.on('SIGTERM', exitHandler); // Handle kill commands
 
   const program = new Command();
 
   program
-    .name("MediaCurator")
+    .name('MediaCurator')
     .description(
-      "Intelligently curate, organize, and deduplicate your digital photo and video collection."
+      'Intelligently curate, organize, and deduplicate your digital photo and video collection.',
     )
-    .version("1.0.0")
-    .argument("<source>", "Source directories to process")
-    .argument("<destination>", "Destination directory for organized media")
+    .version('1.0.0')
+    .argument('<source>', 'Source directories to process')
+    .argument('<destination>', 'Destination directory for organized media')
     .option(
-      "-e, --error <path>",
-      "Directory for files that couldn't be processed"
+      '-e, --error <path>',
+      "Directory for files that couldn't be processed",
     )
-    .option("-d, --duplicate <path>", "Directory for duplicate files")
+    .option('-d, --duplicate <path>', 'Directory for duplicate files')
     .option(
-      "--debug <path>",
-      "Debug directory for storing all files in duplicate sets"
+      '--debug <path>',
+      'Debug directory for storing all files in duplicate sets',
     )
     .option(
-      "-c, --concurrency <number>",
-      "Number of workers to use (default: CPU cores - 1)",
+      '-c, --concurrency <number>',
+      'Number of workers to use (default: CPU cores - 1)',
       parseInt,
-      Math.max(1, Math.floor(os.cpus().length - 1))
+      Math.max(1, Math.floor(os.cpus().length - 1)),
     )
-    .option("-m, --move", "Move files instead of copying them", false)
+    .option('-m, --move', 'Move files instead of copying them', false)
     .option(
-      "-r, --resolution <number>",
-      "Resolution for perceptual hashing",
+      '-r, --resolution <number>',
+      'Resolution for perceptual hashing',
       parseInt,
-      64
+      64,
     )
 
     .option(
-      "--min-frames <number>",
-      "Minimum number of frames to extract from videos",
+      '--min-frames <number>',
+      'Minimum number of frames to extract from videos',
       parseInt,
-      5
+      5,
     )
     .option(
-      "--max-scene-frames <number>",
-      "Maximum number of frames to extract from scene changes",
+      '--max-scene-frames <number>',
+      'Maximum number of frames to extract from scene changes',
       parseInt,
-      100
+      100,
     )
     .option(
-      "--target-fps <number>",
-      "Target frames per second for video extraction",
+      '--target-fps <number>',
+      'Target frames per second for video extraction',
       parseFloat,
-      2
+      2,
     )
 
     .option(
-      "-w, --window-size <number>",
-      "Window size for frame clustering",
+      '-w, --window-size <number>',
+      'Window size for frame clustering',
       parseInt,
-      5
+      5,
     )
     .option(
-      "-p, --step-size <number>",
-      "Step size for frame clustering",
+      '-p, --step-size <number>',
+      'Step size for frame clustering',
       parseInt,
-      1
+      1,
     )
     .option(
-      "-F, --format <string>",
-      "Format for destination directory",
-      "{D.YYYY}/{D.MM}/{D.DD}/{NAME}.{EXT}"
+      '-F, --format <string>',
+      'Format for destination directory',
+      '{D.YYYY}/{D.MM}/{D.DD}/{NAME}.{EXT}',
     )
     .option(
-      "--scene-change-threshold <number>",
-      "Threshold for scene change detection",
+      '--scene-change-threshold <number>',
+      'Threshold for scene change detection',
       parseFloat,
-      0.05
+      0.05,
     )
     .option(
-      "--image-similarity-threshold <number>",
-      "Threshold for image similarity (default: 0.99)",
+      '--image-similarity-threshold <number>',
+      'Threshold for image similarity (default: 0.99)',
       parseFloat,
-      0.99
+      0.99,
     )
     .option(
-      "--image-video-similarity-threshold <number>",
-      "Threshold for image-video similarity. For image-video, we use a lower threshold because the frames are not always the same (default: 0.98)",
+      '--image-video-similarity-threshold <number>',
+      'Threshold for image-video similarity. For image-video, we use a lower threshold because the frames are not always the same (default: 0.98)',
       parseFloat,
-      0.93
+      0.93,
     )
     .option(
-      "--video-similarity-threshold <number>",
-      "Threshold for video similarity. For video similarity, we use an even lower threshold because the frames are not always the same (default: 0.97)",
+      '--video-similarity-threshold <number>',
+      'Threshold for video similarity. For video similarity, we use an even lower threshold because the frames are not always the same (default: 0.97)',
       parseFloat,
-      0.93
+      0.93,
     )
     .option(
-      "--max-chunk-size <number>",
-      "Maximum chunk size for file processing (default: 2MB)",
+      '--max-chunk-size <number>',
+      'Maximum chunk size for file processing (default: 2MB)',
       parseInt,
-      2 * 1024 * 1024
+      2 * 1024 * 1024,
     )
-    .option("--verbose", "Enable verbose logging", false) // Add verbose option
+    .option('--verbose', 'Enable verbose logging', false) // Add verbose option
     .addHelpText(
-      "after",
+      'after',
       `
   Format string placeholders:
     Image date (I.), File date (F.), Mixed date (D.):
@@ -175,7 +175,7 @@ async function main() {
     "{TYPE}/{D.YYYY}/{D.WW}/{CAM}/{D.YYYY}{D.MM}{D.DD}_{NAME.L}.{EXT}"
     "{HAS.DATE}/{D.YYYY}/{D.MMMM}/{D.D}-{D.DDDD}/{D.h}{D.mm}{D.a}_{NAME}.{EXT}"
     "{TYPE}/{CAM}/{D.YYYY}/{D.MM}/{D.DD}_{D.HH}{D.mm}_{NAME.U}.{EXT}"
-      `
+      `,
     )
     .parse(process.argv);
 
@@ -200,8 +200,8 @@ async function main() {
     if (cacheResult.isErr()) {
       // Handle error during cache creation (e.g., log and exit)
       console.error(
-        chalk.red("Failed to initialize cache database:"),
-        cacheResult.error
+        chalk.red('Failed to initialize cache database:'),
+        cacheResult.error,
       );
       process.exit(1);
     }
@@ -209,9 +209,9 @@ async function main() {
     exifTool = new ExifTool({ maxProcs: options.concurrency }); // Assign inside try
     const dbService = new MetadataDBService(); // Instantiate DB Service
     // Instantiate WorkerPool
-    pool = workerpool.pool(__dirname + "/src/worker/worker.js", {
+    pool = workerpool.pool(__dirname + '/src/worker/worker.js', {
       // Assign inside try
-      workerType: "thread", // Use 'thread' for Node.js environment
+      workerType: 'thread', // Use 'thread' for Node.js environment
       maxWorkers: options.concurrency,
     });
     const workerPool: WorkerPool = await pool.proxy<CustomWorker>();
@@ -241,7 +241,7 @@ async function main() {
       exifTool,
       similarityConfig,
       options,
-      workerPool
+      workerPool,
     );
     // Instantiate DebugReporter with dependencies
     const debugReporter = new DebugReporter(
@@ -249,7 +249,7 @@ async function main() {
       cache,
       fileProcessorConfig,
       exifTool,
-      workerPool
+      workerPool,
     );
     // Instantiate FileTransferService - Needs refactoring as MediaProcessor is removed
     // For now, let's pass the dependencies needed by processSingleFile, assuming the service will be refactored later
@@ -258,21 +258,21 @@ async function main() {
       fileProcessorConfig, // Pass config directly
       cache, // Pass cache directly
       exifTool, // Pass exifTool directly
-      workerPool // Pass workerPool directly
+      workerPool, // Pass workerPool directly
     );
 
     // Removed Context.injector.get calls
     // Stage 1: File Discovery
-    reporter.logInfo("Stage 1: Discovering files..."); // Use reporter
+    reporter.logInfo('Stage 1: Discovering files...'); // Use reporter
     // Use the standalone discovery function
     const discoveredFiles = await discoverFilesFn(
       [source],
       options.concurrency,
-      reporter // Pass reporter
+      reporter, // Pass reporter
     );
 
     // Stage 2: Gathering Information
-    reporter.logInfo("\nStage 2: Gathering file information..."); // Use reporter
+    reporter.logInfo('\nStage 2: Gathering file information...'); // Use reporter
     // Use the standalone gatherer function
     const gatherFileInfoResult = await gatherFileInfoFn(
       discoveredFiles,
@@ -282,25 +282,25 @@ async function main() {
       exifTool,
       workerPool,
       dbService, // Pass dbService
-      reporter // Pass reporter
+      reporter, // Pass reporter
     );
 
     // Stage 3: Deduplication
-    reporter.logInfo("\nStage 3: Deduplicating files..."); // Use reporter
+    reporter.logInfo('\nStage 3: Deduplicating files...'); // Use reporter
     // Use the standalone deduplicator function
     const deduplicationResult = await deduplicateFilesFn(
       gatherFileInfoResult.validFiles,
       comparator, // Pass comparator instance
       dbService, // Pass dbService
       similarityConfig, // Pass similarityConfig
-      reporter // Pass reporter
+      reporter, // Pass reporter
     );
 
     // Handle potential error from deduplication
     if (deduplicationResult.isErr()) {
       reporter.logError(
         `\nDeduplication failed: ${deduplicationResult.error.message}`,
-        deduplicationResult.error
+        deduplicationResult.error,
       ); // Use reporter
       // Decide how to proceed - exit? continue without transfer?
       // For now, let's exit.
@@ -308,7 +308,7 @@ async function main() {
     }
     const deduplicationData = deduplicationResult.value; // Unwrap successful result
     // Stage 4: File Transfer
-    reporter.logInfo("\nStage 4: Transferring files..."); // Use reporter
+    reporter.logInfo('\nStage 4: Transferring files...'); // Use reporter
     // Use the standalone transfer function
     await transferFilesFn(
       gatherFileInfoResult,
@@ -322,21 +322,21 @@ async function main() {
       debugReporter, // Pass dependencies
       fileTransferService,
       // TODO: Pass dbService here? Transfer might need it if FileTransferService is refactored.
-      reporter // Pass reporter
+      reporter, // Pass reporter
     );
 
-    reporter.logSuccess("\nMedia organization completed"); // Use reporter
+    reporter.logSuccess('\nMedia organization completed'); // Use reporter
     printResults(
       gatherFileInfoResult,
       deduplicationData, // Pass unwrapped data
       [...discoveredFiles.values()].reduce(
         (sum, files) => sum + files.length,
-        0
+        0,
       ),
-      reporter // Pass reporter to printResults
+      reporter, // Pass reporter to printResults
     );
   } catch (error) {
-    reporter?.logError("An unexpected error occurred:", error as Error); // Use reporter, ensure error is Error type
+    reporter?.logError('An unexpected error occurred:', error as Error); // Use reporter, ensure error is Error type
   } finally {
     // Ensure DB connection is closed
     // Need to access dbService instance created in try block
@@ -355,20 +355,20 @@ function printResults(
   gatherFileInfoResult: GatherFileInfoResult,
   deduplicationResult: DeduplicationResult,
   totalFiles: number,
-  reporter: CliReporter // Add reporter parameter
+  reporter: CliReporter, // Add reporter parameter
 ) {
   reporter.logInfo(`Total files discovered: ${totalFiles}`);
   reporter.logInfo(`Unique files: ${deduplicationResult.uniqueFiles.size}`);
   reporter.logWarning(
-    `Duplicate sets: ${deduplicationResult.duplicateSets.length}`
+    `Duplicate sets: ${deduplicationResult.duplicateSets.length}`,
   );
   reporter.logWarning(
     `Total duplicates: ${Array.from(
-      deduplicationResult.duplicateSets.values()
-    ).reduce((sum, set) => sum + set.duplicates.size, 0)}`
+      deduplicationResult.duplicateSets.values(),
+    ).reduce((sum, set) => sum + set.duplicates.size, 0)}`,
   );
   reporter.logError(
-    `Files with errors: ${gatherFileInfoResult.errorFiles.length}`
+    `Files with errors: ${gatherFileInfoResult.errorFiles.length}`,
   );
 }
 
@@ -380,7 +380,7 @@ function printResults(
     // process.exit(0);
   } catch (error) {
     // Use console.error directly here as reporter might not be initialized
-    console.error(chalk.red("Critical error during execution:"), error);
+    console.error(chalk.red('Critical error during execution:'), error);
     process.exit(1);
   }
 })();

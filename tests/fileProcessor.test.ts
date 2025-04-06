@@ -1,7 +1,7 @@
-import { processSingleFile } from "../src/fileProcessor";
-import { processFileStats } from "../src/jobs/fileStats";
-import { processMetadata } from "../src/jobs/metadataExtraction";
-import { processAdaptiveExtraction } from "../src/jobs/adaptiveExtraction";
+import { processSingleFile } from '../src/fileProcessor';
+import { processFileStats } from '../src/jobs/fileStats';
+import { processMetadata } from '../src/jobs/metadataExtraction';
+import { processAdaptiveExtraction } from '../src/jobs/adaptiveExtraction';
 import {
   FileInfo,
   FileProcessorConfig,
@@ -10,15 +10,15 @@ import {
   MediaInfo,
   FileStatsConfig,
   AdaptiveExtractionConfig,
-} from "../src/types";
-import { LmdbCache } from "../src/caching/LmdbCache";
-import { ExifTool } from "exiftool-vendored";
-import { WorkerPool } from "../src/contexts/types";
-import { ok, err, AppError, AppResult } from "../src/errors";
-import { vi, describe, it, expect, beforeEach, afterEach } from "vitest"; // Import from vitest
+} from '../src/types';
+import { LmdbCache } from '../src/caching/LmdbCache';
+import { ExifTool } from 'exiftool-vendored';
+import { WorkerPool } from '../src/contexts/types';
+import { ok, err, AppError, AppResult } from '../src/errors';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'; // Import from vitest
 
 // Use vi.mock() for module mocking
-vi.mock("../src/jobs/fileStats", () => {
+vi.mock('../src/jobs/fileStats', () => {
   // Define mock inside the factory
   const mockProcessFileStatsFn = vi.fn();
   return {
@@ -27,7 +27,7 @@ vi.mock("../src/jobs/fileStats", () => {
     // __mocks: { mockProcessFileStatsFn }
   };
 });
-vi.mock("../src/jobs/metadataExtraction", () => {
+vi.mock('../src/jobs/metadataExtraction', () => {
   // Define mock inside the factory
   const mockProcessMetadataFn = vi.fn();
   return {
@@ -36,7 +36,7 @@ vi.mock("../src/jobs/metadataExtraction", () => {
     // __mocks: { mockProcessMetadataFn }
   };
 });
-vi.mock("../src/jobs/adaptiveExtraction", () => {
+vi.mock('../src/jobs/adaptiveExtraction', () => {
   // Define mock inside the factory
   const mockProcessAdaptiveExtractionFn = vi.fn();
   return {
@@ -62,7 +62,7 @@ function hexToSharedArrayBuffer(hex: string): AppResult<SharedArrayBuffer> {
     return err(new AppError(`Invalid hex string length: ${hex.length}`));
   }
   try {
-    const buffer = Buffer.from(hex, "hex");
+    const buffer = Buffer.from(hex, 'hex');
     const sab = new SharedArrayBuffer(buffer.length);
     const view = new Uint8Array(sab);
     view.set(buffer);
@@ -71,7 +71,7 @@ function hexToSharedArrayBuffer(hex: string): AppResult<SharedArrayBuffer> {
     return err(
       new AppError(`Failed to convert hex to SharedArrayBuffer: ${e.message}`, {
         cause: e,
-      })
+      }),
     );
   }
 }
@@ -92,22 +92,22 @@ const mockConfig: FileProcessorConfig = {
   adaptiveExtraction: mockAdaptiveExtractionConfig,
 };
 
-const mockFilePath = "/path/to/media.jpg";
+const mockFilePath = '/path/to/media.jpg';
 
 // Mock data for successful results
 const mockStats: FileStats = {
   size: 1024,
   createdAt: new Date(),
   modifiedAt: new Date(),
-  hash: hexToSharedArrayBuffer("aabb")._unsafeUnwrap(), // Helper needed or use Buffer
+  hash: hexToSharedArrayBuffer('aabb')._unsafeUnwrap(), // Helper needed or use Buffer
 };
 const mockMeta: Metadata = { width: 1920, height: 1080 };
 const mockMedia: MediaInfo = { duration: 0, frames: [] };
 
 // Mock error
-const mockError = new AppError("Test Error");
+const mockError = new AppError('Test Error');
 
-describe("processSingleFile", () => {
+describe('processSingleFile', () => {
   // Access mocks through vi.importMock or directly if exposed via __mocks
   // We'll use vi.importMock for better type safety and clarity
   let mockedProcessFileStats: ReturnType<typeof vi.fn>;
@@ -124,16 +124,16 @@ describe("processSingleFile", () => {
     vi.clearAllMocks();
 
     // Re-import mocks to get fresh instances for the test
-    const fileStatsMock = await vi.importMock<any>("../src/jobs/fileStats");
+    const fileStatsMock = await vi.importMock<any>('../src/jobs/fileStats');
     mockedProcessFileStats = fileStatsMock.processFileStats;
 
     const metadataMock = await vi.importMock<any>(
-      "../src/jobs/metadataExtraction"
+      '../src/jobs/metadataExtraction',
     );
     mockedProcessMetadata = metadataMock.processMetadata;
 
     const adaptiveExtractionMock = await vi.importMock<any>(
-      "../src/jobs/adaptiveExtraction"
+      '../src/jobs/adaptiveExtraction',
     );
     mockedProcessAdaptiveExtraction =
       adaptiveExtractionMock.processAdaptiveExtraction;
@@ -154,7 +154,7 @@ describe("processSingleFile", () => {
     }
   });
 
-  it("should return ok(FileInfo) when all jobs succeed", async () => {
+  it('should return ok(FileInfo) when all jobs succeed', async () => {
     // Arrange: Mock all jobs to return success
     mockedProcessFileStats.mockResolvedValue(ok(mockStats));
     mockedProcessMetadata.mockResolvedValue(ok(mockMeta));
@@ -166,7 +166,7 @@ describe("processSingleFile", () => {
       mockConfig,
       mockCache,
       mockExifTool,
-      mockWorkerPool
+      mockWorkerPool,
     );
 
     // Assert
@@ -182,24 +182,24 @@ describe("processSingleFile", () => {
     expect(mockedProcessFileStats).toHaveBeenCalledWith(
       mockFilePath,
       mockConfig.fileStats,
-      mockCache
+      mockCache,
     );
     expect(mockedProcessMetadata).toHaveBeenCalledWith(
       mockFilePath,
       mockExifTool,
       mockConfig.fileStats,
-      mockCache
+      mockCache,
     );
     expect(mockedProcessAdaptiveExtraction).toHaveBeenCalledWith(
       mockFilePath,
       mockConfig.adaptiveExtraction,
       mockConfig.fileStats,
       mockCache,
-      mockWorkerPool
+      mockWorkerPool,
     );
   });
 
-  it("should return err when processFileStats fails", async () => {
+  it('should return err when processFileStats fails', async () => {
     // Arrange: Mock fileStats to fail, others succeed
     mockedProcessFileStats.mockResolvedValue(err(mockError));
     mockedProcessMetadata.mockResolvedValue(ok(mockMeta));
@@ -211,19 +211,19 @@ describe("processSingleFile", () => {
       mockConfig,
       mockCache,
       mockExifTool,
-      mockWorkerPool
+      mockWorkerPool,
     );
 
     // Assert
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toBe(mockError);
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to get file stats"),
-      mockError
+      expect.stringContaining('Failed to get file stats'),
+      mockError,
     );
   });
 
-  it("should return err when processMetadata fails", async () => {
+  it('should return err when processMetadata fails', async () => {
     // Arrange: Mock metadata to fail, others succeed
     mockedProcessFileStats.mockResolvedValue(ok(mockStats));
     mockedProcessMetadata.mockResolvedValue(err(mockError));
@@ -235,19 +235,19 @@ describe("processSingleFile", () => {
       mockConfig,
       mockCache,
       mockExifTool,
-      mockWorkerPool
+      mockWorkerPool,
     );
 
     // Assert
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toBe(mockError);
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to get metadata"),
-      mockError
+      expect.stringContaining('Failed to get metadata'),
+      mockError,
     );
   });
 
-  it("should return err when processAdaptiveExtraction fails", async () => {
+  it('should return err when processAdaptiveExtraction fails', async () => {
     // Arrange: Mock adaptiveExtraction to fail, others succeed
     mockedProcessFileStats.mockResolvedValue(ok(mockStats));
     mockedProcessMetadata.mockResolvedValue(ok(mockMeta));
@@ -259,15 +259,15 @@ describe("processSingleFile", () => {
       mockConfig,
       mockCache,
       mockExifTool,
-      mockWorkerPool
+      mockWorkerPool,
     );
 
     // Assert
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toBe(mockError);
     expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed adaptive extraction"),
-      mockError
+      expect.stringContaining('Failed adaptive extraction'),
+      mockError,
     );
   });
 });

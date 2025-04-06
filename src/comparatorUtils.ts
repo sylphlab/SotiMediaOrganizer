@@ -4,8 +4,8 @@ import {
   MediaInfo,
   SimilarityConfig,
   WasmExports,
-} from "./types";
-import { AppResult, ok, err, AppError } from "./errors"; // Added AppResult imports
+} from './types';
+import { AppResult, ok, err, AppError } from './errors'; // Added AppResult imports
 
 // Popcount for 8-bit numbers
 export function popcount8(n: number): number {
@@ -37,7 +37,7 @@ export function popcount64(n: bigint): bigint {
 export function hammingDistance(
   hash1: SharedArrayBuffer,
   hash2: SharedArrayBuffer,
-  wasmExports: WasmExports | null
+  wasmExports: WasmExports | null,
 ): number {
   // Use WASM implementation if available
   if (wasmExports?.hammingDistanceSIMD) {
@@ -47,8 +47,8 @@ export function hammingDistance(
       return wasmExports.hammingDistanceSIMD(view1, view2);
     } catch (wasmError) {
       console.error(
-        "WASM hammingDistanceSIMD call failed, falling back to JS:",
-        wasmError
+        'WASM hammingDistanceSIMD call failed, falling back to JS:',
+        wasmError,
       );
       // Fall through to JS implementation if WASM call fails
     }
@@ -106,7 +106,7 @@ export function hammingDistance(
 export function calculateImageSimilarity(
   frame1: FrameInfo,
   frame2: FrameInfo,
-  wasmExports: WasmExports | null
+  wasmExports: WasmExports | null,
 ): number {
   if (!frame1.hash || !frame2.hash) return 0; // Guard against missing hashes
   const distance = hammingDistance(frame1.hash, frame2.hash, wasmExports);
@@ -127,8 +127,8 @@ export function calculateImageSimilarity(
 export function calculateImageVideoSimilarity(
   image: MediaInfo,
   video: MediaInfo,
-  similarityConfig: Pick<SimilarityConfig, "imageVideoSimilarityThreshold">, // Only need the relevant threshold
-  wasmExports: WasmExports | null
+  similarityConfig: Pick<SimilarityConfig, 'imageVideoSimilarityThreshold'>, // Only need the relevant threshold
+  wasmExports: WasmExports | null,
 ): number {
   if (
     image.frames.length === 0 ||
@@ -146,7 +146,7 @@ export function calculateImageVideoSimilarity(
     const similarity = calculateImageSimilarity(
       imageFrame,
       videoFrame,
-      wasmExports
+      wasmExports,
     );
 
     if (similarity > bestSimilarity) {
@@ -172,7 +172,7 @@ export function calculateImageVideoSimilarity(
 export function calculateSequenceSimilarityDTW(
   seq1: FrameInfo[],
   seq2: FrameInfo[],
-  wasmExports: WasmExports | null
+  wasmExports: WasmExports | null,
 ): number {
   const m = seq1.length;
   const n = seq2.length;
@@ -202,7 +202,7 @@ export function calculateSequenceSimilarityDTW(
         Math.min(
           prev, // Cost from diagonal (dtw[i-1][j-1])
           dtw[j], // Cost from top (dtw[i-1][j])
-          dtw[j - 1] // Cost from left (dtw[i][j-1])
+          dtw[j - 1], // Cost from left (dtw[i][j-1])
         );
 
       prev = temp; // Update prev for the next iteration (becomes dtw[i-1][j])
@@ -270,10 +270,10 @@ export function getAdaptiveThreshold(
   media2: MediaInfo,
   similarityConfig: Pick<
     SimilarityConfig,
-    | "imageSimilarityThreshold"
-    | "imageVideoSimilarityThreshold"
-    | "videoSimilarityThreshold"
-  >
+    | 'imageSimilarityThreshold'
+    | 'imageVideoSimilarityThreshold'
+    | 'videoSimilarityThreshold'
+  >,
 ): number {
   const isImage1 = media1.duration === 0;
   const isImage2 = media2.duration === 0;
@@ -300,7 +300,7 @@ export function getQuality(fileInfo: FileInfo): number {
  * @returns A sorted array of objects containing file path and score, sorted descending by score.
  */
 export function sortEntriesByScore(
-  entriesWithInfo: { entry: string; fileInfo: FileInfo }[]
+  entriesWithInfo: { entry: string; fileInfo: FileInfo }[],
 ): { entry: string; score: number }[] {
   const scoredEntries = entriesWithInfo.map(({ entry, fileInfo }) => ({
     entry,
@@ -326,8 +326,8 @@ export function sortEntriesByScore(
 export function selectRepresentativeCaptures(
   potentialCaptures: { entry: string; fileInfo: FileInfo }[],
   bestVideoInfo: FileInfo,
-  similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold">,
-  wasmExports: WasmExports | null
+  similarityConfig: Pick<SimilarityConfig, 'imageSimilarityThreshold'>,
+  wasmExports: WasmExports | null,
 ): string[] {
   const uniqueCaptures = new Set<string>();
   const processedCaptures = new Set<string>(); // Keep track of processed captures to avoid redundant comparisons
@@ -337,7 +337,7 @@ export function selectRepresentativeCaptures(
     ({ fileInfo }) =>
       fileInfo.media.duration === 0 && // Is an image
       getQuality(fileInfo) >= getQuality(bestVideoInfo) && // Comparable or better quality
-      (!bestVideoInfo.metadata.imageDate || !!fileInfo.metadata.imageDate) // Has date if video has date
+      (!bestVideoInfo.metadata.imageDate || !!fileInfo.metadata.imageDate), // Has date if video has date
   );
 
   // Assumes highQualityCaptures are sorted by score descending by the caller (scoreEntries)
@@ -355,7 +355,7 @@ export function selectRepresentativeCaptures(
     for (const capture2 of uniqueCaptures) {
       // Find FileInfo for capture2 within highQualityCaptures
       const capture2Data = highQualityCaptures.find(
-        (c) => c.entry === capture2
+        (c) => c.entry === capture2,
       );
       if (!capture2Data) continue; // Should not happen
       const info2 = capture2Data.fileInfo;
@@ -367,7 +367,7 @@ export function selectRepresentativeCaptures(
       const similarity = calculateImageSimilarity(
         info1.media.frames[0],
         info2.media.frames[0],
-        wasmExports
+        wasmExports,
       );
       if (similarity >= similarityConfig.imageSimilarityThreshold) {
         isDuplicate = true;
@@ -395,8 +395,8 @@ export function selectRepresentativeCaptures(
  */
 export function selectRepresentativesFromScored(
   sortedEntriesWithInfo: { entry: string; fileInfo: FileInfo }[],
-  similarityConfig: Pick<SimilarityConfig, "imageSimilarityThreshold">,
-  wasmExports: WasmExports | null
+  similarityConfig: Pick<SimilarityConfig, 'imageSimilarityThreshold'>,
+  wasmExports: WasmExports | null,
 ): string[] {
   if (!sortedEntriesWithInfo || sortedEntriesWithInfo.length === 0) return [];
   if (sortedEntriesWithInfo.length === 1)
@@ -416,7 +416,7 @@ export function selectRepresentativesFromScored(
       potentialCapturesWithInfo,
       bestFileInfo,
       similarityConfig,
-      wasmExports
+      wasmExports,
     );
     // Combine the best video with the selected unique image captures
     return [bestEntry, ...uniqueImageCaptures];
@@ -429,7 +429,7 @@ export function selectRepresentativesFromScored(
  * @returns An array of merged, unique cluster sets.
  */
 export function mergeAndDeduplicateClusters(
-  clusters: Set<string>[]
+  clusters: Set<string>[],
 ): Set<string>[] {
   const merged: Set<string>[] = [];
   const elementToClusterMap = new Map<string, Set<string>>();
@@ -488,7 +488,7 @@ export async function expandCluster( // Add export back
   neighbors: string[],
   visited: Set<string>,
   minPts: number,
-  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>
+  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>,
 ): Promise<AppResult<Set<string>>> {
   const cluster = new Set<string>([point]);
   const queue = [...neighbors]; // Initialize queue with initial neighbors
@@ -512,8 +512,8 @@ export async function expandCluster( // Add export back
             {
               cause: currentNeighborsResult.error, // Standard way
               context: { originalError: currentNeighborsResult.error }, // For test workaround
-            }
-          )
+            },
+          ),
         );
       }
 
@@ -558,7 +558,7 @@ export async function runDbscanCore(
   chunk: string[],
   eps: number,
   minPts: number,
-  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>
+  getNeighborsFn: (p: string) => Promise<AppResult<string[]>>,
 ): Promise<Set<string>[]> {
   // Return raw clusters, error handling done within getNeighborsFn/expandCluster calls
   const clusters: Set<string>[] = [];
@@ -573,7 +573,7 @@ export async function runDbscanCore(
 
     if (neighborsResult.isErr()) {
       console.error(
-        `Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`
+        `Error getting initial neighbors for ${point}: ${neighborsResult.error.message}`,
       );
       visited.add(point); // Ensure point is marked visited even if neighbors fail
       continue; // Skip point if neighbors can't be fetched
@@ -588,13 +588,13 @@ export async function runDbscanCore(
         neighbors,
         visited,
         minPts,
-        getNeighborsFn
+        getNeighborsFn,
       );
 
       if (clusterResult.isErr()) {
         console.error(
           `Error expanding cluster for ${point}: ${clusterResult.error.message}`,
-          clusterResult.error // Restore passing the error object itself
+          clusterResult.error, // Restore passing the error object itself
         );
         visited.add(point); // Ensure point is marked visited even if expansion fails
         continue;
@@ -620,12 +620,12 @@ export async function runDbscanCore(
 export function getFramesInTimeRange(
   media: MediaInfo,
   startTime: number,
-  endTime: number
+  endTime: number,
 ): FrameInfo[] {
   // Filter out frames with missing hashes as well
   return media.frames.filter(
     (frame) =>
-      frame.hash && frame.timestamp >= startTime && frame.timestamp <= endTime // Revert to inclusive end time
+      frame.hash && frame.timestamp >= startTime && frame.timestamp <= endTime, // Revert to inclusive end time
   );
 }
 
@@ -642,9 +642,9 @@ export function calculateVideoSimilarity(
   media2: MediaInfo,
   similarityConfig: Pick<
     SimilarityConfig,
-    "stepSize" | "videoSimilarityThreshold"
+    'stepSize' | 'videoSimilarityThreshold'
   >,
-  wasmExports: WasmExports | null
+  wasmExports: WasmExports | null,
 ): number {
   // Handle cases where one or both videos have no frames
   const len1 = media1.frames.length;
@@ -676,7 +676,7 @@ export function calculateVideoSimilarity(
       // Call the moved function
       longerMedia,
       startTime,
-      endTime
+      endTime,
     );
     const shorterSubseq = shorterMedia.frames;
 
@@ -687,7 +687,7 @@ export function calculateVideoSimilarity(
       // Call the existing util function
       longerSubseq,
       shorterSubseq,
-      wasmExports
+      wasmExports,
     );
     bestSimilarity = Math.max(bestSimilarity, windowSimilarity);
 

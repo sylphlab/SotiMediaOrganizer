@@ -1,7 +1,7 @@
-import { discoverFilesFn } from "../src/discovery";
-import { CliReporter } from "../src/reporting/CliReporter"; // Assuming CliReporter exists
-import { mkdirSync, writeFileSync, rmSync, existsSync } from "fs";
-import { join } from "path";
+import { discoverFilesFn } from '../src/discovery';
+import { CliReporter } from '../src/reporting/CliReporter'; // Assuming CliReporter exists
+import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
+import { join } from 'path';
 // Removed unused ok from '../src/errors'
 
 // Basic Mock/Null Reporter for testing purposes
@@ -17,9 +17,9 @@ class MockCliReporter extends CliReporter {
   // Add other necessary overrides if discoverFiles uses them
 }
 
-const TEST_DISCOVERY_DIR = ".test-discovery-dir";
+const TEST_DISCOVERY_DIR = '.test-discovery-dir';
 
-describe("discoverFiles Integration Tests", () => {
+describe('discoverFiles Integration Tests', () => {
   let mockReporter: MockCliReporter;
 
   beforeAll(() => {
@@ -39,7 +39,7 @@ describe("discoverFiles Integration Tests", () => {
   beforeEach(() => {
     mockReporter = new MockCliReporter();
     // Clean up specific test sub-directory before each test
-    const testSubDir = join(TEST_DISCOVERY_DIR, "currentTest");
+    const testSubDir = join(TEST_DISCOVERY_DIR, 'currentTest');
     if (existsSync(testSubDir)) {
       rmSync(testSubDir, { recursive: true, force: true });
     }
@@ -48,91 +48,91 @@ describe("discoverFiles Integration Tests", () => {
 
   afterEach(() => {
     // Clean up specific test sub-directory after each test
-    const testSubDir = join(TEST_DISCOVERY_DIR, "currentTest");
+    const testSubDir = join(TEST_DISCOVERY_DIR, 'currentTest');
     if (existsSync(testSubDir)) {
       rmSync(testSubDir, { recursive: true, force: true });
     }
   });
 
-  it("should find media files in a simple directory", async () => {
-    const sourceDir = join(TEST_DISCOVERY_DIR, "currentTest", "simple");
+  it('should find media files in a simple directory', async () => {
+    const sourceDir = join(TEST_DISCOVERY_DIR, 'currentTest', 'simple');
     mkdirSync(sourceDir);
-    writeFileSync(join(sourceDir, "image1.jpg"), "dummy content");
-    writeFileSync(join(sourceDir, "video1.mp4"), "dummy content");
-    writeFileSync(join(sourceDir, "document.txt"), "dummy content");
+    writeFileSync(join(sourceDir, 'image1.jpg'), 'dummy content');
+    writeFileSync(join(sourceDir, 'video1.mp4'), 'dummy content');
+    writeFileSync(join(sourceDir, 'document.txt'), 'dummy content');
 
     const resultMap = await discoverFilesFn([sourceDir], 2, mockReporter); // Add concurrency arg
 
     // Extract all file paths from the map
     const filePaths = Array.from(resultMap.values()).flat();
     expect(filePaths).toHaveLength(2);
-    expect(filePaths).toContain(join(sourceDir, "image1.jpg"));
-    expect(filePaths).toContain(join(sourceDir, "video1.mp4"));
-    expect(filePaths).not.toContain(join(sourceDir, "document.txt"));
+    expect(filePaths).toContain(join(sourceDir, 'image1.jpg'));
+    expect(filePaths).toContain(join(sourceDir, 'video1.mp4'));
+    expect(filePaths).not.toContain(join(sourceDir, 'document.txt'));
   });
 
-  it.skip("should find media files recursively in nested directories (Skipped due to hang)", async () => {
-    const sourceDir = join(TEST_DISCOVERY_DIR, "currentTest", "nested");
-    const subDir1 = join(sourceDir, "subdir1");
-    const subDir2 = join(subDir1, "subdir2");
+  it.skip('should find media files recursively in nested directories (Skipped due to hang)', async () => {
+    const sourceDir = join(TEST_DISCOVERY_DIR, 'currentTest', 'nested');
+    const subDir1 = join(sourceDir, 'subdir1');
+    const subDir2 = join(subDir1, 'subdir2');
     mkdirSync(sourceDir);
     mkdirSync(subDir1);
     mkdirSync(subDir2);
 
-    writeFileSync(join(sourceDir, "root_image.png"), "dummy content");
-    writeFileSync(join(subDir1, "sub1_video.mov"), "dummy content");
-    writeFileSync(join(subDir2, "sub2_image.jpeg"), "dummy content");
-    writeFileSync(join(subDir1, "notes.md"), "dummy content");
+    writeFileSync(join(sourceDir, 'root_image.png'), 'dummy content');
+    writeFileSync(join(subDir1, 'sub1_video.mov'), 'dummy content');
+    writeFileSync(join(subDir2, 'sub2_image.jpeg'), 'dummy content');
+    writeFileSync(join(subDir1, 'notes.md'), 'dummy content');
 
     const resultMap = await discoverFilesFn([sourceDir], 2, mockReporter); // Add concurrency arg
 
     // Extract all file paths from the map
     const filePaths = Array.from(resultMap.values()).flat();
     expect(filePaths).toHaveLength(3);
-    expect(filePaths).toContain(join(sourceDir, "root_image.png"));
-    expect(filePaths).toContain(join(subDir1, "sub1_video.mov"));
-    expect(filePaths).toContain(join(subDir2, "sub2_image.jpeg"));
-    expect(filePaths).not.toContain(join(subDir1, "notes.md"));
+    expect(filePaths).toContain(join(sourceDir, 'root_image.png'));
+    expect(filePaths).toContain(join(subDir1, 'sub1_video.mov'));
+    expect(filePaths).toContain(join(subDir2, 'sub2_image.jpeg'));
+    expect(filePaths).not.toContain(join(subDir1, 'notes.md'));
   });
 
-  it.skip("should handle multiple source directories (Skipped due to hang)", async () => {
-    const sourceDir1 = join(TEST_DISCOVERY_DIR, "currentTest", "multi1");
-    const sourceDir2 = join(TEST_DISCOVERY_DIR, "currentTest", "multi2");
+  it.skip('should handle multiple source directories (Skipped due to hang)', async () => {
+    const sourceDir1 = join(TEST_DISCOVERY_DIR, 'currentTest', 'multi1');
+    const sourceDir2 = join(TEST_DISCOVERY_DIR, 'currentTest', 'multi2');
     mkdirSync(sourceDir1);
     mkdirSync(sourceDir2);
 
-    writeFileSync(join(sourceDir1, "img_a.gif"), "dummy content");
-    writeFileSync(join(sourceDir2, "vid_b.avi"), "dummy content");
-    writeFileSync(join(sourceDir1, "config.yml"), "dummy content");
+    writeFileSync(join(sourceDir1, 'img_a.gif'), 'dummy content');
+    writeFileSync(join(sourceDir2, 'vid_b.avi'), 'dummy content');
+    writeFileSync(join(sourceDir1, 'config.yml'), 'dummy content');
 
     const resultMap = await discoverFilesFn(
       [sourceDir1, sourceDir2],
       2,
-      mockReporter
+      mockReporter,
     ); // Add concurrency arg
 
     // Extract all file paths from the map
     const filePaths = Array.from(resultMap.values()).flat();
     expect(filePaths).toHaveLength(2);
-    expect(filePaths).toContain(join(sourceDir1, "img_a.gif"));
-    expect(filePaths).toContain(join(sourceDir2, "vid_b.avi"));
-    expect(filePaths).not.toContain(join(sourceDir1, "config.yml"));
+    expect(filePaths).toContain(join(sourceDir1, 'img_a.gif'));
+    expect(filePaths).toContain(join(sourceDir2, 'vid_b.avi'));
+    expect(filePaths).not.toContain(join(sourceDir1, 'config.yml'));
   });
 
-  it.skip("should handle source paths being individual files (Skipped due to hang)", async () => {
-    const sourceDir = join(TEST_DISCOVERY_DIR, "currentTest", "files");
+  it.skip('should handle source paths being individual files (Skipped due to hang)', async () => {
+    const sourceDir = join(TEST_DISCOVERY_DIR, 'currentTest', 'files');
     mkdirSync(sourceDir);
-    const file1Path = join(sourceDir, "image_direct.jpg");
-    const file2Path = join(sourceDir, "video_direct.mp4");
-    const nonMediaPath = join(sourceDir, "script.js");
-    writeFileSync(file1Path, "dummy");
-    writeFileSync(file2Path, "dummy");
-    writeFileSync(nonMediaPath, "dummy");
+    const file1Path = join(sourceDir, 'image_direct.jpg');
+    const file2Path = join(sourceDir, 'video_direct.mp4');
+    const nonMediaPath = join(sourceDir, 'script.js');
+    writeFileSync(file1Path, 'dummy');
+    writeFileSync(file2Path, 'dummy');
+    writeFileSync(nonMediaPath, 'dummy');
 
     const resultMap = await discoverFilesFn(
       [file1Path, file2Path, nonMediaPath],
       2,
-      mockReporter
+      mockReporter,
     ); // Add concurrency arg
 
     // Extract all file paths from the map
@@ -143,21 +143,21 @@ describe("discoverFiles Integration Tests", () => {
     expect(filePaths).not.toContain(nonMediaPath);
   });
 
-  it.skip("should handle mixed sources (directories and files) (Skipped due to hang)", async () => {
-    const sourceDir = join(TEST_DISCOVERY_DIR, "currentTest", "mixed");
-    const subDir = join(sourceDir, "subdir");
+  it.skip('should handle mixed sources (directories and files) (Skipped due to hang)', async () => {
+    const sourceDir = join(TEST_DISCOVERY_DIR, 'currentTest', 'mixed');
+    const subDir = join(sourceDir, 'subdir');
     mkdirSync(sourceDir);
     mkdirSync(subDir);
-    const file1Path = join(sourceDir, "direct_img.png");
-    const file2Path = join(subDir, "nested_vid.mkv");
-    writeFileSync(file1Path, "dummy");
-    writeFileSync(file2Path, "dummy");
-    writeFileSync(join(sourceDir, "another.txt"), "dummy");
+    const file1Path = join(sourceDir, 'direct_img.png');
+    const file2Path = join(subDir, 'nested_vid.mkv');
+    writeFileSync(file1Path, 'dummy');
+    writeFileSync(file2Path, 'dummy');
+    writeFileSync(join(sourceDir, 'another.txt'), 'dummy');
 
     const resultMap = await discoverFilesFn(
       [sourceDir, file1Path],
       2,
-      mockReporter
+      mockReporter,
     ); // Add concurrency arg
 
     // Extract all file paths from the map
@@ -168,14 +168,14 @@ describe("discoverFiles Integration Tests", () => {
     expect(uniquePaths.size).toBe(2);
     expect(uniquePaths).toContain(file1Path);
     expect(uniquePaths).toContain(file2Path);
-    expect(uniquePaths).not.toContain(join(sourceDir, "another.txt"));
+    expect(uniquePaths).not.toContain(join(sourceDir, 'another.txt'));
   });
 
-  it.skip("should return an empty array if no media files are found (Skipped due to hang)", async () => {
-    const sourceDir = join(TEST_DISCOVERY_DIR, "currentTest", "empty");
+  it.skip('should return an empty array if no media files are found (Skipped due to hang)', async () => {
+    const sourceDir = join(TEST_DISCOVERY_DIR, 'currentTest', 'empty');
     mkdirSync(sourceDir);
-    writeFileSync(join(sourceDir, "readme.txt"), "dummy content");
-    writeFileSync(join(sourceDir, "config.json"), "dummy content");
+    writeFileSync(join(sourceDir, 'readme.txt'), 'dummy content');
+    writeFileSync(join(sourceDir, 'config.json'), 'dummy content');
 
     const resultMap = await discoverFilesFn([sourceDir], 2, mockReporter); // Add concurrency arg
 
@@ -184,11 +184,11 @@ describe("discoverFiles Integration Tests", () => {
     expect(filePaths).toHaveLength(0);
   });
 
-  it.skip("should return an empty array for non-existent source directories (Skipped due to hang)", async () => {
+  it.skip('should return an empty array for non-existent source directories (Skipped due to hang)', async () => {
     const nonExistentDir = join(
       TEST_DISCOVERY_DIR,
-      "currentTest",
-      "nonexistent"
+      'currentTest',
+      'nonexistent',
     );
     const resultMap = await discoverFilesFn([nonExistentDir], 2, mockReporter); // Add concurrency arg
 

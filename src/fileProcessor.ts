@@ -4,14 +4,14 @@ import {
   FileStats,
   Metadata,
   MediaInfo,
-} from "./types"; // Removed unused FileStatsConfig, AdaptiveExtractionConfig
-import { LmdbCache } from "./caching/LmdbCache";
-import { ExifTool } from "exiftool-vendored";
-import { WorkerPool } from "./contexts/types";
-import { processFileStats } from "./jobs/fileStats"; // Returns AppResult<FileStats>
-import { processMetadata } from "./jobs/metadataExtraction"; // Returns AppResult<Metadata>
-import { processAdaptiveExtraction } from "./jobs/adaptiveExtraction"; // Returns AppResult<MediaInfo>
-import { AppResult, ok, err } from "./errors"; // Removed unused AnyAppError
+} from './types'; // Removed unused FileStatsConfig, AdaptiveExtractionConfig
+import { LmdbCache } from './caching/LmdbCache';
+import { ExifTool } from 'exiftool-vendored';
+import { WorkerPool } from './contexts/types';
+import { processFileStats } from './jobs/fileStats'; // Returns AppResult<FileStats>
+import { processMetadata } from './jobs/metadataExtraction'; // Returns AppResult<Metadata>
+import { processAdaptiveExtraction } from './jobs/adaptiveExtraction'; // Returns AppResult<MediaInfo>
+import { AppResult, ok, err } from './errors'; // Removed unused AnyAppError
 
 // FileProcessorConfig interface moved to src/types.ts
 
@@ -31,7 +31,7 @@ export async function processSingleFile(
   config: FileProcessorConfig,
   cache: LmdbCache,
   exifTool: ExifTool,
-  workerPool: WorkerPool
+  workerPool: WorkerPool,
 ): Promise<AppResult<FileInfo>> {
   // Update return type
   // Run processing steps concurrently, now expecting AppResult from each
@@ -43,7 +43,7 @@ export async function processSingleFile(
       config.adaptiveExtraction,
       config.fileStats,
       cache,
-      workerPool
+      workerPool,
     ),
   ]);
 
@@ -55,21 +55,21 @@ export async function processSingleFile(
   if (fileStatsResult.isErr()) {
     console.error(
       `Failed to get file stats for ${filePath}:`,
-      fileStatsResult.error
+      fileStatsResult.error,
     );
     return err(fileStatsResult.error); // Propagate the specific error
   }
   if (metadataResult.isErr()) {
     console.error(
       `Failed to get metadata for ${filePath}:`,
-      metadataResult.error
+      metadataResult.error,
     );
     return err(metadataResult.error);
   }
   if (mediaResult.isErr()) {
     console.error(
       `Failed adaptive extraction for ${filePath}:`,
-      mediaResult.error
+      mediaResult.error,
     );
     return err(mediaResult.error);
   }

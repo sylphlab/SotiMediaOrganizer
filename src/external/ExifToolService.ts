@@ -1,5 +1,5 @@
-import { ExifTool, Tags } from "exiftool-vendored";
-import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Removed unused ok, err
+import { ExifTool, Tags } from 'exiftool-vendored';
+import { AppResult, ExternalToolError, safeTryAsync } from '../errors'; // Removed unused ok, err
 
 /**
  * Reads Exif tags from a file using the provided ExifTool instance.
@@ -11,7 +11,7 @@ import { AppResult, ExternalToolError, safeTryAsync } from "../errors"; // Remov
  */
 export async function readExifTags(
   filePath: string,
-  exifTool: ExifTool
+  exifTool: ExifTool,
 ): Promise<AppResult<Tags>> {
   // Use safeTryAsync to wrap the potentially throwing exifTool.read call
   return safeTryAsync(
@@ -21,9 +21,9 @@ export async function readExifTags(
         `Failed to read Exif tags for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
         {
           cause: error instanceof Error ? error : undefined,
-          context: { tool: "exiftool" },
-        }
-      )
+          context: { tool: 'exiftool' },
+        },
+      ),
   );
 }
 

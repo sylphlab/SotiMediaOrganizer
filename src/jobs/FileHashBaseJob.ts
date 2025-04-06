@@ -1,11 +1,11 @@
 // import { injectable, inject } from "inversify"; // REMOVED INVERSIFY
-import { LmdbCache } from "../caching/LmdbCache"; // Import LmdbCache for constructor
+import { LmdbCache } from '../caching/LmdbCache'; // Import LmdbCache for constructor
 // Removed unused import: sharedArrayBufferToHex
-import { BaseFileInfoJob } from "./BaseFileInfoJob";
+import { BaseFileInfoJob } from './BaseFileInfoJob';
 // import { FileStatsJob } from "./FileStatsJob"; // Removed old class import
-import { getFileStatsHashKey } from "./fileStats"; // Import new function (returns AppResult)
+import { getFileStatsHashKey } from './fileStats'; // Import new function (returns AppResult)
 // Removed unused import: AppResult
-import { FileStatsConfig } from "../types"; // Need config type
+import { FileStatsConfig } from '../types'; // Need config type
 // Removed unused import: LmdbCache
 
 // @injectable() // REMOVED INVERSIFY
@@ -28,12 +28,12 @@ export abstract class FileHashBaseJob<
     const hashKeyResult = await getFileStatsHashKey(
       filePath,
       this.fileStatsConfig,
-      this.cache
+      this.cache,
     );
     if (hashKeyResult.isErr()) {
       // Throw an error to maintain previous behavior if hash key fails
       throw new Error(
-        `Failed to get hash key for ${filePath}: ${hashKeyResult.error.message}`
+        `Failed to get hash key for ${filePath}: ${hashKeyResult.error.message}`,
       );
     }
     return hashKeyResult.value; // Return unwrapped value

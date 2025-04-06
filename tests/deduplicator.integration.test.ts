@@ -1,10 +1,10 @@
-import { deduplicateFilesFn } from "../src/deduplicator";
-import { MediaComparator } from "../MediaComparator";
+import { deduplicateFilesFn } from '../src/deduplicator';
+import { MediaComparator } from '../MediaComparator';
 import {
   MetadataDBService,
   FileInfoRow,
-} from "../src/services/MetadataDBService";
-import { CliReporter } from "../src/reporting/CliReporter";
+} from '../src/services/MetadataDBService';
+import { CliReporter } from '../src/reporting/CliReporter';
 // Consolidate imports from ../src/types
 import {
   // Removed unused DeduplicationResult, FileType
@@ -12,10 +12,10 @@ import {
   FileProcessorConfig,
   FileInfo,
   SimilarityConfig,
-} from "../src/types";
-import { LmdbCache } from "../src/caching/LmdbCache";
-import { ExifTool } from "exiftool-vendored";
-import { WorkerPool } from "../src/contexts/types";
+} from '../src/types';
+import { LmdbCache } from '../src/caching/LmdbCache';
+import { ExifTool } from 'exiftool-vendored';
+import { WorkerPool } from '../src/contexts/types';
 
 import {
   describe,
@@ -26,12 +26,12 @@ import {
   beforeEach,
   afterEach,
   vi, // Import vi from vitest instead of jest
-} from "vitest"; // Use vitest imports
+} from 'vitest'; // Use vitest imports
 
-import { err, DatabaseError } from "../src/errors"; // Removed unused AppResult, ok
-import { rmSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
-import { bufferToSharedArrayBuffer } from "../src/utils"; // Import buffer utility
+import { err, DatabaseError } from '../src/errors'; // Removed unused AppResult, ok
+import { rmSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { bufferToSharedArrayBuffer } from '../src/utils'; // Import buffer utility
 
 // --- Mocking Dependencies ---
 // Mock CliReporter
@@ -50,8 +50,8 @@ class MockCliReporter extends CliReporter {
 }
 
 // --- Test Setup ---
-const TEST_DEDUP_DB_DIR = ".test-dedup-db";
-const TEST_DEDUP_SQLITE_PATH = join(TEST_DEDUP_DB_DIR, "dedup-meta.sqlite");
+const TEST_DEDUP_DB_DIR = '.test-dedup-db';
+const TEST_DEDUP_SQLITE_PATH = join(TEST_DEDUP_DB_DIR, 'dedup-meta.sqlite');
 
 // Helper to create sample FileInfoRow data
 function createSampleRow(
@@ -60,7 +60,7 @@ function createSampleRow(
   size: number = 1024,
   duration: number | null = null, // null for images
   width: number = 800,
-  height: number = 600
+  height: number = 600,
 ): FileInfoRow {
   const lshKeys = generateLshKeysHelper(pHashHex); // Use helper defined below
   return {
@@ -104,7 +104,7 @@ async function populateDb(dbService: MetadataDBService, rows: FileInfoRow[]) {
   // This is a bit awkward, ideally dbService would have an upsertRow method
   for (const row of rows) {
     const pHashBuffer = row.pHash
-      ? bufferToSharedArrayBuffer(Buffer.from(row.pHash, "hex"))
+      ? bufferToSharedArrayBuffer(Buffer.from(row.pHash, 'hex'))
       : undefined;
     const fileInfo: Partial<FileInfo> = {
       // Construct just enough FileInfo
@@ -127,14 +127,14 @@ async function populateDb(dbService: MetadataDBService, rows: FileInfoRow[]) {
     const result = dbService.upsertFileInfo(row.filePath, fileInfo as FileInfo);
     if (result.isErr()) {
       throw new Error(
-        `Failed to populate DB for ${row.filePath}: ${result.error.message}`
+        `Failed to populate DB for ${row.filePath}: ${result.error.message}`,
       );
     }
   }
 }
 
 // Skip this entire suite when running in Bun due to better-sqlite3 native module issues
-describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
+describe.skip('deduplicateFilesFn Integration Tests (Skipped in Bun)', () => {
   let dbService: MetadataDBService;
   let reporter: MockCliReporter;
   let comparator: MediaComparator;
@@ -155,7 +155,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       concurrency: 1,
       move: false,
       resolution: 64,
-      format: "",
+      format: '',
       windowSize: 5,
       stepSize: 1,
       maxChunkSize: 1,
@@ -186,7 +186,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     if (existsSync(TEST_DEDUP_SQLITE_PATH)) {
       rmSync(TEST_DEDUP_SQLITE_PATH);
     }
-    dbService = new MetadataDBService(TEST_DEDUP_DB_DIR, "dedup-meta.sqlite");
+    dbService = new MetadataDBService(TEST_DEDUP_DB_DIR, 'dedup-meta.sqlite');
 
     reporter = new MockCliReporter();
     similarityConfig = {
@@ -216,7 +216,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       mockExifToolInstance, // Use mock exiftool
       similarityConfig, // Use the test's similarity config
       programOptions, // Use the mock program options
-      mockWorkerPoolInstance // Use mock worker pool
+      mockWorkerPoolInstance, // Use mock worker pool
     );
 
     vi.clearAllMocks(); // Use vi.clearAllMocks()
@@ -226,12 +226,12 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     await dbService.close();
   });
 
-  it("should identify exact duplicates based on pHash", async () => {
-    const pHashExact = "1111111111111111";
+  it('should identify exact duplicates based on pHash', async () => {
+    const pHashExact = '1111111111111111';
     const rows = [
-      createSampleRow("exact1.jpg", pHashExact, 1000), // Keep this one (smaller size)
-      createSampleRow("exact2.jpg", pHashExact, 2000),
-      createSampleRow("unique1.jpg", "2222222222222222"),
+      createSampleRow('exact1.jpg', pHashExact, 1000), // Keep this one (smaller size)
+      createSampleRow('exact2.jpg', pHashExact, 2000),
+      createSampleRow('unique1.jpg', '2222222222222222'),
     ];
     await populateDb(dbService, rows);
     const validFiles = rows.map((r) => r.filePath);
@@ -241,46 +241,46 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter
+      reporter,
     );
 
     expect(result.isOk()).toBe(true);
     const dedupResult = result._unsafeUnwrap();
     expect(dedupResult.uniqueFiles.size).toBe(2);
-    expect(dedupResult.uniqueFiles).toContain("exact1.jpg"); // Best file kept
-    expect(dedupResult.uniqueFiles).toContain("unique1.jpg");
+    expect(dedupResult.uniqueFiles).toContain('exact1.jpg'); // Best file kept
+    expect(dedupResult.uniqueFiles).toContain('unique1.jpg');
     expect(dedupResult.duplicateSets).toHaveLength(1);
-    expect(dedupResult.duplicateSets[0].bestFile).toBe("exact1.jpg");
+    expect(dedupResult.duplicateSets[0].bestFile).toBe('exact1.jpg');
     expect(dedupResult.duplicateSets[0].duplicates.size).toBe(1);
-    expect(dedupResult.duplicateSets[0].duplicates).toContain("exact2.jpg");
+    expect(dedupResult.duplicateSets[0].duplicates).toContain('exact2.jpg');
 
     expect(reporter.startSpinner).toHaveBeenCalledWith(
-      "Deduplicating files..."
+      'Deduplicating files...',
     );
     expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-      expect.stringContaining("Finding exact duplicates")
+      expect.stringContaining('Finding exact duplicates'),
     );
     expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-      expect.stringContaining("1 exact duplicate sets")
+      expect.stringContaining('1 exact duplicate sets'),
     );
     expect(reporter.stopSpinnerSuccess).toHaveBeenCalled();
   });
 
-  it("should identify similar files using LSH and similarity check", async () => {
+  it('should identify similar files using LSH and similarity check', async () => {
     // pHash1 and pHash2 differ slightly but should match via LSH and similarity
-    const pHashSimilar1 = "abcdef1234567890"; // LSH keys: abcd, ef12, 3456, 7890
-    const pHashSimilar2 = "abcdef1234567891"; // LSH keys: abcd, ef12, 3456, 7891 (3/4 match)
+    const pHashSimilar1 = 'abcdef1234567890'; // LSH keys: abcd, ef12, 3456, 7890
+    const pHashSimilar2 = 'abcdef1234567891'; // LSH keys: abcd, ef12, 3456, 7891 (3/4 match)
     const rows = [
-      createSampleRow("similar1.jpg", pHashSimilar1, 1500, null, 1000, 800), // Keep this (higher res)
-      createSampleRow("similar2.jpg", pHashSimilar2, 1000, null, 800, 600),
-      createSampleRow("unique2.png", "3333333333333333"),
+      createSampleRow('similar1.jpg', pHashSimilar1, 1500, null, 1000, 800), // Keep this (higher res)
+      createSampleRow('similar2.jpg', pHashSimilar2, 1000, null, 800, 600),
+      createSampleRow('unique2.png', '3333333333333333'),
     ];
     await populateDb(dbService, rows);
     const validFiles = rows.map((r) => r.filePath);
 
     // Mock similarity calculation to ensure they are considered similar
     const calculateSimilaritySpy = vi // Use vi.spyOn()
-      .spyOn(comparator, "calculateSimilarity")
+      .spyOn(comparator, 'calculateSimilarity')
       .mockReturnValue(0.99); // Force high similarity
 
     const result = await deduplicateFilesFn(
@@ -288,40 +288,40 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter
+      reporter,
     );
 
     expect(result.isOk()).toBe(true);
     const dedupResult = result._unsafeUnwrap();
 
     expect(dedupResult.uniqueFiles.size).toBe(2);
-    expect(dedupResult.uniqueFiles).toContain("similar1.jpg"); // Best file kept
-    expect(dedupResult.uniqueFiles).toContain("unique2.png");
+    expect(dedupResult.uniqueFiles).toContain('similar1.jpg'); // Best file kept
+    expect(dedupResult.uniqueFiles).toContain('unique2.png');
     expect(dedupResult.duplicateSets).toHaveLength(1);
-    expect(dedupResult.duplicateSets[0].bestFile).toBe("similar1.jpg");
+    expect(dedupResult.duplicateSets[0].bestFile).toBe('similar1.jpg');
     expect(dedupResult.duplicateSets[0].duplicates.size).toBe(1);
-    expect(dedupResult.duplicateSets[0].duplicates).toContain("similar2.jpg");
+    expect(dedupResult.duplicateSets[0].duplicates).toContain('similar2.jpg');
 
     expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-      expect.stringContaining("Finding similar files using LSH")
+      expect.stringContaining('Finding similar files using LSH'),
     );
     expect(calculateSimilaritySpy).toHaveBeenCalled(); // Check that similarity was calculated
 
-    it("should treat file as unique if LSH candidates do not meet similarity threshold", async () => {
+    it('should treat file as unique if LSH candidates do not meet similarity threshold', async () => {
       // pHash1 and pHash2 differ slightly but should match via LSH
-      const pHashSimilar1 = "abcdef1234567890"; // LSH keys: abcd, ef12, 3456, 7890
-      const pHashSimilar2 = "abcdef1234567891"; // LSH keys: abcd, ef12, 3456, 7891 (3/4 match)
+      const pHashSimilar1 = 'abcdef1234567890'; // LSH keys: abcd, ef12, 3456, 7890
+      const pHashSimilar2 = 'abcdef1234567891'; // LSH keys: abcd, ef12, 3456, 7891 (3/4 match)
       const rows = [
-        createSampleRow("target.jpg", pHashSimilar1),
-        createSampleRow("candidate_low_similarity.jpg", pHashSimilar2),
-        createSampleRow("unique_other.png", "5555555555555555"),
+        createSampleRow('target.jpg', pHashSimilar1),
+        createSampleRow('candidate_low_similarity.jpg', pHashSimilar2),
+        createSampleRow('unique_other.png', '5555555555555555'),
       ];
       await populateDb(dbService, rows);
       const validFiles = rows.map((r) => r.filePath);
 
       // Mock similarity calculation to return a value BELOW the threshold
       const calculateSimilaritySpy = vi // Use vi.spyOn()
-        .spyOn(comparator, "calculateSimilarity")
+        .spyOn(comparator, 'calculateSimilarity')
         .mockReturnValue(0.9); // Below threshold (e.g., 0.98)
 
       const result = await deduplicateFilesFn(
@@ -329,7 +329,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
         comparator,
         dbService,
         similarityConfig,
-        reporter
+        reporter,
       );
 
       expect(result.isOk()).toBe(true);
@@ -337,13 +337,13 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
 
       // All files should be unique in this case
       expect(dedupResult.uniqueFiles.size).toBe(3);
-      expect(dedupResult.uniqueFiles).toContain("target.jpg");
-      expect(dedupResult.uniqueFiles).toContain("candidate_low_similarity.jpg");
-      expect(dedupResult.uniqueFiles).toContain("unique_other.png");
+      expect(dedupResult.uniqueFiles).toContain('target.jpg');
+      expect(dedupResult.uniqueFiles).toContain('candidate_low_similarity.jpg');
+      expect(dedupResult.uniqueFiles).toContain('unique_other.png');
       expect(dedupResult.duplicateSets).toHaveLength(0); // No duplicate sets formed
 
       expect(reporter.updateSpinnerText).toHaveBeenCalledWith(
-        expect.stringContaining("Finding similar files using LSH")
+        expect.stringContaining('Finding similar files using LSH'),
       );
       expect(calculateSimilaritySpy).toHaveBeenCalled(); // Similarity should still be calculated
       expect(reporter.stopSpinnerSuccess).toHaveBeenCalled();
@@ -356,10 +356,10 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
     calculateSimilaritySpy.mockRestore(); // Clean up spy
   });
 
-  it("should handle files with no pHash found in DB", async () => {
+  it('should handle files with no pHash found in DB', async () => {
     const rows = [
-      createSampleRow("no_phash.jpg", null), // No pHash
-      createSampleRow("unique3.tif", "4444444444444444"),
+      createSampleRow('no_phash.jpg', null), // No pHash
+      createSampleRow('unique3.tif', '4444444444444444'),
     ];
     await populateDb(dbService, rows);
     const validFiles = rows.map((r) => r.filePath);
@@ -369,36 +369,36 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       comparator,
       dbService,
       similarityConfig,
-      reporter
+      reporter,
     );
 
     expect(result.isOk()).toBe(true);
     const dedupResult = result._unsafeUnwrap();
     expect(dedupResult.uniqueFiles.size).toBe(2); // Both should be unique
-    expect(dedupResult.uniqueFiles).toContain("no_phash.jpg");
-    expect(dedupResult.uniqueFiles).toContain("unique3.tif");
+    expect(dedupResult.uniqueFiles).toContain('no_phash.jpg');
+    expect(dedupResult.uniqueFiles).toContain('unique3.tif');
     expect(dedupResult.duplicateSets).toHaveLength(0);
 
     expect(reporter.logWarning).toHaveBeenCalledWith(
-      expect.stringContaining("missing pHash")
+      expect.stringContaining('missing pHash'),
     );
     expect(reporter.stopSpinnerSuccess).toHaveBeenCalled();
   });
 
-  it("should return error if initial DB query fails", async () => {
-    const dbError = new DatabaseError("Mock DB read failed");
+  it('should return error if initial DB query fails', async () => {
+    const dbError = new DatabaseError('Mock DB read failed');
     // Mock the specific method expected to be called first
     const getMultipleSpy = vi // Use vi.spyOn()
-      .spyOn(dbService, "getMultipleFileInfo")
+      .spyOn(dbService, 'getMultipleFileInfo')
       .mockImplementation(() => err(dbError)); // Make mock synchronous
 
-    const validFiles = ["file1.jpg"];
+    const validFiles = ['file1.jpg'];
     const result = await deduplicateFilesFn(
       validFiles,
       comparator,
       dbService,
       similarityConfig,
-      reporter
+      reporter,
     );
 
     expect(result.isErr()).toBe(true);
@@ -407,7 +407,7 @@ describe.skip("deduplicateFilesFn Integration Tests (Skipped in Bun)", () => {
       expect(result.error).toBe(dbError);
     }
     expect(reporter.stopSpinnerFailure).toHaveBeenCalledWith(
-      expect.stringContaining(dbError.message)
+      expect.stringContaining(dbError.message),
     );
 
     getMultipleSpy.mockRestore();

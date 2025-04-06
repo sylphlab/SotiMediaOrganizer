@@ -1,4 +1,4 @@
-import { Result, ok as importedOk, err as importedErr } from "neverthrow";
+import { Result, ok as importedOk, err as importedErr } from 'neverthrow';
 
 // Re-export ok and err for consistent usage within the project
 export const ok = importedOk;
@@ -11,7 +11,7 @@ export class AppError extends Error {
 
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: Record<string, unknown> }
+    options?: { cause?: unknown; context?: Record<string, unknown> },
   ) {
     // Pass cause to the super constructor if provided
     super(message, options?.cause ? { cause: options.cause } : undefined);
@@ -33,7 +33,7 @@ export class FileSystemError extends AppError {
     options?: {
       cause?: unknown;
       context?: { path?: string; operation?: string };
-    }
+    },
   ) {
     super(message, options);
   }
@@ -50,7 +50,7 @@ export class ExternalToolError extends AppError {
         exitCode?: number | null;
         stderr?: string;
       };
-    }
+    },
   ) {
     super(message, options);
   }
@@ -62,7 +62,7 @@ export class DatabaseError extends AppError {
     options?: {
       cause?: unknown;
       context?: { operation?: string; key?: string };
-    }
+    },
   ) {
     super(message, options);
   }
@@ -74,7 +74,7 @@ export class HashingError extends AppError {
     options?: {
       cause?: unknown;
       context?: { algorithm?: string; filePath?: string };
-    }
+    },
   ) {
     super(message, options);
   }
@@ -86,7 +86,7 @@ export class ConfigurationError extends AppError {
     options?: {
       cause?: unknown;
       context?: { setting?: string; value?: unknown };
-    }
+    },
   ) {
     super(message, options);
   }
@@ -95,7 +95,7 @@ export class ConfigurationError extends AppError {
 export class ValidationError extends AppError {
   constructor(
     message: string,
-    options?: { cause?: unknown; context?: { validationDetails?: unknown } }
+    options?: { cause?: unknown; context?: { validationDetails?: unknown } },
   ) {
     super(message, options);
   }
@@ -105,7 +105,7 @@ export class UnknownError extends AppError {
   constructor(cause: unknown) {
     // Accept cause directly
     const message =
-      cause instanceof Error ? cause.message : "An unknown error occurred";
+      cause instanceof Error ? cause.message : 'An unknown error occurred';
     // Pass cause to super constructor
     super(message, { cause });
   }
@@ -128,14 +128,14 @@ export type AppResult<T> = Result<T, AnyAppError>;
 // Helper function to wrap potentially throwing operations
 export function safeTry<T>(
   fn: () => T,
-  errorContext?: string | ((err: unknown) => AnyAppError)
+  errorContext?: string | ((err: unknown) => AnyAppError),
 ): AppResult<T> {
   try {
     return ok(fn());
   } catch (caughtError) {
     // Renamed variable
     let appError: AnyAppError;
-    if (typeof errorContext === "function") {
+    if (typeof errorContext === 'function') {
       appError = errorContext(caughtError); // Use renamed variable
     } else {
       const message = errorContext
@@ -150,7 +150,7 @@ export function safeTry<T>(
 // Helper for async operations
 export async function safeTryAsync<T>(
   promise: Promise<T>,
-  errorContext?: string | ((err: unknown) => AnyAppError)
+  errorContext?: string | ((err: unknown) => AnyAppError),
 ): Promise<AppResult<T>> {
   try {
     const value = await promise;
@@ -158,7 +158,7 @@ export async function safeTryAsync<T>(
   } catch (caughtError) {
     // Rename the caught error variable
     let appError: AnyAppError;
-    if (typeof errorContext === "function") {
+    if (typeof errorContext === 'function') {
       appError = errorContext(caughtError); // Use the renamed variable
     } else {
       const message = errorContext
@@ -167,14 +167,14 @@ export async function safeTryAsync<T>(
       // Attempt to create a more specific error if possible, otherwise use base AppError
       if (
         caughtError instanceof Error &&
-        caughtError.message.includes("ENOENT")
+        caughtError.message.includes('ENOENT')
       ) {
         // Use the renamed variable
         // Example: File not found
         // Pass caughtError as cause to FileSystemError
         appError = new FileSystemError(message, {
           cause: caughtError,
-          context: { operation: "async operation" },
+          context: { operation: 'async operation' },
         });
       } else {
         appError = new AppError(message, { cause: caughtError }); // Pass caughtError as cause

@@ -1,34 +1,34 @@
 // docs/.vitepress/config.js
-import { defineConfig } from "vitepress";
+import { defineConfig } from 'vitepress';
 
 export default defineConfig({
-  lang: "en-US",
-  title: "MediaCurator",
+  lang: 'en-US',
+  title: 'MediaCurator',
   description:
-    "Intelligently curate, organize, and deduplicate your digital photo and video collection.",
+    'Intelligently curate, organize, and deduplicate your digital photo and video collection.',
   lastUpdated: true,
 
   themeConfig: {
     nav: [
-      { text: "Home", link: "/" },
-      { text: "Guide", link: "/guide/" },
+      { text: 'Home', link: '/' },
+      { text: 'Guide', link: '/guide/' },
       // { text: 'API Reference', link: '/api/' } // Add later when API docs are generated
     ],
     sidebar: {
-      "/guide/": [
+      '/guide/': [
         {
-          text: "Introduction",
+          text: 'Introduction',
           items: [
-            { text: "What is MediaCurator?", link: "/guide/introduction" },
-            { text: "Installation", link: "/guide/installation" },
-            { text: "Quick Start", link: "/guide/getting-started" },
+            { text: 'What is MediaCurator?', link: '/guide/introduction' },
+            { text: 'Installation', link: '/guide/installation' },
+            { text: 'Quick Start', link: '/guide/getting-started' },
           ],
         },
         {
-          text: "Core Concepts",
+          text: 'Core Concepts',
           items: [
-            { text: "Organization Format", link: "/guide/format-string" },
-            { text: "Deduplication Strategy", link: "/guide/deduplication" },
+            { text: 'Organization Format', link: '/guide/format-string' },
+            { text: 'Deduplication Strategy', link: '/guide/deduplication' },
           ],
         },
         // More sidebar config...
@@ -38,14 +38,14 @@ export default defineConfig({
       // ]
     },
     socialLinks: [
-      { icon: "github", link: "https://github.com/sylphlab/MediaCurator" },
+      { icon: 'github', link: 'https://github.com/sylphlab/MediaCurator' },
     ],
     editLink: {
-      pattern: "https://github.com/sylphlab/MediaCurator/edit/main/docs/:path",
-      text: "Edit this page on GitHub",
+      pattern: 'https://github.com/sylphlab/MediaCurator/edit/main/docs/:path',
+      text: 'Edit this page on GitHub',
     },
     footer: {
-      message: "Released under the MIT License.",
+      message: 'Released under the MIT License.',
       copyright: `Copyright © ${new Date().getFullYear()} Soti.`,
     },
   },

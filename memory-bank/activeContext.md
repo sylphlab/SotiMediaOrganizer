@@ -1,4 +1,4 @@
-<!-- Version: 3.8 | Last Updated: 2025-06-04 | Updated By: Cline -->
+<!-- Version: 3.9 | Last Updated: 2025-06-04 | Updated By: Cline -->
 
 # Active Context
 
@@ -38,5 +38,6 @@
   - **Phase 4 (Task 4.x):** Refined "Performance & Quality" section in `README.md`.
   - **Phase 4 (Task 4.x):** Created initial VitePress documentation structure (`docs/`, `.vitepress/config.js`, `index.md`).
   - **Phase 4 (Task 4.x):** Added basic content framework for initial guide pages (`introduction.md`, `installation.md`, `getting-started.md`, `format-string.md`, `deduplication.md`).
+  - **Configuration Alignment:** Updated `package.json`, `tsconfig.json`, `eslint.config.js`, `.prettierrc.cjs`, `vitest.config.ts`, and `.gitignore` to align with Playbook guidelines.
 
 - **Next Steps:** Phase 4 (Testing & Documentation):\n - **Task 4.1:** Continue implementing tests (add more test cases, cover edge cases, improve coverage for other modules like `comparatorUtils.ts`, integration tests where possible given mocking issues).\n - **Task 4.x:** Continue populating content in the created VitePress documentation pages (`docs/guide/*.md`), refine existing sections in README/ARCHITECTURE, add more examples.\n- **Open Questions/Decisions:**\n - Specific LSH function/parameters and DB indexing strategy for optimal performance? **Decision:** Current LSH (4x16bit bands) implemented; further tuning deferred.\n - How to address persistent mocking issues in `bun test`? **Decision:** Focus on integration tests and higher-level mocking. Skip `better-sqlite3` tests under Bun for now.\n - Need for further Phase 2 optimizations (LSH loop DB fetch, worker refinement, benchmarking)? **Decision:** Postpone until after initial testing/documentation pass.\n - Need for further Phase 3 UI refinements? **Decision:** Postpone until after initial testing/documentation pass.\n - Need for end-to-end testing framework/strategy? **Decision:** Deferred.\n

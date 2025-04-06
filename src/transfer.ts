@@ -1,12 +1,12 @@
-import { GatherFileInfoResult, DeduplicationResult } from "./types";
-import { DebugReporter } from "./reporting/DebugReporter";
-import { FileTransferService } from "./services/FileTransferService";
-import { mkdir, readdir, unlink } from "fs/promises"; // Keep fs/promises for now
-import { join } from "path";
+import { GatherFileInfoResult, DeduplicationResult } from './types';
+import { DebugReporter } from './reporting/DebugReporter';
+import { FileTransferService } from './services/FileTransferService';
+import { mkdir, readdir, unlink } from 'fs/promises'; // Keep fs/promises for now
+import { join } from 'path';
 // Removed chalk import
 // Removed Spinner import
-import { FileSystemError, safeTryAsync } from "./errors"; // Removed unused AppResult, ok, err
-import { CliReporter } from "./reporting/CliReporter"; // Import reporter
+import { FileSystemError, safeTryAsync } from './errors'; // Removed unused AppResult, ok, err
+import { CliReporter } from './reporting/CliReporter'; // Import reporter
 
 /**
  * Orchestrates the final file transfer stage, including debug report generation.
@@ -33,7 +33,7 @@ export async function transferFilesFn(
   shouldMove: boolean,
   debugReporter: DebugReporter, // Pass dependencies
   fileTransferService: FileTransferService,
-  reporter: CliReporter // Add reporter parameter
+  reporter: CliReporter, // Add reporter parameter
 ): Promise<void> {
   // Handle debug report generation first
   if (debugDir) {
@@ -45,9 +45,9 @@ export async function transferFilesFn(
           `Failed to create debug directory ${debugDir}: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { path: debugDir, operation: "mkdir" },
-          }
-        )
+            context: { path: debugDir, operation: 'mkdir' },
+          },
+        ),
     );
 
     if (mkdirResult.isErr()) {
@@ -62,9 +62,9 @@ export async function transferFilesFn(
             `Failed to read debug directory ${debugDir}: ${e instanceof Error ? e.message : String(e)}`,
             {
               cause: e instanceof Error ? e : undefined,
-              context: { path: debugDir, operation: "readdir" },
-            }
-          )
+              context: { path: debugDir, operation: 'readdir' },
+            },
+          ),
       );
 
       if (readDirResult.isOk()) {
@@ -79,9 +79,9 @@ export async function transferFilesFn(
                 `Could not clear file in debug directory: ${filePath}: ${e instanceof Error ? e.message : String(e)}`,
                 {
                   cause: e instanceof Error ? e : undefined,
-                  context: { path: filePath, operation: "unlink" },
-                }
-              )
+                  context: { path: filePath, operation: 'unlink' },
+                },
+              ),
           );
           if (unlinkResult.isErr()) {
             reporter.logWarning(unlinkResult.error.message); // Use reporter
@@ -90,7 +90,7 @@ export async function transferFilesFn(
       } else {
         reporter.logWarning(
           // Use reporter
-          `Could not read debug directory ${debugDir} to clear files: ${readDirResult.error.message}`
+          `Could not read debug directory ${debugDir} to clear files: ${readDirResult.error.message}`,
         );
       }
     }
@@ -101,28 +101,28 @@ export async function transferFilesFn(
       try {
         await debugReporter.generateHtmlReports(
           deduplicationResult.duplicateSets,
-          debugDir
+          debugDir,
         );
         reporter.logWarning(
           // Use reporter (warning level seems appropriate)
-          `\nDebug mode: Duplicate set reports have been saved to ${debugDir}`
+          `\nDebug mode: Duplicate set reports have been saved to ${debugDir}`,
         );
       } catch (reportError) {
         reporter.logError(
           // Use reporter
           `Failed to generate debug reports in ${debugDir}:`,
-          reportError instanceof Error ? reportError : undefined
+          reportError instanceof Error ? reportError : undefined,
         );
         // Continue without reports
       }
     } else if (debugDir) {
-      reporter.logWarning("\nDebug mode: No duplicate sets found"); // Use reporter
+      reporter.logWarning('\nDebug mode: No duplicate sets found'); // Use reporter
     }
   }
 
   // Delegate actual file transfers to the service
   // TODO: Abstract progress reporting later
-  reporter.startSpinner("Transferring files..."); // Use reporter
+  reporter.startSpinner('Transferring files...'); // Use reporter
 
   // Check if there are any files to transfer at all
   const hasUniqueFiles = deduplicationResult.uniqueFiles.size > 0;
@@ -138,7 +138,7 @@ export async function transferFilesFn(
 
   if (!needsTransfer) {
     reporter.stopSpinnerSuccess(
-      "File transfer completed (No files needed transferring)."
+      'File transfer completed (No files needed transferring).',
     );
     return; // Nothing to transfer
   }
@@ -153,17 +153,17 @@ export async function transferFilesFn(
       duplicateDir,
       errorDir,
       format,
-      shouldMove
+      shouldMove,
     );
     reporter.stopSpinnerSuccess(
       // Use reporter
-      `File transfer completed.` // Simplified message
+      `File transfer completed.`, // Simplified message
     );
   } catch (transferError) {
     // Workaround for spinner type issue: stop and log error manually
     reporter.stopSpinnerFailure(
       // Use reporter
-      `File transfer failed: ${transferError instanceof Error ? transferError.message : String(transferError)}` // Ensure message is string
+      `File transfer failed: ${transferError instanceof Error ? transferError.message : String(transferError)}`, // Ensure message is string
     );
     throw transferError; // Rethrow after stopping spinner and logging
   }

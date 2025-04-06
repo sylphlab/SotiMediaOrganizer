@@ -1,16 +1,16 @@
-import { gatherFileInfoFn } from "../src/gatherer";
-import { LmdbCache } from "../src/caching/LmdbCache";
-import { MetadataDBService } from "../src/services/MetadataDBService";
-import { CliReporter } from "../src/reporting/CliReporter";
-import { processSingleFile } from "../src/fileProcessor"; // Import to mock
-import { ExifTool } from "exiftool-vendored";
-import { WorkerPool } from "../src/contexts/types";
-import { FileProcessorConfig, FileInfo } from "../src/types"; // Removed unused FileType
-import { ok, err, FileSystemError, DatabaseError } from "../src/errors"; // Removed unused AppResult, AppError
-import { bufferToSharedArrayBuffer } from "../src/utils"; // Import buffer utility
+import { gatherFileInfoFn } from '../src/gatherer';
+import { LmdbCache } from '../src/caching/LmdbCache';
+import { MetadataDBService } from '../src/services/MetadataDBService';
+import { CliReporter } from '../src/reporting/CliReporter';
+import { processSingleFile } from '../src/fileProcessor'; // Import to mock
+import { ExifTool } from 'exiftool-vendored';
+import { WorkerPool } from '../src/contexts/types';
+import { FileProcessorConfig, FileInfo } from '../src/types'; // Removed unused FileType
+import { ok, err, FileSystemError, DatabaseError } from '../src/errors'; // Removed unused AppResult, AppError
+import { bufferToSharedArrayBuffer } from '../src/utils'; // Import buffer utility
 
-import { rmSync, existsSync, mkdirSync } from "fs";
-import { join } from "path";
+import { rmSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 import {
   describe,
@@ -21,11 +21,11 @@ import {
   beforeEach,
   afterEach,
   vi, // Import vi from vitest instead of jest
-} from "vitest"; // Use vitest imports
+} from 'vitest'; // Use vitest imports
 
 // --- Mocking Dependencies ---
 // Mock processSingleFile using vi.mock
-vi.mock("../src/fileProcessor");
+vi.mock('../src/fileProcessor');
 const mockProcessSingleFile = processSingleFile as MockedFunction<
   typeof processSingleFile
 >; // Use MockedFunction directly
@@ -60,22 +60,22 @@ const mockWorkerPool = {
 // --- End Mocking ---
 
 // --- Test Setup ---
-const TEST_GATHERER_DB_DIR = ".test-gatherer-db";
+const TEST_GATHERER_DB_DIR = '.test-gatherer-db';
 const TEST_GATHERER_CACHE_PATH = join(
   TEST_GATHERER_DB_DIR,
-  "gatherer-cache.lmdb"
+  'gatherer-cache.lmdb',
 );
 const TEST_GATHERER_SQLITE_PATH = join(
   TEST_GATHERER_DB_DIR,
-  "gatherer-meta.sqlite"
+  'gatherer-meta.sqlite',
 );
 
 // Sample FileInfo for mocking success - Structure based on src/types.ts
-const sampleContentHash = Buffer.from("contenthash12345").toString("hex");
-const samplePHash = Buffer.from("phas1234phas5678").toString("hex"); // 64-bit / 16 hex chars
+const sampleContentHash = Buffer.from('contenthash12345').toString('hex');
+const samplePHash = Buffer.from('phas1234phas5678').toString('hex'); // 64-bit / 16 hex chars
 const sampleFileInfo: FileInfo = {
   fileStats: {
-    hash: bufferToSharedArrayBuffer(Buffer.from(sampleContentHash, "hex")),
+    hash: bufferToSharedArrayBuffer(Buffer.from(sampleContentHash, 'hex')),
     size: 1024,
     createdAt: new Date(),
     modifiedAt: new Date(),
@@ -84,7 +84,7 @@ const sampleFileInfo: FileInfo = {
     width: 800,
     height: 600,
     imageDate: new Date(),
-    cameraModel: "TestCam",
+    cameraModel: 'TestCam',
     gpsLatitude: 10.0,
     gpsLongitude: 20.0,
   },
@@ -92,7 +92,7 @@ const sampleFileInfo: FileInfo = {
     duration: 0, // 0 for images
     frames: [
       {
-        hash: bufferToSharedArrayBuffer(Buffer.from(samplePHash, "hex")),
+        hash: bufferToSharedArrayBuffer(Buffer.from(samplePHash, 'hex')),
         timestamp: 0,
       },
     ],
@@ -102,7 +102,7 @@ const sampleFileInfo: FileInfo = {
 };
 
 // Skip this entire suite when running in Bun due to better-sqlite3 native module issues
-describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
+describe.skip('gatherFileInfoFn Integration Tests (Skipped in Bun)', () => {
   let cache: LmdbCache;
   let dbService: MetadataDBService;
   let reporter: MockCliReporter;
@@ -115,7 +115,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     }
     // Create real cache and DB instances for testing
     const cacheResult = await LmdbCache.create(TEST_GATHERER_CACHE_PATH);
-    if (cacheResult.isErr()) throw new Error("Failed to create test cache");
+    if (cacheResult.isErr()) throw new Error('Failed to create test cache');
     cache = cacheResult.value;
     // DB is created in beforeEach now
   });
@@ -154,7 +154,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     // Use constructor directly
     dbService = new MetadataDBService(
       TEST_GATHERER_DB_DIR,
-      "gatherer-meta.sqlite"
+      'gatherer-meta.sqlite',
     );
     // LMDB cache is reused across tests in this suite, assuming keys are unique enough or overwrite is ok.
 
@@ -175,16 +175,16 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     };
   });
 
-  it("should process files successfully and store results in DB", async () => {
+  it('should process files successfully and store results in DB', async () => {
     const files = new Map<string, string[]>([
-      ["jpg", ["path/image1.jpg", "path/image2.jpg"]],
-      ["mp4", ["path/video1.mp4"]],
+      ['jpg', ['path/image1.jpg', 'path/image2.jpg']],
+      ['mp4', ['path/video1.mp4']],
     ]);
     const totalFiles = 3;
 
     // Mock processSingleFile to always succeed
     mockProcessSingleFile.mockImplementation(
-      async (filePath) => ok({ ...sampleFileInfo, path: filePath }) // Return unique path in FileInfo
+      async (filePath) => ok({ ...sampleFileInfo, path: filePath }), // Return unique path in FileInfo
     );
 
     const result = await gatherFileInfoFn(
@@ -195,36 +195,36 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter
+      reporter,
     );
 
     // Assertions
     expect(result.validFiles).toHaveLength(totalFiles);
     expect(result.errorFiles).toHaveLength(0);
-    expect(result.validFiles).toContain("path/image1.jpg");
-    expect(result.validFiles).toContain("path/image2.jpg");
-    expect(result.validFiles).toContain("path/video1.mp4");
+    expect(result.validFiles).toContain('path/image1.jpg');
+    expect(result.validFiles).toContain('path/image2.jpg');
+    expect(result.validFiles).toContain('path/video1.mp4');
 
     // Check DB content using correct structure and optional chaining
-    const dbCheck1Result = await dbService.getFileInfo("path/image1.jpg");
+    const dbCheck1Result = await dbService.getFileInfo('path/image1.jpg');
     expect(dbCheck1Result.isOk()).toBe(true);
     const dbData1 = dbCheck1Result._unsafeUnwrap();
     expect(dbData1).toBeDefined();
     // Check reconstructed pHash (first frame hash)
     const pHash1 = dbData1?.media?.frames[0]?.hash;
     expect(pHash1).toBeDefined();
-    expect(Buffer.from(pHash1!).toString("hex")).toBe(samplePHash);
+    expect(Buffer.from(pHash1!).toString('hex')).toBe(samplePHash);
     // Check another field like width
     expect(dbData1?.metadata?.width).toBe(sampleFileInfo.metadata.width);
 
-    const dbCheck2Result = await dbService.getFileInfo("path/video1.mp4");
+    const dbCheck2Result = await dbService.getFileInfo('path/video1.mp4');
     expect(dbCheck2Result.isOk()).toBe(true);
     const dbData2 = dbCheck2Result._unsafeUnwrap();
     expect(dbData2).toBeDefined();
     // Check reconstructed content hash
     const contentHash2 = dbData2?.fileStats?.hash;
     expect(contentHash2).toBeDefined();
-    expect(Buffer.from(contentHash2!).toString("hex")).toBe(sampleContentHash);
+    expect(Buffer.from(contentHash2!).toString('hex')).toBe(sampleContentHash);
 
     // Check reporter calls
     expect(reporter.initializeMultiBar).toHaveBeenCalledTimes(1);
@@ -234,18 +234,18 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(reporter.logWarning).not.toHaveBeenCalled();
   });
 
-  it("should handle partial failures during file processing", async () => {
-    const files = new Map<string, string[]>([["png", ["ok.png", "fail.png"]]]);
-    const errorFilePath = "fail.png";
-    const successFilePath = "ok.png";
+  it('should handle partial failures during file processing', async () => {
+    const files = new Map<string, string[]>([['png', ['ok.png', 'fail.png']]]);
+    const errorFilePath = 'fail.png';
+    const successFilePath = 'ok.png';
 
     // Mock processSingleFile: succeed for one, fail for the other
     mockProcessSingleFile.mockImplementation(async (filePath) => {
       if (filePath === errorFilePath) {
         return err(
-          new FileSystemError("Mock processing error", {
+          new FileSystemError('Mock processing error', {
             context: { path: filePath },
-          }) // Use context
+          }), // Use context
         );
       }
       return ok({ ...sampleFileInfo, path: filePath });
@@ -259,7 +259,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter
+      reporter,
     );
 
     // Assertions
@@ -273,7 +273,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(dbCheckOkResult.isOk()).toBe(true);
     expect(dbCheckOkResult._unsafeUnwrap()).toBeDefined(); // Should exist
     expect(dbCheckOkResult._unsafeUnwrap()?.metadata?.width).toBe(
-      sampleFileInfo.metadata.width
+      sampleFileInfo.metadata.width,
     );
 
     const dbCheckFailResult = await dbService.getFileInfo(errorFilePath);
@@ -287,24 +287,24 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(reporter.logError).toHaveBeenCalledTimes(1);
     expect(reporter.logError).toHaveBeenCalledWith(
       expect.stringContaining(`Error processing ${errorFilePath}`), // Check message contains file path
-      expect.any(FileSystemError) // Check error object is passed
+      expect.any(FileSystemError), // Check error object is passed
     );
     expect(reporter.logWarning).not.toHaveBeenCalled();
   });
 
-  it("should handle DB upsert failures gracefully", async () => {
-    const files = new Map<string, string[]>([["mov", ["db_fail.mov"]]]);
-    const filePath = "db_fail.mov";
+  it('should handle DB upsert failures gracefully', async () => {
+    const files = new Map<string, string[]>([['mov', ['db_fail.mov']]]);
+    const filePath = 'db_fail.mov';
 
     // Mock processSingleFile to succeed
     mockProcessSingleFile.mockResolvedValue(
-      ok({ ...sampleFileInfo, path: filePath })
+      ok({ ...sampleFileInfo, path: filePath }),
     );
 
     // Mock dbService.upsertFileInfo to fail
-    const dbError = new DatabaseError("Mock DB upsert failed");
+    const dbError = new DatabaseError('Mock DB upsert failed');
     const upsertSpy = vi // Use vi.spyOn()
-      .spyOn(dbService, "upsertFileInfo")
+      .spyOn(dbService, 'upsertFileInfo')
       .mockReturnValue(err(dbError));
 
     const result = await gatherFileInfoFn(
@@ -315,7 +315,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter
+      reporter,
     );
 
     // Assertions
@@ -338,14 +338,14 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
     expect(reporter.logWarning).toHaveBeenCalledTimes(1);
     expect(reporter.logWarning).toHaveBeenCalledWith(
       expect.stringContaining(
-        `DB upsert failed for ${filePath}: ${dbError.message}`
-      )
+        `DB upsert failed for ${filePath}: ${dbError.message}`,
+      ),
     );
 
     // upsertSpy already restored above
   });
 
-  it("should handle empty input map", async () => {
+  it('should handle empty input map', async () => {
     const files = new Map<string, string[]>();
 
     const result = await gatherFileInfoFn(
@@ -356,7 +356,7 @@ describe.skip("gatherFileInfoFn Integration Tests (Skipped in Bun)", () => {
       mockExifTool,
       mockWorkerPool,
       dbService,
-      reporter
+      reporter,
     );
 
     expect(result.validFiles).toHaveLength(0);

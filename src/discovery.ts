@@ -1,12 +1,12 @@
-import { readdir } from "fs/promises";
-import path from "path";
-import { Semaphore } from "async-mutex";
-import chalk from "chalk"; // Re-add chalk for specific formatting
+import { readdir } from 'fs/promises';
+import path from 'path';
+import { Semaphore } from 'async-mutex';
+import chalk from 'chalk'; // Re-add chalk for specific formatting
 // Removed Spinner import
 // Removed chalk import
-import { ALL_SUPPORTED_EXTENSIONS, getFileTypeByExt } from "./utils"; // Assuming utils is in parent dir
-import { CliReporter } from "./reporting/CliReporter"; // Import reporter
-import { FileSystemError, safeTryAsync } from "./errors"; // Removed unused AppResult, ok, err
+import { ALL_SUPPORTED_EXTENSIONS, getFileTypeByExt } from './utils'; // Assuming utils is in parent dir
+import { CliReporter } from './reporting/CliReporter'; // Import reporter
+import { FileSystemError, safeTryAsync } from './errors'; // Removed unused AppResult, ok, err
 
 /**
  * Discovers supported media files recursively within source directories.
@@ -17,14 +17,14 @@ import { FileSystemError, safeTryAsync } from "./errors"; // Removed unused AppR
 export async function discoverFilesFn(
   sourceDirs: string[],
   concurrency: number = 10,
-  reporter: CliReporter // Add reporter parameter
+  reporter: CliReporter, // Add reporter parameter
 ): Promise<Map<string, string[]>> {
   const allFiles: string[] = [];
   let dirCount = 0;
   let fileCount = 0;
   const semaphore = new Semaphore(concurrency);
   // TODO: Abstract spinner logic later if needed
-  reporter.startSpinner("Discovering files..."); // Use reporter
+  reporter.startSpinner('Discovering files...'); // Use reporter
 
   async function scanDirectory(dirPath: string): Promise<void> {
     dirCount++;
@@ -35,9 +35,9 @@ export async function discoverFilesFn(
           `Error scanning directory ${dirPath}: ${e instanceof Error ? e.message : String(e)}`,
           {
             cause: e instanceof Error ? e : undefined,
-            context: { path: dirPath, operation: "readdir" },
-          }
-        )
+            context: { path: dirPath, operation: 'readdir' },
+          },
+        ),
     );
 
     if (readDirResult.isErr()) {
@@ -45,7 +45,7 @@ export async function discoverFilesFn(
       reporter.logError(readDirResult.error.message);
       // Update spinner text even on error to show progress
       reporter.updateSpinnerText(
-        `Processed ${dirCount} directories, found ${fileCount} files... (Error in ${dirPath})`
+        `Processed ${dirCount} directories, found ${fileCount} files... (Error in ${dirPath})`,
       );
       return; // Stop processing this directory
     }
@@ -59,7 +59,7 @@ export async function discoverFilesFn(
         promises.push(semaphore.runExclusive(() => scanDirectory(entryPath)));
       } else if (
         ALL_SUPPORTED_EXTENSIONS.has(
-          path.extname(entry.name).slice(1).toLowerCase()
+          path.extname(entry.name).slice(1).toLowerCase(),
         )
       ) {
         allFiles.push(entryPath);
@@ -72,17 +72,17 @@ export async function discoverFilesFn(
     } catch (promiseAllError) {
       reporter.logError(
         `Error during concurrent directory scan under ${dirPath}:`,
-        promiseAllError instanceof Error ? promiseAllError : undefined
+        promiseAllError instanceof Error ? promiseAllError : undefined,
       );
     }
     reporter.updateSpinnerText(
-      `Processed ${dirCount} directories, found ${fileCount} files...`
+      `Processed ${dirCount} directories, found ${fileCount} files...`,
     );
   }
 
   // Start scanning all source directories concurrently
   const initialScanPromises = sourceDirs.map((dirPath) =>
-    semaphore.runExclusive(() => scanDirectory(dirPath))
+    semaphore.runExclusive(() => scanDirectory(dirPath)),
   );
   await Promise.all(initialScanPromises);
 
@@ -97,7 +97,7 @@ export async function discoverFilesFn(
 
   // spinner.succeed is called within stopSpinnerSuccess
   reporter.stopSpinnerSuccess(
-    `Discovery completed: Found ${fileCount} files in ${dirCount} directories` // Simplified message, reporter might add timing
+    `Discovery completed: Found ${fileCount} files in ${dirCount} directories`, // Simplified message, reporter might add timing
   );
 
   // Group files by extension
@@ -111,22 +111,22 @@ export async function discoverFilesFn(
   }
 
   // Log statistics (Keep logging here for now, or abstract later)
-  reporter.logInfo("\nFile Format Statistics:"); // Use reporter
+  reporter.logInfo('\nFile Format Statistics:'); // Use reporter
   // Sort formats for consistent logging
   const sortedFormats = Array.from(result.keys()).sort(
     (a, b) =>
       getFileTypeByExt(a).unwrapOr(0) - getFileTypeByExt(b).unwrapOr(0) || // Handle AppResult, default to 0 on error
-      result.get(b)!.length - result.get(a)!.length // Then by count descending
+      result.get(b)!.length - result.get(a)!.length, // Then by count descending
   );
   for (const format of sortedFormats) {
     const count = result.get(format)!.length;
     // Use reporter.logInfo, but keep chalk for specific color if desired
     reporter.logInfo(
-      `${chalk.white(format.padEnd(6))}: ${count.toString().padStart(8)}`
+      `${chalk.white(format.padEnd(6))}: ${count.toString().padStart(8)}`,
     );
   }
   reporter.logSuccess(
-    `${chalk.green("Total".padEnd(6))}: ${fileCount.toString().padStart(8)}`
+    `${chalk.green('Total'.padEnd(6))}: ${fileCount.toString().padStart(8)}`,
   );
 
   return result;

@@ -1,13 +1,13 @@
-import { FileStats, FileStatsConfig } from "../types";
-import { LmdbCache } from "../caching/LmdbCache";
+import { FileStats, FileStatsConfig } from '../types';
+import { LmdbCache } from '../caching/LmdbCache';
 import {
   getFileStats,
   calculateFileHash,
   sharedArrayBufferToHex,
-} from "../utils";
-import { AppResult, ok, err, DatabaseError } from "../errors"; // Removed unused AnyAppError
+} from '../utils';
+import { AppResult, ok, err, DatabaseError } from '../errors'; // Removed unused AnyAppError
 
-const JOB_NAME = "fileStats"; // Define job name constant
+const JOB_NAME = 'fileStats'; // Define job name constant
 
 /**
  * Processes a file to get its stats (size, dates, hash).
@@ -20,7 +20,7 @@ const JOB_NAME = "fileStats"; // Define job name constant
 export async function processFileStats(
   filePath: string,
   config: FileStatsConfig,
-  cache: LmdbCache
+  cache: LmdbCache,
 ): Promise<AppResult<FileStats>> {
   // Update return type
   // Use filePath as cache key for stats (as in original BaseFileInfoJob)
@@ -33,7 +33,7 @@ export async function processFileStats(
     // Log or handle config check error, but proceed to calculate
     console.warn(
       `Cache config check failed for ${filePath}, proceeding with calculation:`,
-      configCheckResult.error
+      configCheckResult.error,
     );
   } else if (configCheckResult.value.isValid) {
     // Config is valid, try getting data
@@ -42,7 +42,7 @@ export async function processFileStats(
       // Log or handle cache get error, but proceed to calculate
       console.warn(
         `Cache get failed for ${filePath}, proceeding with calculation:`,
-        cacheGetResult.error
+        cacheGetResult.error,
       );
     } else if (cacheGetResult.value.hit) {
       // Cache hit and data is valid
@@ -62,7 +62,7 @@ export async function processFileStats(
   const hashResult = await calculateFileHash(
     filePath,
     stats.size,
-    config.maxChunkSize
+    config.maxChunkSize,
   );
   if (hashResult.isErr()) {
     return err(hashResult.error); // Propagate error
@@ -83,7 +83,7 @@ export async function processFileStats(
     // Log cache set error but return the calculated result anyway
     console.warn(
       `Cache set failed for ${filePath}, but returning calculated result:`,
-      setResult.error
+      setResult.error,
     );
   }
 
@@ -100,7 +100,7 @@ export async function processFileStats(
 export async function getFileStatsHashKey(
   filePath: string,
   config: FileStatsConfig,
-  cache: LmdbCache
+  cache: LmdbCache,
 ): Promise<AppResult<string>> {
   // Update return type
   // This function essentially runs processFileStats but only returns the hash key
@@ -122,9 +122,9 @@ export async function getFileStatsHashKey(
         `Failed to convert hash to hex key for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
         {
           cause: error instanceof Error ? error : undefined,
-          context: { operation: "hexConvert" },
-        }
-      )
+          context: { operation: 'hexConvert' },
+        },
+      ),
     );
   }
 }

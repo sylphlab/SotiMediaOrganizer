@@ -1,18 +1,62 @@
 {
   "compilerOptions": {
-    "target": "esnext", // Keep as esnext (newer than ES2022)
-    "lib": ["esnext", "dom"],
-    "typeRoots": ["./node_modules/@types"],
-    "module": "esnext", // Keep as esnext for modern module handling
-    "moduleResolution": "node",
-    "strict": true, // Enable all strict type-checking options
-    "allowSyntheticDefaultImports": true, // Generally useful
+    /* Base Options */
     "esModuleInterop": true, // Recommended for compatibility
+    "skipLibCheck": true,
+    "target": "ES2022",
+    "lib": ["esnext", "dom"], // Keep DOM if frontend interaction might be needed later, otherwise remove
+    "allowJs": false,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+
+    /* Strictness */
+    "strict": true, // Enable all strict type-checking options
+    "noImplicitAny": true, // Part of strict
+    "strictNullChecks": true, // Part of strict
+    "strictFunctionTypes": true, // Part of strict
+    "strictBindCallApply": true, // Part of strict
+    "strictPropertyInitialization": true, // Part of strict
+    "noImplicitThis": true, // Part of strict
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true, // Part of strict
+
+    /* Linter Checks */
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true, // Important for safety
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+
+    /* Module Resolution */
+    "module": "NodeNext", // Use NodeNext for modern Node.js ESM support
+    "moduleResolution": "NodeNext",
+    // "baseUrl": ".", // Optional: for path aliases
+    // "paths": {}, // Optional: configure path aliases
+    "strict": true, // Enable all strict type-checking options
     "forceConsistentCasingInFileNames": true, // Best practice
+
+    /* Emit */
     "outDir": "./dist", // Specify output directory
     "declaration": true, // Generate corresponding '.d.ts' file.
-    "sourceMap": true // Generate corresponding '.map' file.
+    "sourceMap": true, // Generate corresponding '.map' file.
+    "removeComments": false // Keep comments in declaration files
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "index.ts"], // Specify files to include
-  "exclude": ["node_modules", "dist", "build", "assembly"] // Specify files/dirs to exclude
+  "include": ["src/**/*.ts"], // Only include source files
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "assembly",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/*.bench.ts",
+    "tests/**", // Exclude tests directory
+    "docs/**", // Exclude docs directory
+    "*.config.js", // Exclude JS config files
+    "*.config.ts" // Exclude TS config files
+  ]
 }

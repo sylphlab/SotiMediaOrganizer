@@ -5,7 +5,9 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "index.ts",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "type": "module",
   "bin": {
     "media-curator": "./dist/index.js"
@@ -22,7 +24,8 @@
     "check-format": "prettier --check . --cache",
     "lint": "eslint . --ext .ts,.tsx,.js,.cjs --cache",
     "lint:fix": "eslint . --ext .ts,.tsx,.js,.cjs --fix --cache",
-    "validate": "bun run check-format && bun run lint && bun run test",
+    "validate": "bun run check-format && bun run lint && bun run typecheck && bun run test",
+    "typecheck": "tsc --noEmit",
     "asbuild": "asc assembly/index.ts --target debug --outFile build/index.wasm",
     "asbuild:release": "asc assembly/index.ts --target release --outFile build/index.wasm"
   },
@@ -48,7 +51,7 @@
     "@datastructures-js/heap": "^4.3.3",
     "@eslint/js": "^9.9.0",
     "@topcli/spinner": "^2.1.2",
-    "@types/bun": "latest",
+    "@types/bun": "^1.2.8",
     "@types/cli-progress": "^3.11.6",
     "@types/deep-eql": "^4.0.2",
     "assemblyscript": "^0.27.29",
@@ -65,14 +68,20 @@
     "prettier": "^3.3.3",
     "typescript": "^5.5.4",
     "typescript-eslint": "^8.1.0",
-    "vitest": "^3.1.1"
+    "vitest": "^3.1.1",
+    "@commitlint/cli": "^19.3.0",
+    "@commitlint/config-conventional": "^19.2.2"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "engines": {
-    "node": ">=14.0.0",
+    "node": ">=18.0.0",
     "bun": ">=0.5.0"
+  },
+  "homepage": "https://github.com/sylphlab/media-curator#readme",
+  "bugs": {
+    "url": "https://github.com/sylphlab/media-curator/issues"
   },
   "repository": {
     "type": "git",
@@ -98,8 +107,9 @@
   ],
   "exports": {
     ".": {
-      "import": "./build/release.js",
-      "types": "./build/release.d.ts"
-    }
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   }
 }

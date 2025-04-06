@@ -10,14 +10,14 @@ import {
   // MaybePromise, // Removed unused import
   WasmExports,
   FileProcessorConfig, // Added config type
-} from "./src/types";
+} from './src/types';
 // import { MediaProcessor } from "./src/MediaProcessor"; // Removed old import
-import { LmdbCache } from "./src/caching/LmdbCache"; // Added cache import
-import { ExifTool } from "exiftool-vendored"; // Added exiftool import
-import { processSingleFile } from "./src/fileProcessor"; // Added file processor function import
-import { VPNode, VPTree } from "./VPTree";
-import { filterAsync, mapAsync } from "./src/utils";
-import { ok, err, AppResult, AppError } from "./src/errors"; // Removed unused AnyAppError, UnknownError
+import { LmdbCache } from './src/caching/LmdbCache'; // Added cache import
+import { ExifTool } from 'exiftool-vendored'; // Added exiftool import
+import { processSingleFile } from './src/fileProcessor'; // Added file processor function import
+import { VPNode, VPTree } from './VPTree';
+import { filterAsync, mapAsync } from './src/utils';
+import { ok, err, AppResult, AppError } from './src/errors'; // Removed unused AnyAppError, UnknownError
 import {
   calculateImageSimilarity,
   calculateImageVideoSimilarity, // Keep this import
@@ -30,11 +30,11 @@ import {
   // Import the newly moved functions
   calculateVideoSimilarity, // Keep this import
   // getFramesInTimeRange, // Removed unused import
-} from "./src/comparatorUtils"; // Import runDbscanCore, Removed expandCluster
+} from './src/comparatorUtils'; // Import runDbscanCore, Removed expandCluster
 // Removed inversify imports
-import { type WorkerPool } from "./src/contexts/types"; // Removed unused Types import
-import { readFile } from "fs/promises";
-import { join } from "path";
+import { type WorkerPool } from './src/contexts/types'; // Removed unused Types import
+import { readFile } from 'fs/promises';
+import { join } from 'path';
 
 // WasmExports interface moved to src/types.ts
 
@@ -51,16 +51,16 @@ export class MediaComparator {
     private exifTool: ExifTool, // Removed @inject()
     private similarityConfig: SimilarityConfig,
     private options: ProgramOptions,
-    private workerPool: WorkerPool // Removed @inject() - WorkerPool might still be needed for pHash
+    private workerPool: WorkerPool, // Removed @inject() - WorkerPool might still be needed for pHash
   ) {
     this.minThreshold = Math.min(
       this.similarityConfig.imageSimilarityThreshold,
       this.similarityConfig.imageVideoSimilarityThreshold,
-      this.similarityConfig.videoSimilarityThreshold
+      this.similarityConfig.videoSimilarityThreshold,
     );
     // Start WASM initialization, but don't block constructor
     this.wasmInitializationPromise = this.initializeWasm().catch((err) => {
-      console.error("Failed to initialize WASM for Hamming distance:", err);
+      console.error('Failed to initialize WASM for Hamming distance:', err);
       this.wasmExports = null; // Ensure fallback if init fails
     });
   }
@@ -68,7 +68,7 @@ export class MediaComparator {
   private async initializeWasm(): Promise<void> {
     try {
       // Assuming the WASM file is copied to the dist directory during build
-      const wasmPath = join(__dirname, "..", "dist", "index.wasm");
+      const wasmPath = join(__dirname, '..', 'dist', 'index.wasm');
       const wasmBuffer = await readFile(wasmPath);
       const wasmModule = await WebAssembly.instantiate(wasmBuffer, {
         // Add necessary imports if your WASM module requires them
@@ -78,12 +78,12 @@ export class MediaComparator {
             message: number,
             fileName: number,
             lineNumber: number,
-            columnNumber: number
+            columnNumber: number,
           ) => {
             // In a real app, you might want to decode the message/filename pointers
             // using the WASM memory, but for now, just throw an error.
             throw new Error(
-              `WASM aborted: msg=${message} file=${fileName} L${lineNumber} C${columnNumber}`
+              `WASM aborted: msg=${message} file=${fileName} L${lineNumber} C${columnNumber}`,
             );
           },
           // Add other required env functions if any
@@ -92,16 +92,16 @@ export class MediaComparator {
       this.wasmExports = wasmModule.instance.exports as unknown as WasmExports;
 
       // Verify the expected function exists
-      if (typeof this.wasmExports.hammingDistanceSIMD !== "function") {
+      if (typeof this.wasmExports.hammingDistanceSIMD !== 'function') {
         console.warn(
-          "WASM loaded but hammingDistanceSIMD function not found. Falling back to JS."
+          'WASM loaded but hammingDistanceSIMD function not found. Falling back to JS.',
         );
         this.wasmExports = null;
       } else {
         // console.log("WASM Hamming distance function loaded successfully."); // Optional success log
       }
     } catch (err) {
-      console.error("Failed to load or instantiate WASM module:", err);
+      console.error('Failed to load or instantiate WASM module:', err);
       this.wasmExports = null; // Ensure fallback on error
     }
   }
@@ -111,7 +111,7 @@ export class MediaComparator {
   async deduplicateFiles(
     files: string[],
     selector: FileProcessor,
-    progressCallback?: (progress: string) => void
+    progressCallback?: (progress: string) => void,
   ): Promise<AppResult<DeduplicationResult>> {
     // Update return type
     // Ensure WASM is loaded before proceeding with distance calculations if needed
@@ -119,7 +119,7 @@ export class MediaComparator {
       await this.wasmInitializationPromise;
     }
 
-    progressCallback?.("Building VPTree");
+    progressCallback?.('Building VPTree');
     const vpTree = await VPTree.build(files, async (a, b) => {
       // processSingleFile (selector) now returns AppResult<FileInfo>
       const [resultA, resultB] = await Promise.all([
@@ -133,14 +133,14 @@ export class MediaComparator {
       if (resultA.isErr()) {
         console.error(
           `[VPTree Build] Error processing file ${a} for distance calculation, using Infinity distance:`,
-          resultA.error
+          resultA.error,
         );
         return Infinity; // Return max distance on error
       }
       if (resultB.isErr()) {
         console.error(
           `[VPTree Build] Error processing file ${b} for distance calculation, using Infinity distance:`,
-          resultB.error
+          resultB.error,
         );
         return Infinity; // Return max distance on error
       }
@@ -152,7 +152,7 @@ export class MediaComparator {
       return 1 - this.calculateSimilarity(fileInfoA.media, fileInfoB.media);
     });
 
-    progressCallback?.("Running DBSCAN");
+    progressCallback?.('Running DBSCAN');
     // Call the refactored single-threaded DBSCAN method
     const clusters = await this.dbscanClusters(files, vpTree, progressCallback);
 
@@ -166,7 +166,7 @@ export class MediaComparator {
     // Renamed from parallelDBSCAN
     files: string[],
     vpTree: VPTree<string>,
-    progressCallback?: (progress: string) => void // Progress callback might need adjustment
+    progressCallback?: (progress: string) => void, // Progress callback might need adjustment
   ): Promise<Set<string>[]> {
     const eps = 1 - this.minThreshold;
     const minPts = 2; // Or get from config
@@ -184,7 +184,7 @@ export class MediaComparator {
         this.cache,
         this.exifTool,
         this.workerPool,
-        this.similarityConfig
+        this.similarityConfig,
       );
     };
 
@@ -216,7 +216,7 @@ export class MediaComparator {
     cache: LmdbCache,
     exifTool: ExifTool,
     workerPool: WorkerPool,
-    similarityConfig: SimilarityConfig
+    similarityConfig: SimilarityConfig,
   ): Promise<AppResult<string[]>> {
     // Search VPTree for potential neighbors within epsilon distance
     const potentialNeighbors = await vpTree.search(point, {
@@ -231,18 +231,18 @@ export class MediaComparator {
       fileProcessorConfig,
       cache,
       exifTool,
-      workerPool
+      workerPool,
     ); // Use passed args
     if (fileInfo1Result.isErr()) {
       console.error(
-        `Error processing file ${point} in getValidNeighbors: ${fileInfo1Result.error.message}`
+        `Error processing file ${point} in getValidNeighbors: ${fileInfo1Result.error.message}`,
       );
       // Cannot proceed without file info, return error or empty array? Returning error.
       return err(
         new AppError(
           `Failed to get FileInfo for ${point} in getValidNeighbors`,
-          { cause: fileInfo1Result.error } // Use cause
-        )
+          { cause: fileInfo1Result.error }, // Use cause
+        ),
       ); // Keep AppError for now
     }
     const fileInfo1 = fileInfo1Result.value; // Unwrap
@@ -265,11 +265,11 @@ export class MediaComparator {
           fileProcessorConfig,
           cache,
           exifTool,
-          workerPool
+          workerPool,
         ); // Use passed args
         if (fileInfo2Result.isErr()) {
           console.error(
-            `Error processing neighbor file ${neighbor.point} in getValidNeighbors: ${fileInfo2Result.error.message}`
+            `Error processing neighbor file ${neighbor.point} in getValidNeighbors: ${fileInfo2Result.error.message}`,
           );
           // Treat as non-valid neighbor if processing fails
           return ok(false);
@@ -281,12 +281,12 @@ export class MediaComparator {
         const threshold = getAdaptiveThreshold(
           media1,
           media2,
-          similarityConfig
+          similarityConfig,
         ); // Use passed arg
 
         // Keep neighbor if similarity meets or exceeds the adaptive threshold
         return ok(similarity >= threshold);
-      }
+      },
     );
 
     // Handle the result of filterAsync
@@ -302,7 +302,7 @@ export class MediaComparator {
   public async processResults(
     // Changed to public
     clusters: Set<string>[],
-    selector: FileProcessor
+    selector: FileProcessor,
   ): Promise<AppResult<DeduplicationResult>> {
     // Update return type
     const uniqueFiles = new Set<string>();
@@ -320,14 +320,14 @@ export class MediaComparator {
         const clusterArray = Array.from(cluster);
         const representativesResult = await this.selectRepresentatives(
           clusterArray,
-          selector
+          selector,
         );
 
         if (representativesResult.isErr()) {
           // Decide how to handle error - log and skip cluster? Propagate?
           console.error(
             `Error selecting representatives for cluster: ${representativesResult.error.message}`,
-            clusterArray
+            clusterArray,
           );
           // Option: Skip this cluster
           continue;
@@ -339,7 +339,7 @@ export class MediaComparator {
         if (representatives.length > 0) {
           const representativeSet = new Set(representatives);
           const duplicateSet = new Set(
-            clusterArray.filter((f) => !representativeSet.has(f))
+            clusterArray.filter((f) => !representativeSet.has(f)),
           );
 
           // Only add if there are actual duplicates
@@ -374,14 +374,14 @@ export class MediaComparator {
           this.fileProcessorConfig,
           this.cache,
           this.exifTool,
-          this.workerPool
+          this.workerPool,
         ), // Use processSingleFile directly
         processSingleFile(
           b,
           this.fileProcessorConfig,
           this.cache,
           this.exifTool,
-          this.workerPool
+          this.workerPool,
         ),
       ]);
       // Check for errors (similar to the VPTree build distance function)
@@ -389,14 +389,14 @@ export class MediaComparator {
       if (resA.isErr()) {
         console.error(
           `[VPTree Recreate] Error processing file ${a} for distance calculation, using Infinity distance:`,
-          resA.error
+          resA.error,
         );
         return Infinity;
       }
       if (resB.isErr()) {
         console.error(
           `[VPTree Recreate] Error processing file ${b} for distance calculation, using Infinity distance:`,
-          resB.error
+          resB.error,
         );
         return Infinity;
       }
@@ -410,7 +410,7 @@ export class MediaComparator {
 
   private async selectRepresentatives(
     cluster: string[],
-    selector: FileProcessor
+    selector: FileProcessor,
   ): Promise<AppResult<string[]>> {
     // Update return type
     if (cluster.length <= 1) return ok(cluster); // Wrap base case in ok()
@@ -419,7 +419,7 @@ export class MediaComparator {
     const entriesWithInfoResult = await mapAsync(
       cluster,
       async (
-        entry
+        entry,
       ): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
         const fileInfoResult = await selector(entry); // selector returns AppResult<FileInfo>
         if (fileInfoResult.isErr()) {
@@ -427,12 +427,12 @@ export class MediaComparator {
           return err(
             new AppError(
               `Failed processing ${entry} in selectRepresentatives`,
-              { cause: fileInfoResult.error } // Use cause
-            )
+              { cause: fileInfoResult.error }, // Use cause
+            ),
           );
         }
         return ok({ entry, fileInfo: fileInfoResult.value }); // Return Ok result
-      }
+      },
     );
 
     if (entriesWithInfoResult.isErr()) {
@@ -453,7 +453,7 @@ export class MediaComparator {
         // Add a check for safety instead of non-null assertion
         if (!original) {
           console.error(
-            `Could not find original entry info for ${scored.entry} during representative selection.`
+            `Could not find original entry info for ${scored.entry} during representative selection.`,
           );
           // Decide how to handle - skip this entry? return error?
           // For now, filter it out later if fileInfo is needed and missing.
@@ -472,7 +472,7 @@ export class MediaComparator {
     const representatives = selectRepresentativesFromScored(
       sortedEntriesWithInfo,
       this.similarityConfig,
-      this.wasmExports
+      this.wasmExports,
     );
     return ok(representatives);
   }
@@ -483,14 +483,14 @@ export class MediaComparator {
 
   private async scoreEntries(
     entries: string[],
-    selector: FileProcessor
+    selector: FileProcessor,
   ): Promise<AppResult<string[]>> {
     // Update return type
     // Fetch FileInfo for all entries concurrently
     const entriesWithInfoResult = await mapAsync(
       entries,
       async (
-        entry
+        entry,
       ): Promise<AppResult<{ entry: string; fileInfo: FileInfo }>> => {
         const fileInfoResult = await selector(entry); // selector returns AppResult<FileInfo>
         if (fileInfoResult.isErr()) {
@@ -498,11 +498,11 @@ export class MediaComparator {
           return err(
             new AppError(`Failed processing ${entry} in scoreEntries`, {
               cause: fileInfoResult.error, // Use cause
-            })
+            }),
           );
         }
         return ok({ entry, fileInfo: fileInfoResult.value }); // Return Ok result
-      }
+      },
     );
 
     if (entriesWithInfoResult.isErr()) {
@@ -530,7 +530,7 @@ export class MediaComparator {
       return calculateImageSimilarity(
         media1.frames[0],
         media2.frames[0],
-        this.wasmExports
+        this.wasmExports,
       ); // Use imported function
     } else if (isImage1 || isImage2) {
       return calculateImageVideoSimilarity(
@@ -538,7 +538,7 @@ export class MediaComparator {
         isImage1 ? media1 : media2,
         isImage1 ? media2 : media1,
         this.similarityConfig,
-        this.wasmExports
+        this.wasmExports,
       );
     } else {
       // Call the imported function
@@ -546,7 +546,7 @@ export class MediaComparator {
         media1,
         media2,
         this.similarityConfig,
-        this.wasmExports
+        this.wasmExports,
       );
     }
   }

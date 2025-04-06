@@ -1,22 +1,22 @@
-import { ExifTool } from "exiftool-vendored";
+import { ExifTool } from 'exiftool-vendored';
 // import { injectable } from "inversify"; // Removed unused 'inject' - REMOVED INVERSIFY
-import { mkdir, copyFile, rename, unlink } from "fs/promises";
-import { join, basename, dirname, extname, parse, normalize } from "path"; // Added normalize
-import { existsSync } from "fs";
-import crypto from "crypto";
-import chalk from "chalk";
-import { MultiBar, Presets } from "cli-progress";
+import { mkdir, copyFile, rename, unlink } from 'fs/promises';
+import { join, basename, dirname, extname, parse, normalize } from 'path'; // Added normalize
+import { existsSync } from 'fs';
+import crypto from 'crypto';
+import chalk from 'chalk';
+import { MultiBar, Presets } from 'cli-progress';
 import {
   FileInfo,
   DeduplicationResult,
   GatherFileInfoResult,
   FileProcessorConfig,
-} from "../types";
+} from '../types';
 // import { MediaProcessor } from "../MediaProcessor"; // REMOVED - Replaced by processSingleFile function
-import { processSingleFile } from "../fileProcessor";
-import { AppResult } from "../errors"; // Import AppResult for return type handling
-import { LmdbCache } from "../caching/LmdbCache";
-import { WorkerPool } from "../contexts/types";
+import { processSingleFile } from '../fileProcessor';
+import { AppResult } from '../errors'; // Import AppResult for return type handling
+import { LmdbCache } from '../caching/LmdbCache';
+import { WorkerPool } from '../contexts/types';
 
 // @injectable() // REMOVED INVERSIFY
 export class FileTransferService {
@@ -25,7 +25,7 @@ export class FileTransferService {
     private readonly config: FileProcessorConfig,
     private readonly cache: LmdbCache,
     private readonly exifTool: ExifTool,
-    private readonly workerPool: WorkerPool
+    private readonly workerPool: WorkerPool,
   ) {}
 
   async transferOrganizedFiles(
@@ -35,23 +35,23 @@ export class FileTransferService {
     duplicateDir: string | undefined,
     errorDir: string | undefined,
     format: string,
-    shouldMove: boolean
+    shouldMove: boolean,
   ): Promise<void> {
     const multibar = new MultiBar(
       {
         clearOnComplete: false,
         hideCursor: true,
         format:
-          "{phase} " +
-          chalk.cyan("{bar}") +
-          " {percentage}% || {value}/{total} Files",
+          '{phase} ' +
+          chalk.cyan('{bar}') +
+          ' {percentage}% || {value}/{total} Files',
       },
-      Presets.shades_classic
+      Presets.shades_classic,
     );
 
     // --- Transfer unique files ---
     const uniqueBar = multibar.create(deduplicationResult.uniqueFiles.size, 0, {
-      phase: "Unique  ",
+      phase: 'Unique  ',
     });
     for (const filePath of deduplicationResult.uniqueFiles) {
       const fileInfoResult: AppResult<FileInfo> = await processSingleFile(
@@ -59,15 +59,15 @@ export class FileTransferService {
         this.config,
         this.cache,
         this.exifTool,
-        this.workerPool
+        this.workerPool,
       );
 
       if (fileInfoResult.isErr()) {
         console.warn(
           chalk.yellow(
-            `Skipping unique file ${filePath} due to processing error:`
+            `Skipping unique file ${filePath} due to processing error:`,
           ),
-          fileInfoResult.error
+          fileInfoResult.error,
         );
         uniqueBar.increment(); // Increment even if skipped
         continue;
@@ -77,7 +77,7 @@ export class FileTransferService {
         format,
         targetDir,
         fileInfo,
-        filePath
+        filePath,
       );
       await this.transferOrCopyFile(filePath, targetPath, !shouldMove);
       uniqueBar.increment();
@@ -86,12 +86,12 @@ export class FileTransferService {
     // --- Handle duplicate files ---
     if (duplicateDir) {
       const duplicateCount = Array.from(
-        deduplicationResult.duplicateSets.values()
+        deduplicationResult.duplicateSets.values(),
       ).reduce((sum, set) => sum + set.duplicates.size, 0);
 
       if (duplicateCount > 0) {
         const duplicateBar = multibar.create(duplicateCount, 0, {
-          phase: "Duplicate",
+          phase: 'Duplicate',
         });
 
         for (const duplicateSet of deduplicationResult.duplicateSets) {
@@ -104,28 +104,28 @@ export class FileTransferService {
             await this.transferOrCopyFile(
               duplicatePath,
               join(duplicateSetFolder, basename(duplicatePath)),
-              !shouldMove // Always copy/move duplicates based on flag
+              !shouldMove, // Always copy/move duplicates based on flag
             );
             duplicateBar.increment();
           }
         }
         console.log(
           chalk.yellow(
-            `\nDuplicate files have been ${shouldMove ? "moved" : "copied"} to ${duplicateDir}`
-          )
+            `\nDuplicate files have been ${shouldMove ? 'moved' : 'copied'} to ${duplicateDir}`,
+          ),
         );
       } else {
-        console.log(chalk.yellow("\nNo duplicate files to process."));
+        console.log(chalk.yellow('\nNo duplicate files to process.'));
       }
     } else {
       // If no duplicateDir, process representatives (best files)
       const representativeCount = Array.from(
-        deduplicationResult.duplicateSets.values()
+        deduplicationResult.duplicateSets.values(),
       ).reduce((sum, set) => sum + set.representatives.size, 0);
 
       if (representativeCount > 0) {
         const bestFileBar = multibar.create(representativeCount, 0, {
-          phase: "Best File",
+          phase: 'Best File',
         });
         for (const duplicateSet of deduplicationResult.duplicateSets) {
           for (const representativePath of duplicateSet.representatives) {
@@ -134,15 +134,15 @@ export class FileTransferService {
               this.config,
               this.cache,
               this.exifTool,
-              this.workerPool
+              this.workerPool,
             );
 
             if (fileInfoResult.isErr()) {
               console.warn(
                 chalk.yellow(
-                  `Skipping representative file ${representativePath} due to processing error:`
+                  `Skipping representative file ${representativePath} due to processing error:`,
                 ),
-                fileInfoResult.error
+                fileInfoResult.error,
               );
               bestFileBar.increment(); // Increment even if skipped
               continue;
@@ -152,12 +152,12 @@ export class FileTransferService {
               format,
               targetDir,
               fileInfo,
-              representativePath
+              representativePath,
             );
             await this.transferOrCopyFile(
               representativePath,
               targetPath,
-              !shouldMove
+              !shouldMove,
             );
             bestFileBar.increment();
           }
@@ -170,7 +170,7 @@ export class FileTransferService {
       const errorBar = multibar.create(
         gatherFileInfoResult.errorFiles.length,
         0,
-        { phase: "Error   " }
+        { phase: 'Error   ' },
       );
       for (const errorFilePath of gatherFileInfoResult.errorFiles) {
         const targetPath = join(errorDir, basename(errorFilePath));
@@ -180,19 +180,19 @@ export class FileTransferService {
       }
       console.log(
         chalk.red(
-          `\nError files have been ${shouldMove ? "moved" : "copied"} to ${errorDir}`
-        )
+          `\nError files have been ${shouldMove ? 'moved' : 'copied'} to ${errorDir}`,
+        ),
       );
     }
 
     multibar.stop();
-    console.log(chalk.green("\nFile transfer completed"));
+    console.log(chalk.green('\nFile transfer completed'));
   }
 
   private async transferOrCopyFile(
     sourcePath: string,
     targetPath: string,
-    isCopy: boolean
+    isCopy: boolean,
   ): Promise<void> {
     try {
       await mkdir(dirname(targetPath), { recursive: true });
@@ -204,8 +204,8 @@ export class FileTransferService {
         } catch (error) {
           if (
             error instanceof Error &&
-            "code" in error &&
-            error.code === "EXDEV"
+            'code' in error &&
+            error.code === 'EXDEV'
           ) {
             // Cross-device move, fallback to copy-then-delete
             await copyFile(sourcePath, targetPath);
@@ -219,9 +219,9 @@ export class FileTransferService {
     } catch (error) {
       console.error(
         chalk.red(
-          `\nError ${isCopy ? "copying" : "moving"} file ${sourcePath} to ${targetPath}:`
+          `\nError ${isCopy ? 'copying' : 'moving'} file ${sourcePath} to ${targetPath}:`,
         ),
-        error
+        error,
       );
       // Decide if we should throw or just log and continue
       // For now, log and continue
@@ -232,7 +232,7 @@ export class FileTransferService {
     format: string,
     targetDir: string,
     fileInfo: FileInfo,
-    sourcePath: string
+    sourcePath: string,
   ): string {
     const mixedDate =
       fileInfo.metadata.imageDate || fileInfo.fileStats.createdAt;
@@ -241,118 +241,118 @@ export class FileTransferService {
     // Moved generateRandomId to be a private method of the class
 
     const data: { [key: string]: string } = {
-      "I.YYYY": this.formatDate(fileInfo.metadata.imageDate, "YYYY"),
-      "I.YY": this.formatDate(fileInfo.metadata.imageDate, "YY"),
-      "I.MMMM": this.formatDate(fileInfo.metadata.imageDate, "MMMM"),
-      "I.MMM": this.formatDate(fileInfo.metadata.imageDate, "MMM"),
-      "I.MM": this.formatDate(fileInfo.metadata.imageDate, "MM"),
-      "I.M": this.formatDate(fileInfo.metadata.imageDate, "M"),
-      "I.DD": this.formatDate(fileInfo.metadata.imageDate, "DD"),
-      "I.D": this.formatDate(fileInfo.metadata.imageDate, "D"),
-      "I.DDDD": this.formatDate(fileInfo.metadata.imageDate, "DDDD"),
-      "I.DDD": this.formatDate(fileInfo.metadata.imageDate, "DDD"),
-      "I.HH": this.formatDate(fileInfo.metadata.imageDate, "HH"),
-      "I.H": this.formatDate(fileInfo.metadata.imageDate, "H"),
-      "I.hh": this.formatDate(fileInfo.metadata.imageDate, "hh"),
-      "I.h": this.formatDate(fileInfo.metadata.imageDate, "h"),
-      "I.mm": this.formatDate(fileInfo.metadata.imageDate, "mm"),
-      "I.m": this.formatDate(fileInfo.metadata.imageDate, "m"),
-      "I.ss": this.formatDate(fileInfo.metadata.imageDate, "ss"),
-      "I.s": this.formatDate(fileInfo.metadata.imageDate, "s"),
-      "I.a": this.formatDate(fileInfo.metadata.imageDate, "a"),
-      "I.A": this.formatDate(fileInfo.metadata.imageDate, "A"),
-      "I.WW": this.formatDate(fileInfo.metadata.imageDate, "WW"),
+      'I.YYYY': this.formatDate(fileInfo.metadata.imageDate, 'YYYY'),
+      'I.YY': this.formatDate(fileInfo.metadata.imageDate, 'YY'),
+      'I.MMMM': this.formatDate(fileInfo.metadata.imageDate, 'MMMM'),
+      'I.MMM': this.formatDate(fileInfo.metadata.imageDate, 'MMM'),
+      'I.MM': this.formatDate(fileInfo.metadata.imageDate, 'MM'),
+      'I.M': this.formatDate(fileInfo.metadata.imageDate, 'M'),
+      'I.DD': this.formatDate(fileInfo.metadata.imageDate, 'DD'),
+      'I.D': this.formatDate(fileInfo.metadata.imageDate, 'D'),
+      'I.DDDD': this.formatDate(fileInfo.metadata.imageDate, 'DDDD'),
+      'I.DDD': this.formatDate(fileInfo.metadata.imageDate, 'DDD'),
+      'I.HH': this.formatDate(fileInfo.metadata.imageDate, 'HH'),
+      'I.H': this.formatDate(fileInfo.metadata.imageDate, 'H'),
+      'I.hh': this.formatDate(fileInfo.metadata.imageDate, 'hh'),
+      'I.h': this.formatDate(fileInfo.metadata.imageDate, 'h'),
+      'I.mm': this.formatDate(fileInfo.metadata.imageDate, 'mm'),
+      'I.m': this.formatDate(fileInfo.metadata.imageDate, 'm'),
+      'I.ss': this.formatDate(fileInfo.metadata.imageDate, 'ss'),
+      'I.s': this.formatDate(fileInfo.metadata.imageDate, 's'),
+      'I.a': this.formatDate(fileInfo.metadata.imageDate, 'a'),
+      'I.A': this.formatDate(fileInfo.metadata.imageDate, 'A'),
+      'I.WW': this.formatDate(fileInfo.metadata.imageDate, 'WW'),
 
-      "F.YYYY": this.formatDate(fileInfo.fileStats.createdAt, "YYYY"),
-      "F.YY": this.formatDate(fileInfo.fileStats.createdAt, "YY"),
-      "F.MMMM": this.formatDate(fileInfo.fileStats.createdAt, "MMMM"),
-      "F.MMM": this.formatDate(fileInfo.fileStats.createdAt, "MMM"),
-      "F.MM": this.formatDate(fileInfo.fileStats.createdAt, "MM"),
-      "F.M": this.formatDate(fileInfo.fileStats.createdAt, "M"),
-      "F.DD": this.formatDate(fileInfo.fileStats.createdAt, "DD"),
-      "F.D": this.formatDate(fileInfo.fileStats.createdAt, "D"),
-      "F.DDDD": this.formatDate(fileInfo.fileStats.createdAt, "DDDD"),
-      "F.DDD": this.formatDate(fileInfo.fileStats.createdAt, "DDD"),
-      "F.HH": this.formatDate(fileInfo.fileStats.createdAt, "HH"),
-      "F.H": this.formatDate(fileInfo.fileStats.createdAt, "H"),
-      "F.hh": this.formatDate(fileInfo.fileStats.createdAt, "hh"),
-      "F.h": this.formatDate(fileInfo.fileStats.createdAt, "h"),
-      "F.mm": this.formatDate(fileInfo.fileStats.createdAt, "mm"),
-      "F.m": this.formatDate(fileInfo.fileStats.createdAt, "m"),
-      "F.ss": this.formatDate(fileInfo.fileStats.createdAt, "ss"),
-      "F.s": this.formatDate(fileInfo.fileStats.createdAt, "s"),
-      "F.a": this.formatDate(fileInfo.fileStats.createdAt, "a"),
-      "F.A": this.formatDate(fileInfo.fileStats.createdAt, "A"),
-      "F.WW": this.formatDate(fileInfo.fileStats.createdAt, "WW"),
+      'F.YYYY': this.formatDate(fileInfo.fileStats.createdAt, 'YYYY'),
+      'F.YY': this.formatDate(fileInfo.fileStats.createdAt, 'YY'),
+      'F.MMMM': this.formatDate(fileInfo.fileStats.createdAt, 'MMMM'),
+      'F.MMM': this.formatDate(fileInfo.fileStats.createdAt, 'MMM'),
+      'F.MM': this.formatDate(fileInfo.fileStats.createdAt, 'MM'),
+      'F.M': this.formatDate(fileInfo.fileStats.createdAt, 'M'),
+      'F.DD': this.formatDate(fileInfo.fileStats.createdAt, 'DD'),
+      'F.D': this.formatDate(fileInfo.fileStats.createdAt, 'D'),
+      'F.DDDD': this.formatDate(fileInfo.fileStats.createdAt, 'DDDD'),
+      'F.DDD': this.formatDate(fileInfo.fileStats.createdAt, 'DDD'),
+      'F.HH': this.formatDate(fileInfo.fileStats.createdAt, 'HH'),
+      'F.H': this.formatDate(fileInfo.fileStats.createdAt, 'H'),
+      'F.hh': this.formatDate(fileInfo.fileStats.createdAt, 'hh'),
+      'F.h': this.formatDate(fileInfo.fileStats.createdAt, 'h'),
+      'F.mm': this.formatDate(fileInfo.fileStats.createdAt, 'mm'),
+      'F.m': this.formatDate(fileInfo.fileStats.createdAt, 'm'),
+      'F.ss': this.formatDate(fileInfo.fileStats.createdAt, 'ss'),
+      'F.s': this.formatDate(fileInfo.fileStats.createdAt, 's'),
+      'F.a': this.formatDate(fileInfo.fileStats.createdAt, 'a'),
+      'F.A': this.formatDate(fileInfo.fileStats.createdAt, 'A'),
+      'F.WW': this.formatDate(fileInfo.fileStats.createdAt, 'WW'),
 
-      "D.YYYY": this.formatDate(mixedDate, "YYYY"),
-      "D.YY": this.formatDate(mixedDate, "YY"),
-      "D.MMMM": this.formatDate(mixedDate, "MMMM"),
-      "D.MMM": this.formatDate(mixedDate, "MMM"),
-      "D.MM": this.formatDate(mixedDate, "MM"),
-      "D.M": this.formatDate(mixedDate, "M"),
-      "D.DD": this.formatDate(mixedDate, "DD"),
-      "D.D": this.formatDate(mixedDate, "D"),
-      "D.DDDD": this.formatDate(mixedDate, "DDDD"),
-      "D.DDD": this.formatDate(mixedDate, "DDD"),
-      "D.HH": this.formatDate(mixedDate, "HH"),
-      "D.H": this.formatDate(mixedDate, "H"),
-      "D.hh": this.formatDate(mixedDate, "hh"),
-      "D.h": this.formatDate(mixedDate, "h"),
-      "D.mm": this.formatDate(mixedDate, "mm"),
-      "D.m": this.formatDate(mixedDate, "m"),
-      "D.ss": this.formatDate(mixedDate, "ss"),
-      "D.s": this.formatDate(mixedDate, "s"),
-      "D.a": this.formatDate(mixedDate, "a"),
-      "D.A": this.formatDate(mixedDate, "A"),
-      "D.WW": this.formatDate(mixedDate, "WW"),
+      'D.YYYY': this.formatDate(mixedDate, 'YYYY'),
+      'D.YY': this.formatDate(mixedDate, 'YY'),
+      'D.MMMM': this.formatDate(mixedDate, 'MMMM'),
+      'D.MMM': this.formatDate(mixedDate, 'MMM'),
+      'D.MM': this.formatDate(mixedDate, 'MM'),
+      'D.M': this.formatDate(mixedDate, 'M'),
+      'D.DD': this.formatDate(mixedDate, 'DD'),
+      'D.D': this.formatDate(mixedDate, 'D'),
+      'D.DDDD': this.formatDate(mixedDate, 'DDDD'),
+      'D.DDD': this.formatDate(mixedDate, 'DDD'),
+      'D.HH': this.formatDate(mixedDate, 'HH'),
+      'D.H': this.formatDate(mixedDate, 'H'),
+      'D.hh': this.formatDate(mixedDate, 'hh'),
+      'D.h': this.formatDate(mixedDate, 'h'),
+      'D.mm': this.formatDate(mixedDate, 'mm'),
+      'D.m': this.formatDate(mixedDate, 'm'),
+      'D.ss': this.formatDate(mixedDate, 'ss'),
+      'D.s': this.formatDate(mixedDate, 's'),
+      'D.a': this.formatDate(mixedDate, 'a'),
+      'D.A': this.formatDate(mixedDate, 'A'),
+      'D.WW': this.formatDate(mixedDate, 'WW'),
 
       NAME: name,
-      "NAME.L": name.toLowerCase(),
-      "NAME.U": name.toUpperCase(),
+      'NAME.L': name.toLowerCase(),
+      'NAME.U': name.toUpperCase(),
       EXT: ext.slice(1).toLowerCase(), // Put EXT back in data
       RND: this.generateRandomId(), // Call as a method
       GEO:
         fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude
           ? `${fileInfo.metadata.gpsLatitude.toFixed(2)}_${fileInfo.metadata.gpsLongitude.toFixed(2)}`
-          : "",
-      CAM: fileInfo.metadata.cameraModel || "",
-      TYPE: fileInfo.media.duration > 0 ? "Video" : "Image",
-      "HAS.GEO":
+          : '',
+      CAM: fileInfo.metadata.cameraModel || '',
+      TYPE: fileInfo.media.duration > 0 ? 'Video' : 'Image',
+      'HAS.GEO':
         fileInfo.metadata.gpsLatitude && fileInfo.metadata.gpsLongitude
-          ? "GeoTagged"
-          : "NoGeo",
-      "HAS.CAM": fileInfo.metadata.cameraModel ? "WithCamera" : "NoCamera",
-      "HAS.DATE":
+          ? 'GeoTagged'
+          : 'NoGeo',
+      'HAS.CAM': fileInfo.metadata.cameraModel ? 'WithCamera' : 'NoCamera',
+      'HAS.DATE':
         fileInfo.metadata.imageDate &&
         !isNaN(fileInfo.metadata.imageDate.getTime())
-          ? "Dated"
-          : "NoDate",
+          ? 'Dated'
+          : 'NoDate',
     };
 
     // Build a regex that specifically matches the known format keys from the 'data' object
     const knownKeys = Object.keys(data).map((key) =>
-      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
     ); // Escape regex special chars in keys
     // Sort keys by length descending to match longer keys first (e.g., NAME.L before NAME) - might not be strictly necessary here but good practice
     knownKeys.sort((a, b) => b.length - a.length);
     // Regex to match {KEY}
-    const formatRegex = new RegExp(`\\{(${knownKeys.join("|")})\\}`, "g");
+    const formatRegex = new RegExp(`\\{(${knownKeys.join('|')})\\}`, 'g');
 
     const originalExt = parse(sourcePath).ext; // Get original extension with dot (e.g., ".jpg")
 
     let formattedPath = format.replace(formatRegex, (match, key) => {
-      let replacement = "";
-      if (key === "EXT") {
+      let replacement = '';
+      if (key === 'EXT') {
         // Use the original extension *with* the dot if the key is EXT
         replacement = originalExt;
       } else {
-        replacement = data[key] || ""; // Get value from data object for other keys
+        replacement = data[key] || ''; // Get value from data object for other keys
       }
       // Sanitize the replacement value (important for NAME, CAM etc.)
       // Don't sanitize the extension itself here.
-      if (key !== "EXT") {
-        replacement = replacement.replace(/[<>:"|?*]/g, "_");
+      if (key !== 'EXT') {
+        replacement = replacement.replace(/[<>:"|?*]/g, '_');
       }
       return replacement;
     });
@@ -363,10 +363,10 @@ export class FileTransferService {
     formattedPath = formattedPath
       .split(/[/\\]+/)
       .filter(Boolean)
-      .join("/"); // Removed unnecessary escape for /
+      .join('/'); // Removed unnecessary escape for /
 
     if (!formattedPath) {
-      formattedPath = "NoDate"; // Default folder if format string results in empty path
+      formattedPath = 'NoDate'; // Default folder if format string results in empty path
     }
 
     // Determine if the format string likely intended to specify a filename
@@ -379,7 +379,7 @@ export class FileTransferService {
 
     if (formatSpecifiesFilename) {
       // Assume formattedPath contains the intended directory and base filename (potentially without ext)
-      const parsedFormatted = parse(formattedPath.replace(/\\/g, "/"));
+      const parsedFormatted = parse(formattedPath.replace(/\\/g, '/'));
       directory = parsedFormatted.dir;
       finalFilenameBase = parsedFormatted.name; // Name part from format
       // Use extension from format if present, otherwise use original
@@ -395,7 +395,7 @@ export class FileTransferService {
     let finalFilename = `${finalFilenameBase}${finalFilenameExt}`;
 
     // Sanitize filename part as well
-    finalFilename = finalFilename.replace(/[<>:"/\\|?*]/g, "_");
+    finalFilename = finalFilename.replace(/[<>:"/\\|?*]/g, '_');
 
     let fullPath = join(targetDir, directory, finalFilename); // Already correct here, but included for context
 
@@ -419,11 +419,11 @@ export class FileTransferService {
       if (counter > 100) {
         console.error(
           chalk.red(
-            `Could not resolve filename conflict for ${sourcePath} after 100 attempts.`
-          )
+            `Could not resolve filename conflict for ${sourcePath} after 100 attempts.`,
+          ),
         );
         throw new Error(
-          `Filename conflict resolution failed for ${sourcePath}`
+          `Filename conflict resolution failed for ${sourcePath}`,
         );
       }
       counter++;
@@ -434,22 +434,22 @@ export class FileTransferService {
 
   private formatDate(date: Date | undefined, format: string): string {
     if (!date || isNaN(date.getTime())) {
-      return "";
+      return '';
     }
 
-    const pad = (num: number) => num.toString().padStart(2, "0");
+    const pad = (num: number) => num.toString().padStart(2, '0');
 
     const formatters: { [key: string]: () => string } = {
       YYYY: () => date.getFullYear().toString(),
       YY: () => date.getFullYear().toString().slice(-2),
-      MMMM: () => date.toLocaleString("default", { month: "long" }),
-      MMM: () => date.toLocaleString("default", { month: "short" }),
+      MMMM: () => date.toLocaleString('default', { month: 'long' }),
+      MMM: () => date.toLocaleString('default', { month: 'short' }),
       MM: () => pad(date.getMonth() + 1),
       M: () => (date.getMonth() + 1).toString(),
       DD: () => pad(date.getDate()),
       D: () => date.getDate().toString(),
-      DDDD: () => date.toLocaleString("default", { weekday: "long" }),
-      DDD: () => date.toLocaleString("default", { weekday: "short" }),
+      DDDD: () => date.toLocaleString('default', { weekday: 'long' }),
+      DDD: () => date.toLocaleString('default', { weekday: 'short' }),
       HH: () => pad(date.getHours()),
       H: () => date.getHours().toString(),
       hh: () => pad(date.getHours() % 12 || 12),
@@ -458,18 +458,18 @@ export class FileTransferService {
       m: () => date.getMinutes().toString(),
       ss: () => pad(date.getSeconds()),
       s: () => date.getSeconds().toString(),
-      a: () => (date.getHours() < 12 ? "am" : "pm"),
-      A: () => (date.getHours() < 12 ? "AM" : "PM"),
+      a: () => (date.getHours() < 12 ? 'am' : 'pm'),
+      A: () => (date.getHours() < 12 ? 'AM' : 'PM'),
       WW: () => pad(this.getWeekNumber(date)),
     };
 
     // Build a regex that specifically matches the known format keys
     const knownKeys = Object.keys(formatters).map((key) =>
-      key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
     ); // Escape regex special chars in keys
     // Sort keys by length descending to match longer keys first (e.g., DDDD before DD)
     knownKeys.sort((a, b) => b.length - a.length);
-    const formatRegex = new RegExp(`(${knownKeys.join("|")})`, "g");
+    const formatRegex = new RegExp(`(${knownKeys.join('|')})`, 'g');
 
     // Replace only the known keys
     return format.replace(formatRegex, (match) => {
@@ -482,7 +482,7 @@ export class FileTransferService {
 
   private getWeekNumber(date: Date): number {
     const d = new Date(
-      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+      Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()),
     );
     // Set to nearest Thursday: current date + 4 - current day number
     // Make Sunday's day number 7
@@ -491,13 +491,13 @@ export class FileTransferService {
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     // Calculate full weeks to nearest Thursday
     const weekNo = Math.ceil(
-      ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7
+      ((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7,
     );
     // Return week number
     return weekNo;
   }
 
   private generateRandomId(): string {
-    return crypto.randomBytes(4).toString("hex");
+    return crypto.randomBytes(4).toString('hex');
   }
 }
