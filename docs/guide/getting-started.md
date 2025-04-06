@@ -1,13 +1,13 @@
 # Quick Start Guide
 
-This guide walks you through the basic usage of MediaCurator (`smo`) to organize your media files and handle duplicates.
+This guide walks you through the basic usage of MediaCurator (`media-curator`) to organize your media files and handle duplicates.
 
 ## Understanding the Command
 
 The basic command structure is:
 
 ```bash
-smo <source...> <destination> [options]
+MediaCurator <source...> <destination> [options]
 ```
 
 - `<source...>`: Specify one or more source directories or even individual files that contain the media you want to process.
@@ -19,7 +19,7 @@ smo <source...> <destination> [options]
 Let's say you have photos and videos in `/media/incoming/photos` and `/media/incoming/videos`. You want to organize them into `/library/main_collection` based on the year and month they were created.
 
 ```bash
-smo /media/incoming/photos /media/incoming/videos /library/main_collection --format "{D.YYYY}/{D.MM}/{NAME}{EXT}"
+MediaCurator /media/incoming/photos /media/incoming/videos /library/main_collection --format "{D.YYYY}/{D.MM}/{NAME}{EXT}"
 ```
 
 **What happens?**
@@ -34,7 +34,7 @@ smo /media/incoming/photos /media/incoming/videos /library/main_collection --for
 
 **Key Points:**
 
-- By default, `smo` operates in **copy mode**. Originals are left untouched in the source directories.
+- By default, `media-curator` operates in **copy mode**. Originals are left untouched in the source directories.
 - The `{D.YYYY}` and `{D.MM}` placeholders use the EXIF date if available, falling back to the file's creation date otherwise.
 - Duplicates (based on default settings) are skipped and not copied to the destination.
 
@@ -46,7 +46,7 @@ Now, let's organize the same sources, but this time we want to:
 - Move all identified **duplicates** to a separate `/library/duplicates` folder.
 
 ```bash
-smo /media/incoming/photos /media/incoming/videos /library/main_collection \
+MediaCurator /media/incoming/photos /media/incoming/videos /library/main_collection \
     --format "{D.YYYY}/{D.MM}/{NAME}{EXT}" \
     -d /library/duplicates \
     --move
@@ -62,7 +62,7 @@ smo /media/incoming/photos /media/incoming/videos /library/main_collection \
 **Key Points:**
 
 - The `--move` flag changes the behavior from copying to moving for _both_ unique and duplicate files.
-- The `-d /library/duplicates` flag tells `smo` where to put the identified duplicates. Without `-d`, duplicates would simply be left in the source (if copying) or deleted (if moving unique files, which is generally not recommended without `-d`).
+- The `-d /library/duplicates` flag tells `media-curator` where to put the identified duplicates. Without `-d`, duplicates would simply be left in the source (if copying) or deleted (if moving unique files, which is generally not recommended without `-d`).
 
 ## Next Steps
 
@@ -70,4 +70,4 @@ You've seen the basics! Now you can:
 
 - Dive deeper into the powerful [Organization Format String](./format-string.md) options.
 - Understand the nuances of the [Deduplication Strategy](./deduplication.md) and how to adjust its sensitivity.
-- Explore all available command-line options by running `smo --help` in your terminal.
+- Explore all available command-line options by running `media-curator --help` in your terminal.

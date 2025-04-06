@@ -1,5 +1,5 @@
 {
-  "name": "@sotilab/mediacurator",
+  "name": "@sylphlab/media-curator",
   "version": "1.3.0",
   "description": "MediaCurator: An intelligent CLI tool to curate, organize, and deduplicate your digital photo and video collection.",
   "publishConfig": {
@@ -8,7 +8,7 @@
   "main": "index.ts",
   "type": "module",
   "bin": {
-    "mediacurator": "./dist/index.js"
+    "media-curator": "./dist/index.js"
   },
   "scripts": {
     "start": "bun run index.ts",
@@ -76,21 +76,25 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/shtse8/MediaCurator.git"
+    "url": "https://github.com/sylphlab/media-curator.git"
   },
   "keywords": [
-    "photo",
-    "video",
-    "organizer",
-    "curator",
-    "curation",
-    "deduplication",
-    "cli",
-    "exif",
-    "metadata",
-    "date",
+    "media-curator",
+    "typescript",
+    "nodejs",
     "bun",
-    "typescript"
+    "cli",
+    "media-organizer",
+    "deduplication",
+    "perceptual-hashing",
+    "image-processing",
+    "video-processing",
+    "sqlite",
+    "lmdb",
+    "ffmpeg",
+    "sharp",
+    "exiftool",
+    "functional-programming"
   ],
   "exports": {
     ".": {

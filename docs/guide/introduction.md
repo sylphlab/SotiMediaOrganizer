@@ -1,6 +1,6 @@
 # What is MediaCurator?
 
-MediaCurator (`@sotilab/smo`) is a powerful, modern command-line tool designed to bring order and efficiency to your ever-growing digital photo and video collections. If you find yourself overwhelmed by scattered files, duplicate images, and the daunting task of manually organizing thousands of media items, MediaCurator is built for you.
+MediaCurator (`@sylphlab/MediaCurator`) is a powerful, modern command-line tool designed to bring order and efficiency to your ever-growing digital photo and video collections. If you find yourself overwhelmed by scattered files, duplicate images, and the daunting task of manually organizing thousands of media items, MediaCurator is built for you.
 
 ## The Challenge: Digital Media Chaos
 

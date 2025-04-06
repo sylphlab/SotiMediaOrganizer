@@ -38,10 +38,10 @@ export default defineConfig({
       // ]
     },
     socialLinks: [
-      { icon: "github", link: "https://github.com/shtse8/MediaCurator" },
+      { icon: "github", link: "https://github.com/sylphlab/MediaCurator" },
     ],
     editLink: {
-      pattern: "https://github.com/shtse8/MediaCurator/edit/main/docs/:path",
+      pattern: "https://github.com/sylphlab/MediaCurator/edit/main/docs/:path",
       text: "Edit this page on GitHub",
     },
     footer: {

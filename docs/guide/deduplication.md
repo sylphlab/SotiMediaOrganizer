@@ -40,13 +40,13 @@ Selecting the right similarity threshold depends on your goal:
 
 1.  **Initial Run with `--debug`:** Perform a run using your desired organization format and estimated thresholds, but **only use the `--debug <path>` option**. Do _not_ use `-d` or `--move` yet.
     ```bash
-    smo <source...> <destination> --format "..." --image-similarity-threshold 0.95 --debug /path/to/debug/reports
+    MediaCurator <source...> <destination> --format "..." --image-similarity-threshold 0.95 --debug /path/to/debug/reports
     ```
 2.  **Review Debug Reports:** Carefully examine the reports generated in the debug directory. Check if the grouped files are indeed duplicates according to your criteria. Adjust thresholds if necessary based on the results.
 3.  **Execute with `-d` and/or `--move`:** Once you are confident with the settings and the potential duplicate groupings, perform the run again, this time adding the `-d <duplicate_path>` option (and potentially `--move` if desired) to actually separate the duplicates and organize the unique files.
     ```bash
     # Example: Move unique files, move duplicates to separate folder
-    smo <source...> <destination> --format "..." --image-similarity-threshold 0.95 -d /path/to/duplicates --move
+    MediaCurator <source...> <destination> --format "..." --image-similarity-threshold 0.95 -d /path/to/duplicates --move
     ```
 
 This cautious approach ensures you don't accidentally move or misclassify files before verifying the results.

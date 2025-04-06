@@ -14,7 +14,7 @@ hero:
       link: /guide/installation
     - theme: alt
       text: View on GitHub
-      link: https://github.com/shtse8/MediaCurator
+      link: https://github.com/sylphlab/MediaCurator
 
 features:
   - title: Smart Organization

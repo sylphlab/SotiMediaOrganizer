@@ -75,7 +75,7 @@ jobs:
       #   with:
       #     context: .
       #     push: true
-      #     tags: your-dockerhub-username/mediacurator:${{ github.ref_name }} # Example tag
+      #     tags: your-dockerhub-username/media-curator:${{ github.ref_name }} # Example tag
 
   release:
     name: Create GitHub Release

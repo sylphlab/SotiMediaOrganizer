@@ -1,6 +1,6 @@
 # Installation
 
-Follow these steps to install MediaCurator (`smo`) and its dependencies on your system.
+Follow these steps to install MediaCurator (`media-curator`) and its dependencies on your system.
 
 ## Step 1: Install Core Dependencies
 
@@ -49,17 +49,17 @@ MediaCurator uses the [Sharp](https://sharp.pixelplumbing.com/) library for high
 With the prerequisites in place, install MediaCurator globally using Bun:
 
 ```bash
-bun install --global @sotilab/smo
+bun install --global @sylphlab/MediaCurator
 ```
 
-This command downloads the MediaCurator package and makes the `smo` command accessible from anywhere in your terminal.
+This command downloads the MediaCurator package and makes the `media-curator` command accessible from anywhere in your terminal.
 
 ## Step 3: Verify Installation
 
 Finally, verify that MediaCurator is installed correctly:
 
 ```bash
-smo --version
+MediaCurator --version
 ```
 
 This command should display the installed version number of MediaCurator (e.g., `1.2.3`).

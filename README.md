@@ -1,17 +1,17 @@
-# MediaCurator (@sotilab/smo)
+# MediaCurator (@sylphlab/MediaCurator)
 
 <!-- Badges (Update URLs/paths as needed) -->
 
-[![CI Status](https://github.com/shtse8/MediaCurator/actions/workflows/ci.yml/badge.svg)](https://github.com/shtse8/MediaCurator/actions/workflows/ci.yml)
-[![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/shtse8/MediaCurator) <!-- Placeholder: Update if using Codecov etc. -->
-[![npm version](https://badge.fury.io/js/%40sotilab%2Fsmo.svg)](https://badge.fury.io/js/%40sotilab%2Fsmo)
+[![CI Status](https://github.com/sylphlab/MediaCurator/actions/workflows/ci.yml/badge.svg)](https://github.com/sylphlab/MediaCurator/actions/workflows/ci.yml)
+[![Coverage Status](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/sylphlab/MediaCurator) <!-- Placeholder: Update if using Codecov etc. -->
+[![npm version](https://badge.fury.io/js/%40sylphlab%2Fmedia-curator.svg)](https://badge.fury.io/js/%40sylphlab%2Fmedia-curator)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **✨ Intelligently curate, organize, and deduplicate your digital photo and video collection. ✨**
 
 MediaCurator is your ultimate command-line tool for bringing order to large, cluttered media libraries. Built with performance, scalability, and robustness in mind using modern TypeScript.
 
-➡️ **[Get Started](#-easy-installation) | [View Documentation](#-documentation) (Coming Soon) | [Contribute](#-contribute-to-mediacurator)** ⬅️
+➡️ **[Get Started](#-easy-installation) | [View Documentation](#-documentation) (Coming Soon) | [Contribute](#-contribute-to-MediaCurator)** ⬅️
 
 ## 🤔 Why MediaCurator?
 
@@ -59,17 +59,17 @@ _(Link to documentation site will be added here)_
 Install MediaCurator globally using Bun:
 
 ```bash
-bun install --global @sotilab/smo
+bun install --global @sylphlab/MediaCurator
 ```
 
-This makes the `smo` command available in your terminal.
+This makes the `media-curator` command available in your terminal.
 
 ## 🔥 Usage
 
 Organize your media with:
 
 ```bash
-smo <source...> <destination> [options]
+MediaCurator <source...> <destination> [options]
 ```
 
 **Example:**
@@ -77,7 +77,7 @@ smo <source...> <destination> [options]
 Organize media from multiple sources, move files, set custom thresholds, and use a specific format:
 
 ```bash
-smo /media/photos /media/downloads/new_vids /library/organized \
+MediaCurator /media/photos /media/downloads/new_vids /library/organized \
   -d /library/duplicates \
   -e /library/errors \
   --move \
@@ -161,7 +161,7 @@ Use these placeholders in the `--format` string to customize the output director
 Use `--debug` to see a report of what _would_ happen without actually moving or copying files. This is useful for testing your format string or checking potential duplicates.
 
 ```bash
-smo /media/photos /library/organized \
+MediaCurator /media/photos /library/organized \
   --debug /tmp/smo_debug_report \
   --format "{D.YYYY}-{D.MM}/{TYPE}/{NAME}{EXT}"
 ```
@@ -173,7 +173,7 @@ _(No files are moved/copied, but a report detailing potential actions and duplic
 Increase sensitivity for finding duplicates, useful when archiving and wanting to be very sure about removing redundant files. Use a lower similarity threshold and potentially a higher pHash resolution.
 
 ```bash
-smo /archive_source /library/organized \
+MediaCurator /archive_source /library/organized \
   -d /library/duplicates \
   --move \
   --resolution 128 \
@@ -185,15 +185,15 @@ smo /archive_source /library/organized \
 
 **3. Organizing Specific File Types Only (Using Shell Globbing):**
 
-While `smo` doesn't have a built-in file type filter, you can use your shell's globbing capabilities to process only specific types.
+While `media-curator` doesn't have a built-in file type filter, you can use your shell's globbing capabilities to process only specific types.
 
 ```bash
 # Organize only JPG files from the photos directory
-smo /media/photos/**/*.jpg /library/organized_jpgs \
+MediaCurator /media/photos/**/*.jpg /library/organized_jpgs \
   --format "{D.YYYY}/{NAME}{EXT}"
 
 # Organize only MP4 files
-smo /media/videos/**/*.mp4 /library/organized_mp4s \
+MediaCurator /media/videos/**/*.mp4 /library/organized_mp4s \
   --format "{D.YYYY}/{D.MM}/{NAME}{EXT}"
 ```
 
@@ -204,7 +204,7 @@ _(Note: Shell globbing behavior might vary. Ensure your shell supports recursive
 Organize photos primarily by the date they were taken (EXIF), but use the file creation date if EXIF is missing. Also, create subfolders for each camera model found.
 
 ```bash
-smo /camera_roll /library/by_camera \
+MediaCurator /camera_roll /library/by_camera \
   --format "{HAS.CAM}/{CAM}/{D.YYYY}-{D.MM}/{NAME}_{RND}{EXT}" \
   --verbose
 ```
@@ -219,7 +219,7 @@ MediaCurator uses a pipeline architecture with SQLite for metadata/LSH and LMDB 
 
 ```mermaid
 flowchart TD
-    A[Start: smo command] --> B{1. Discovery};
+    A[Start: MediaCurator command] --> B{1. Discovery};
     B -- File Paths --> C{2. Gatherer};
     C -- FileInfo (Metadata, Hashes) --> D[Metadata DB (SQLite)];
     C -- Intermediate Results --> E[Cache (LMDB)];

@@ -29,7 +29,7 @@ import { MetadataDBService } from "./src/services/MetadataDBService"; // Import 
 import { CliReporter } from "./src/reporting/CliReporter"; // Import the new reporter
 
 function exitHandler() {
-  console.log(chalk.red("\nMediaCurator was interrupted"));
+  console.log(chalk.red("\nmedia-curator was interrupted"));
   process.stdout.write("\u001B[?25h"); // Show cursor
   process.exit();
 }
@@ -41,7 +41,7 @@ async function main() {
   const program = new Command();
 
   program
-    .name("mediacurator")
+    .name("MediaCurator")
     .description(
       "Intelligently curate, organize, and deduplicate your digital photo and video collection."
     )

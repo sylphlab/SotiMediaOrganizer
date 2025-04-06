@@ -2,7 +2,7 @@
 
 <!-- Version: 1.0 | Last Updated: 2025-04-06 -->
 
-This document outlines the high-level architecture of the MediaCurator (`@sotilab/smo`) application.
+This document outlines the high-level architecture of the MediaCurator (`@sylphlab/MediaCurator`) application.
 
 ## Overview
 
